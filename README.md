@@ -1,1 +1,2 @@
 # BetterSynergy
+# Better than synergy
