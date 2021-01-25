@@ -1,2 +1,2 @@
-# BetterSynergy
-# Better than synergy
+# BetterSinergy (Not Synergy)
+# Better than sinergy
