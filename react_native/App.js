@@ -25,7 +25,7 @@ const App = () => {
         <>
         <View style = {styles.container}>
             <Text style = {{fontSize: 30, fontWeight: "bold"}}>Grades</Text>
-            <View style = {{flexDirection: "column", justifyContent: "space-between"}}>
+            <View style = {{flexDirection: "column", justifyContent: "space-between", flex: 1}}>
                 <TouchableOpacity style = {styles.grade_display}>
                     <Text style = {styles.grade_letter}>F</Text>
                     <View style = {styles.vertical_line}></View>
@@ -62,10 +62,6 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(255,255,255,0.4)",
         flex: 1,
         flexDirection: "row",
-        marginTop: "5%",
-        marginBottom: "5%",
-        alignItems: "center",
-        justifyContent: "space-between",
     },
     grade_letter: {
         marginRight: "5%",
