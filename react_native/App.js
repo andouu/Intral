@@ -9,7 +9,8 @@ import {
     Text,
     StatusBar,
     TouchableHighlight,
-    TouchableOpacity
+    TouchableOpacity,
+    Image
 } from 'react-native';
 
 import {
@@ -41,12 +42,12 @@ const App = () => {
                     <TouchableOpacity style = {styles.grade_display}>
                         <Text style = {styles.grade_letter}>C</Text>
                         <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 3: Daddy Desmond</Text>
+                        <Text style = {styles.grade_info}>eeeeee eeeeeee e e eeeeeee e eeeee eeeeeeee</Text>
                     </TouchableOpacity>                   
                     <TouchableOpacity style = {styles.grade_display}>
                         <Text style = {styles.grade_letter}>D</Text>
                         <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 4: Mr. Bennett</Text>
+                        <Text style = {styles.grade_info}>Period 4: Mr. Benneteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeet</Text>
                     </TouchableOpacity>    
                     <TouchableOpacity style = {styles.grade_display}>
                         <Text style = {styles.grade_letter}>F</Text>
@@ -69,10 +70,10 @@ const App = () => {
                 <View style = {styles.horizontal_line}></View>
                 <View style = {styles.nav_bar_button_space}>
                     <TouchableOpacity>
-                        <Text style = {styles.nav_bar_buttons}>Settings</Text>
+                    <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_settings_icon.png')}/>
                     </TouchableOpacity>
                     <TouchableOpacity>
-                        <Text style = {styles.nav_bar_buttons}>Grades</Text>
+                        <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_grade_book_icon.png')}/>
                     </TouchableOpacity>
                     <TouchableOpacity>
                         <Text style = {styles.nav_bar_buttons}>Planner</Text>
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
     grade_container: {
         height: "100%",
         padding: 28,
-        flex: 1,
+        flex: 9,
     },
     grade_display: {
         margin: "5%",
@@ -118,14 +119,15 @@ const styles = StyleSheet.create({
         fontFamily: 'Raleway-MediumItalic',
         fontSize: 15,
         flexWrap: "wrap",
+        flexShrink: 1,
         alignItems: "flex-start",
         position: "absolute",
         marginLeft: 120
     },
     nav_bar: {
-        height: 60,
         flexDirection: "column",
-        alignItems: "center"
+        alignItems: "center",
+        flex: 0.1,
     },
     horizontal_line: {
         height: 1.5,
@@ -139,7 +141,9 @@ const styles = StyleSheet.create({
         flexDirection: "row"
     },
     nav_bar_buttons: {
-        padding: 20
+        padding: 30,
+        width: 60,
+        height: 60,
     }
 });
 
