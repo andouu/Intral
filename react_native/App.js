@@ -70,13 +70,13 @@ const App = () => {
                 <View style = {styles.horizontal_line}></View>
                 <View style = {styles.nav_bar_button_space}>
                     <TouchableOpacity>
-                    <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_settings_icon.png')}/>
+                        <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_settings_icon.png')}/>
                     </TouchableOpacity>
                     <TouchableOpacity>
                         <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_grade_book_icon.png')}/>
                     </TouchableOpacity>
                     <TouchableOpacity>
-                        <Text style = {styles.nav_bar_buttons}>Planner</Text>
+                        <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_planner_icon.png')}/>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     nav_bar: {
         flexDirection: "column",
         alignItems: "center",
-        flex: 0.1,
+        flex: 0.12,
     },
     horizontal_line: {
         height: 1.5,
@@ -137,13 +137,14 @@ const styles = StyleSheet.create({
         position: "absolute"
     },
     nav_bar_button_space: {
-        height: 60,
         flexDirection: "row"
     },
     nav_bar_buttons: {
-        padding: 30,
-        width: 60,
-        height: 60,
+        marginTop: 8,
+        marginLeft: 30,
+        marginRight: 30,
+        width: 55,
+        height: 55,
     }
 });
 
