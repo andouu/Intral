@@ -92,13 +92,17 @@ const styles = StyleSheet.create({
         height: "100%",
         width: 1.5,
         backgroundColor: "rgba(0,0,0,1)",
+        marginLeft: 80,
+        position: "absolute"
     },
     grade_info: {
         marginLeft: "15%",
         fontFamily: 'Raleway-MediumItalic',
         fontSize: 15,
         flexWrap: "wrap",
-        alignItems: "flex-start",   
+        alignItems: "flex-start",
+        position: "absolute",
+        marginLeft: 120
     }
 });
 
