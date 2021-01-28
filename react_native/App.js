@@ -24,7 +24,7 @@ const App = () => {
     return (
         <>
         <View style = {styles.container}>
-            <ScrollView>
+            <ScrollView style = {styles.grade_container}>
                 {/*change height to change distance between "grades" text and the grade*/}
                 <Text style = {{fontSize: 35, fontFamily: "Raleway-Bold", height: 70}}>Grades:</Text>  
                 <View style = {{flexDirection: "column", justifyContent: "space-around", flex: 1}}>
@@ -65,6 +65,20 @@ const App = () => {
                     </TouchableOpacity>                  
                 </View>
             </ScrollView>
+            <View style = {styles.nav_bar}>
+                <View style = {styles.horizontal_line}></View>
+                <View style = {styles.nav_bar_button_space}>
+                    <TouchableOpacity>
+                        <Text style = {styles.nav_bar_buttons}>Settings</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity>
+                        <Text style = {styles.nav_bar_buttons}>Grades</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity>
+                        <Text style = {styles.nav_bar_buttons}>Planner</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
         </View>
         </>
     );
@@ -72,6 +86,10 @@ const App = () => {
 
 const styles = StyleSheet.create({
     container: {
+        height: "100%",
+        flex: 1,
+    },
+    grade_container: {
         height: "100%",
         padding: 28,
         flex: 1,
@@ -88,7 +106,7 @@ const styles = StyleSheet.create({
         fontSize: 50,
         fontFamily: "Raleway-SemiBold",
     },
-    vertical_line:{
+    vertical_line: {
         height: "100%",
         width: 1.5,
         backgroundColor: "rgba(0,0,0,1)",
@@ -103,6 +121,25 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
         position: "absolute",
         marginLeft: 120
+    },
+    nav_bar: {
+        height: 60,
+        flexDirection: "column",
+        alignItems: "center"
+    },
+    horizontal_line: {
+        height: 1.5,
+        width: "90%",
+        backgroundColor: "rgba(0,0,0,1)",
+        marginLeft: 80,
+        position: "absolute"
+    },
+    nav_bar_button_space: {
+        height: 60,
+        flexDirection: "row"
+    },
+    nav_bar_buttons: {
+        padding: 20
     }
 });
 
