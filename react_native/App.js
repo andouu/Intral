@@ -8,7 +8,8 @@ import {
     View,
     Text,
     StatusBar,
-    TouchableHighlight
+    TouchableHighlight,
+    TouchableOpacity
 } from 'react-native';
 
 import {
@@ -24,27 +25,27 @@ const App = () => {
         <>
         <View style = {styles.container}>
             <Text style = {{fontSize: 30, fontWeight: "bold"}}>Grades</Text>
-            <View style = {{flexDirection: "column", alignItems: "center", paddingTop: 15}}>
-                <View style = {styles.grade_display}>
-                    <Text style = {styles.grade_letter}>A</Text>
+            <View style = {{flexDirection: "column", justifyContent: "space-between"}}>
+                <TouchableOpacity style = {styles.grade_display}>
+                    <Text style = {styles.grade_letter}>F</Text>
                     <View style = {styles.vertical_line}></View>
-                    <Text style = {styles.grade_info}>Your class info, percentage, blah blah</Text>
-                </View>
-                <View style = {styles.grade_display}>
-                    <Text style = {styles.grade_letter}>A</Text>
+                    <Text style = {styles.grade_info}>APUSH</Text>
+                </TouchableOpacity>                   
+                <TouchableOpacity style = {styles.grade_display}>
+                    <Text style = {styles.grade_letter}>F</Text>
                     <View style = {styles.vertical_line}></View>
-                    <Text style = {styles.grade_info}>Your class info, percentage, blah blah</Text>
-                </View>
-                <View style = {styles.grade_display}>
-                    <Text style = {styles.grade_letter}>A</Text>
+                    <Text style = {styles.grade_info}>APUSH</Text>
+                </TouchableOpacity>                   
+                <TouchableOpacity style = {styles.grade_display}>
+                    <Text style = {styles.grade_letter}>F</Text>
                     <View style = {styles.vertical_line}></View>
-                    <Text style = {styles.grade_info}>Your class info, percentage, blah blah</Text>
-                </View>
-                <View style = {styles.grade_display}>
-                    <Text style = {styles.grade_letter}>A</Text>
+                    <Text style = {styles.grade_info}>APUSH</Text>
+                </TouchableOpacity>                   
+                <TouchableOpacity style = {styles.grade_display}>
+                    <Text style = {styles.grade_letter}>F</Text>
                     <View style = {styles.vertical_line}></View>
-                    <Text style = {styles.grade_info}>Your class info, percentage, blah blah</Text>
-                </View>
+                    <Text style = {styles.grade_info}>APUSH</Text>
+                </TouchableOpacity>                   
             </View>
         </View>
         </>
@@ -53,18 +54,18 @@ const App = () => {
 
 const styles = StyleSheet.create({
     container: {
+        height: "100%",
         padding: 35,
         flex: 1,
     },
     grade_display: {
-        backgroundColor: "#DDDDDD",
-        height: "16%",
-        width: "100%",
+        backgroundColor: "rgba(255,255,255,0.4)",
+        flex: 1,
         flexDirection: "row",
         marginTop: "5%",
         marginBottom: "5%",
-        justifyContent: "center",
-        padding: "5%",
+        alignItems: "center",
+        justifyContent: "space-between",
     },
     grade_letter: {
         marginRight: "5%",
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     vertical_line:{
         height: "100%",
         width: 2,
-        backgroundColor: "#909090",
+        backgroundColor: "rgba(0,0,0,1)",
     },
     grade_info: {
         marginLeft: "5%"
