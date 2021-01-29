@@ -1,6 +1,12 @@
+import 'react-native-gesture-handler';
+{/*import react-native-gesture-handler HAS TO BE the FIRST line */};
 import React, {
     useState
 } from 'react';
+import {NavigationContainer, DefaultTheme} from "@react-navigation/native";
+import {createBottomTabNavigator} from "@react-navigation/bottom-tabs";
+import {createStackNavigator} from '@react-navigation/stack';
+
 import {
     SafeAreaView,
     StyleSheet,
@@ -20,14 +26,12 @@ import {
     DebugInstructions,
     ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
-
-const App = () => {
-    return (
-        <>
+function GradeBookPage() {
+    return(
         <View style = {styles.container}>
-            <ScrollView style = {styles.grade_container}>
-                {/*change height to change distance between "grades" text and the grade*/}
-                <Text style = {{fontSize: 35, fontFamily: "Raleway-Bold", height: 70}}>Grades:</Text>  
+            <ScrollView style = {styles.grade_container} contentContainerStyle = {{paddingBottom: 10, marginTop: -20}}>
+                {/*<Text style = {{fontSize: 35, fontFamily: "Raleway-Bold", height: 70}}>Grades:</Text>  <-- Optional since Stack.Screen will 
+                create name for the page automatically (name is required, not optional)*/}  
                 <View style = {{flexDirection: "column", justifyContent: "space-around", flex: 1}}>
                     <TouchableOpacity style = {styles.grade_display}>
                         <Text style = {styles.grade_letter}>A</Text>
@@ -66,22 +70,122 @@ const App = () => {
                     </TouchableOpacity>                  
                 </View>
             </ScrollView>
-            <View style = {styles.nav_bar}>
-                <View style = {styles.horizontal_line}></View>
+        </View>
+    );
+}
+
+function PlannerPage() {
+    return (
+        <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+            <Text>Planner!</Text>  
+        </View>
+    );
+}
+
+function SettingsPage() {
+    return(
+        <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+            <Text>Settings!</Text>
+        </View>
+    );
+}
+
+const StackNav = createStackNavigator();
+
+function GradeBookStack(){
+    return (
+        <StackNav.Navigator>
+            <StackNav.Screen name = 'Grades' component = {GradeBookPage} />
+        </StackNav.Navigator>
+    );
+}
+
+function PlannerStack(){
+    return(
+        <StackNav.Navigator>
+        <StackNav.Screen name = 'Planner' component = {PlannerPage} />
+    </StackNav.Navigator> 
+    );
+}
+
+function SettingsStack() {
+    return (
+        <StackNav.Navigator>
+            <StackNav.Screen name = 'Settings' component = {SettingsPage} />
+        </StackNav.Navigator>
+    );
+}
+
+function NavBar(){ {/*defunct*/}
+    return(
+        <View style = {styles.nav_bar}>
+            <View style = {styles.horizontal_line}></View>
                 <View style = {styles.nav_bar_button_space}>
                     <TouchableOpacity>
-                        <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_settings_icon.png')}/>
+                        <Image style = {styles.nav_bar_buttons} 
+                        source = {require('./assets/images/CAS_settings_icon.png')}/>
                     </TouchableOpacity>
                     <TouchableOpacity>
-                        <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_grade_book_icon.png')}/>
+                        <Image style = {styles.nav_bar_buttons} 
+                        source = {require('./assets/images/CAS_grade_book_icon.png')}/>
                     </TouchableOpacity>
                     <TouchableOpacity>
-                        <Image style = {styles.nav_bar_buttons} source = {require('./assets/images/CAS_planner_icon.png')}/>
+                        <Image style = {styles.nav_bar_buttons} 
+                        source = {require('./assets/images/CAS_planner_icon.png')}/>
                     </TouchableOpacity>
-                </View>
             </View>
         </View>
-        </>
+    );
+}
+{/*Since we're using bottomTabNavigator, you have to create each screen as a stackNavigator, as a child under the tab navigator*/}
+
+const Tab = createBottomTabNavigator();
+
+const navTheme = DefaultTheme;
+navTheme.colors.background = '#FFFFFF';
+
+const App = () => {
+    return (
+        <NavigationContainer theme = {navTheme}>
+            <Tab.Navigator>
+                <Tab.Screen 
+                    name = "Planner" 
+                    component = {PlannerStack} 
+                    options = {{
+                        tabBarIcon: ({}) => (
+                            <Image style = {styles.bottomTabIcon, {height: 30, width: 30}}  
+                            source = {require('./assets/images/CAS_planner_icon.png')
+                            }/>
+                        ),
+                        tabBarLabel: 'Planner'
+                    }}
+                />
+                <Tab.Screen 
+                    name = "Grades" 
+                    component = {GradeBookStack} 
+                    options = {{
+                        tabBarIcon: ({}) => (
+                            <Image style = {styles.bottomTabIcon, {height: 30, width: 30}}  
+                            source = {require('./assets/images/CAS_grade_book_icon.png')
+                            }/>
+                        ),
+                        tabBarLabel: 'Grades'
+                    }}
+                />
+                <Tab.Screen 
+                    name = "Settings" 
+                    component = {SettingsStack} 
+                    options = {{
+                        tabBarIcon: ({}) => (
+                            <Image style = {styles.bottomTabIcon, {height: 30, width: 30}}  
+                            source = {require('./assets/images/CAS_settings_icon.png')
+                            }/>
+                        ),
+                        tabBarLabel: 'Settings'
+                    }}
+                />
+            </Tab.Navigator>
+        </NavigationContainer>
     );
 };
 
