@@ -6,6 +6,7 @@ import React, {
 import {NavigationContainer, DefaultTheme} from "@react-navigation/native";
 import {createBottomTabNavigator} from "@react-navigation/bottom-tabs";
 import {createStackNavigator} from '@react-navigation/stack';
+import {Alert, component} from 'react-native';
 
 import {
     SafeAreaView,
@@ -16,7 +17,9 @@ import {
     StatusBar,
     TouchableHighlight,
     TouchableOpacity,
-    Image
+    Image,
+    Dimensions,
+    Button
 } from 'react-native';
 
 import {
@@ -26,68 +29,119 @@ import {
     DebugInstructions,
     ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
-function GradeBookPage() {
+const PlannerBox = (props) => {
     return(
-        <View style = {styles.container}>
-            <ScrollView style = {styles.grade_container} contentContainerStyle = {{paddingBottom: 10, marginTop: -20}}>
-                {/*<Text style = {{fontSize: 35, fontFamily: "Raleway-Bold", height: 70}}>Grades:</Text>  <-- Optional since Stack.Screen will 
-                create name for the page automatically (name is required, not optional)*/}  
-                <View style = {{flexDirection: "column", justifyContent: "space-around", flex: 1}}>
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>A</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 1: Boness</Text>
-                    </TouchableOpacity>                   
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>B</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 2: Kim</Text>
-                    </TouchableOpacity>                   
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>C</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>eeeeee eeeeeee e e eeeeeee e eeeee eeeeeeee</Text>
-                    </TouchableOpacity>                   
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>D</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 4: Mr. Benneteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeet</Text>
-                    </TouchableOpacity>    
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>F</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 5: AP US History</Text>
-                    </TouchableOpacity>   
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>F</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 6: Gopal</Text>
-                    </TouchableOpacity>   
-                    <TouchableOpacity style = {styles.grade_display}>
-                        <Text style = {styles.grade_letter}>F</Text>
-                        <View style = {styles.vertical_line}></View>
-                        <Text style = {styles.grade_info}>Period 7: Also Gopal</Text>
-                    </TouchableOpacity>                  
-                </View>
-            </ScrollView>
+        <View>
+            <TouchableOpacity style = {styles.planner_event_box, {backgroundColor: '#' + Math.floor(Math.random() * 16777215).toString(16),}}>
+                <Text>Tmp</Text>
+            </TouchableOpacity>
         </View>
     );
 }
 
-function PlannerPage() {
-    return (
-        <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-            <Text>Planner!</Text>  
-        </View>
-    );
+class GradeBookPage extends React.Component{
+    constructor(props) {
+        super(props);
+    }
+    render() {
+        return(
+            <View style = {styles.container}>
+                <ScrollView style = {styles.grade_container} contentContainerStyle = {{paddingBottom: 10, marginTop: -20}}>
+                    {/*<Text style = {{fontSize: 35, fontFamily: "Raleway-Bold", height: 70}}>Grades:</Text>  <-- Optional since Stack.Screen will 
+                    create name for the page automatically (name is required, not optional)*/}  
+                    <View style = {{flexDirection: "column", justifyContent: "space-around", flex: 1}}>
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>A</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>Period 1: Boness</Text>
+                        </TouchableOpacity>                   
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>B</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>Period 2: Kim</Text>
+                        </TouchableOpacity>                   
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>C</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>eeeeee eeeeeee e e eeeeeee e eeeee eeeeeeee</Text>
+                        </TouchableOpacity>                   
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>D</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>Period 4: Mr. Benneteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeet</Text>
+                        </TouchableOpacity>    
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>F</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>Period 5: AP US History</Text>
+                        </TouchableOpacity>   
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>F</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>Period 6: Gopal</Text>
+                        </TouchableOpacity>   
+                        <TouchableOpacity style = {styles.grade_display}>
+                            <Text style = {styles.grade_letter}>F</Text>
+                            <View style = {styles.vertical_line}></View>
+                            <Text style = {styles.grade_info}>Period 7: Also Gopal</Text>
+                        </TouchableOpacity>                  
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    } 
 }
 
-function SettingsPage() {
-    return(
-        <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-            <Text>Settings!</Text>
-        </View>
-    );
+class PlannerPage extends React.Component{
+    constructor(props) {
+        super(props);
+
+        this.handleAdd = this.handleAdd.bind(this);
+
+        this.state = {
+            data: []
+        }
+    }
+
+    handleAdd() {
+        let newData = {content: 'secs'};
+
+        this.setState({
+            data: [...this.state.data, newData]
+        });
+    }
+
+    render() {
+        let added_boxes = this.state.data.map((data, index) => {
+            return (
+                <PlannerBox key = {index} passed_data = {data} />
+            );
+        });
+
+        return (
+            <View style = {styles.container}>
+                <ScrollView contentContainerStyle = {{paddingBottom: 50, marginTop: 20}}>
+                    <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+                        {added_boxes} 
+                        <TouchableOpacity style = {styles.planner_add_button} onPress = {this.handleAdd}> 
+                        {/*Buttons can't be stylized (not very much at least), so use TouchableOpacities or similar */}
+                            <Text>+</Text>  
+                        </TouchableOpacity>                  
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
+}
+
+class SettingsPage extends React.Component {
+    render() {
+        return(
+            <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+                <Text>Settings!</Text>
+            </View>
+        );
+    }
 }
 
 const StackNav = createStackNavigator();
@@ -103,8 +157,8 @@ function GradeBookStack(){
 function PlannerStack(){
     return(
         <StackNav.Navigator>
-        <StackNav.Screen name = 'Planner' component = {PlannerPage} />
-    </StackNav.Navigator> 
+            <StackNav.Screen name = 'Planner' component = {PlannerPage} />
+        </StackNav.Navigator> 
     );
 }
 
@@ -116,27 +170,6 @@ function SettingsStack() {
     );
 }
 
-function NavBar(){ {/*defunct*/}
-    return(
-        <View style = {styles.nav_bar}>
-            <View style = {styles.horizontal_line}></View>
-                <View style = {styles.nav_bar_button_space}>
-                    <TouchableOpacity>
-                        <Image style = {styles.nav_bar_buttons} 
-                        source = {require('./assets/images/CAS_settings_icon.png')}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity>
-                        <Image style = {styles.nav_bar_buttons} 
-                        source = {require('./assets/images/CAS_grade_book_icon.png')}/>
-                    </TouchableOpacity>
-                    <TouchableOpacity>
-                        <Image style = {styles.nav_bar_buttons} 
-                        source = {require('./assets/images/CAS_planner_icon.png')}/>
-                    </TouchableOpacity>
-            </View>
-        </View>
-    );
-}
 {/*Since we're using bottomTabNavigator, you have to create each screen as a stackNavigator, as a child under the tab navigator*/}
 
 const Tab = createBottomTabNavigator();
@@ -183,7 +216,7 @@ const App = () => {
                         ),
                         tabBarLabel: 'Settings'
                     }}
-                />
+                /> 
             </Tab.Navigator>
         </NavigationContainer>
     );
@@ -249,7 +282,23 @@ const styles = StyleSheet.create({
         marginRight: 30,
         width: 55,
         height: 55,
-    }
+    },
+    planner_event_box: {
+        //minHeight: 20,
+        flex: 1,
+        width: Dimensions.get('window').width - 80,
+    },
+    planner_add_button: {
+        flex:1,
+        height: 50,
+        width: Dimensions.get('window').width - 80,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#EAEAEA',
+        fontFamily: 'Raleway-SemiBold'
+        
+    },
 });
 
 export default App;
