@@ -21,6 +21,7 @@ import {
     Dimensions,
     Button,
     TextInput,
+    Switch,
 } from 'react-native';
 
 import {
@@ -152,14 +153,26 @@ class PlannerPage extends React.Component{
     }
 }
 
-class SettingsPage extends React.Component {
-    render() {
-        return(
-            <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-                <Text>Settings!</Text>
+const SettingsPage = () => {
+    const [isEnabled, setIsEnabled] = useState(false);
+    const toggleSwitch = () => setIsEnabled(previousState => !previousState);
+    
+    return(
+        <View style = {{flex:1, flexDirection: 'row', justifyContent: 'center', padding: 10}}>
+            <View style = {styles.setting_box}>
+                <Text style = {{flex: 2, marginLeft: 20, fontSize: 20, fontFamily: 'Raleway-Bold', color: '#373737', height: 32}}>Darkmode:</Text>
+                <Switch 
+                trackColor = {{false: '#373737', true: '#53C446'}}
+                thumbColor = {'#f4f3f4'}
+                onValueChange = {toggleSwitch}
+                value = {isEnabled}
+                style = {{
+                    marginRight: 10,
+                }}
+                />
             </View>
-        );
-    }
+        </View>
+    );
 }
 
 const StackNav = createStackNavigator();
@@ -337,6 +350,17 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontFamily: 'Raleway-Medium',
     },
+    setting_box: {
+        width: Dimensions.get('window').width - 40,
+        height: 60,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        margin: 15,
+        borderRadius: 15,
+        backgroundColor: '#EAEAEA',
+        flex: 1,
+    }
 });
 
 export default App;
