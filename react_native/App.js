@@ -19,7 +19,8 @@ import {
     TouchableOpacity,
     Image,
     Dimensions,
-    Button
+    Button,
+    TextInput,
 } from 'react-native';
 
 import {
@@ -29,11 +30,28 @@ import {
     DebugInstructions,
     ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
-const PlannerBox = (props) => {
+
+const PlannerBox = () => { 
+    const [value, onChangeText] = React.useState('');
     return(
         <View>
-            <TouchableOpacity style = {styles.planner_event_box, {backgroundColor: '#' + Math.floor(Math.random() * 16777215).toString(16),}}>
-                <Text>Tmp</Text>
+            <TouchableOpacity style = {styles.planner_event_box}>
+                <View style = {styles.planner_text_box}>
+                    <TextInput
+                        placeholder = {'Enter Event (e.g. Study APUSH for 20 min Today)'}
+                        textBreakStrategy = {'highQuality'}
+                        numberOfLines = {2}
+                        maxLength = {40}
+                        multiline = {true} 
+                        textAlignVertical = {'center'}
+                        scrollEnabled = {true}
+                        ontextChange = {text => onChangeText({text})}
+                        textInput = {value}
+                        style = {styles.planner_event_text}
+                        textAlign = {'center'}
+                        color = {'#2D2D2D'}
+                    />
+                </View>
             </TouchableOpacity>
         </View>
     );
@@ -125,7 +143,7 @@ class PlannerPage extends React.Component{
                         {added_boxes} 
                         <TouchableOpacity style = {styles.planner_add_button} onPress = {this.handleAdd}> 
                         {/*Buttons can't be stylized (not very much at least), so use TouchableOpacities or similar */}
-                            <Text>+</Text>  
+                            <Text style = {styles.planner_add_text}>Add Planner Event</Text>  
                         </TouchableOpacity>                  
                     </View>
                 </ScrollView>
@@ -284,9 +302,13 @@ const styles = StyleSheet.create({
         height: 55,
     },
     planner_event_box: {
-        //minHeight: 20,
-        flex: 1,
+        minHeight: 80,
         width: Dimensions.get('window').width - 80,
+        backgroundColor: '#EAEAEA',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 8,
+        borderRadius: 10,
     },
     planner_add_button: {
         flex:1,
@@ -296,8 +318,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#EAEAEA',
-        fontFamily: 'Raleway-SemiBold'
-        
+        fontFamily: 'Raleway-SemiBold',
+        margin: 8,
+        borderRadius: 10,
+    },
+    planner_add_text: {
+        fontSize: 15,
+        fontFamily: 'Raleway-Medium',
+        color: '#2D2D2D'
+    },
+    planner_text_box: {
+        backgroundColor: 'rgba(255,255,255,0)',
+        minHeight: 30,
+        marginLeft: 15,
+        marginRight: 15,
+    },  
+    planner_event_text: {
+        fontSize: 15,
+        fontFamily: 'Raleway-Medium',
     },
 });
 
