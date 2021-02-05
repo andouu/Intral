@@ -9,6 +9,40 @@ import {
     StyleSheet,
 } from 'react-native';
 
+class GradeBoxes extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            gradeData: [ /* Will load data from api to here for grades */
+                {grade: 'A', period: 1, teacher: 'Ms. Boness'},
+                {grade: 'B', period: 2, teacher: 'Mr. Kimmm'},
+                {grade: 'C', period: 3, teacher: 'eeeeee eeeeeee e e eeeeeee e eeeee eeeeeeee'},
+                {grade: 'D', period: 4, teacher: 'Mr. Benneteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeet'},
+                {grade: 'F', period: 5, teacher: 'AP US History'},
+                {grade: 'A', period: 6, teacher: 'Gopal'},
+                {grade: 'B', period: 7, teacher: 'Also Gopal'},
+            ]
+        }
+    }
+
+    render() { 
+        let grades = this.state.gradeData.map((gradeData, i) => {
+            //console.log(gradeData);
+            return(
+                <TouchableOpacity key = {i} style = {gradeStyles.grade_display} passed_data = {gradeData}>
+                    <Text style = {gradeStyles.grade_letter}>{this.props.passed_data.grade}</Text>
+                    <View style = {gradeStyles.vertical_line}></View>
+                    <Text style = {gradeStyles.grade_info}>Period {this.props.passed_data.period}: {this.props.passed_data.teacher}</Text>
+                </TouchableOpacity> 
+            );
+        });
+        
+        return(
+            {grades}
+        );
+    }
+}
+
 class GradebookPage extends React.Component{
     constructor(props) {
         super(props);
@@ -20,41 +54,7 @@ class GradebookPage extends React.Component{
                     {/*<Text style = {{fontSize: 35, fontFamily: "Raleway-Bold", height: 70}}>Grades:</Text>  <-- Optional since Stack.Screen will 
                     create name for the page automatically (name is required, not optional)*/}  
                     <View style = {{flexDirection: "column", justifyContent: "space-around", flex: 1}}>
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>A</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>Period 1: Boness</Text>
-                        </TouchableOpacity>                   
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>B</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>Period 2: Kim</Text>
-                        </TouchableOpacity>                   
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>C</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>eeeeee eeeeeee e e eeeeeee e eeeee eeeeeeee</Text>
-                        </TouchableOpacity>                   
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>D</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>Period 4: Mr. Benneteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeet</Text>
-                        </TouchableOpacity>    
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>F</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>Period 5: AP US History</Text>
-                        </TouchableOpacity>   
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>F</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>Period 6: Gopal</Text>
-                        </TouchableOpacity>   
-                        <TouchableOpacity style = {gradeStyles.grade_display}>
-                            <Text style = {gradeStyles.grade_letter}>F</Text>
-                            <View style = {gradeStyles.vertical_line}></View>
-                            <Text style = {gradeStyles.grade_info}>Period 7: Also Gopal</Text>
-                        </TouchableOpacity>                  
+                        <GradeBoxes />     
                     </View>
                 </ScrollView>
             </View>
