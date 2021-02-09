@@ -12,35 +12,47 @@ import {
 class GradeBoxes extends React.Component {
     constructor(props) {
         super(props);
+
         this.state = {
             gradeData: [ /* Will load data from api to here for grades */
                 {grade: 'A', period: 1, teacher: 'Ms. Boness'},
                 {grade: 'B', period: 2, teacher: 'Mr. Kimmm'},
-                {grade: 'C', period: 3, teacher: 'eeeeee eeeeeee e e eeeeeee e eeeee eeeeeeee'},
-                {grade: 'D', period: 4, teacher: 'Mr. Benneteeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeet'},
+                {grade: 'C', period: 3, teacher: 'eeeeee'},
+                {grade: 'D', period: 4, teacher: 'Mr. Benneteeet'},
                 {grade: 'F', period: 5, teacher: 'AP US History'},
                 {grade: 'A', period: 6, teacher: 'Gopal'},
                 {grade: 'B', period: 7, teacher: 'Also Gopal'},
             ]
         }
     }
-
+    /*
+    render() {
+        let grades = this.state.gradeData.map((data, i) => {
+            return(`${data.grade}, ${i}`);
+        });
+        console.log(grades);
+        return(null);        
+    }
+    */
     render() { 
-        let grades = this.state.gradeData.map((gradeData, i) => {
-            //console.log(gradeData);
+        let grades = this.state.gradeData.map((data, i) => {
+            //console.log(data);
             return(
-                <TouchableOpacity key = {i} style = {gradeStyles.grade_display} passed_data = {gradeData}>
-                    <Text style = {gradeStyles.grade_letter}>{this.props.passed_data.grade}</Text>
+                <TouchableOpacity style = {gradeStyles.grade_display} key = {i}>
+                    <Text style = {gradeStyles.grade_letter}>{`${data.grade}`}</Text>
                     <View style = {gradeStyles.vertical_line}></View>
-                    <Text style = {gradeStyles.grade_info}>Period {this.props.passed_data.period}: {this.props.passed_data.teacher}</Text>
+                    <Text style = {gradeStyles.grade_info}>{`Period ${data.period}: ${data.teacher}`}</Text>
                 </TouchableOpacity> 
             );
         });
         
-        return(
-            {grades}
+        return(          
+            grades.map(obj => {
+                return(obj);
+            })
         );
     }
+    
 }
 
 class GradebookPage extends React.Component{
