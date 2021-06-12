@@ -9,32 +9,51 @@ import {
     TextInput,
     StyleSheet,
     Dimensions,
+    Button,
+    Alert
 } from 'react-native';
 
-const PlannerBox = () => { 
-    const [value, onChangeText] = React.useState('');
-    return(
-        <View>
-            <TouchableOpacity style = {styles.planner_event_box}>
-                <View style = {styles.planner_text_box}>
-                    <TextInput
-                        placeholder = {'Enter Event (e.g. Study APUSH for 20 min Today)'}
-                        textBreakStrategy = {'highQuality'}
-                        numberOfLines = {2}
-                        maxLength = {40}
-                        multiline = {true} 
-                        textAlignVertical = {'center'}
-                        scrollEnabled = {true}
-                        ontextChange = {text => onChangeText({text})}
-                        textInput = {value}
-                        style = {styles.planner_event_text}
-                        textAlign = {'center'}
-                        color = {'#2D2D2D'}
-                    />
-                </View>
-            </TouchableOpacity>
-        </View>
-    );
+
+
+class PlannerBox extends React.Component { 
+    constructor(props) {
+        super(props);
+        this.state={
+            text:''
+        };
+    };
+
+    render(){
+        for(let i in this.props)
+            console.log(i)
+        return(
+            <View>
+                <TouchableOpacity style = {styles.planner_event_box}>
+                    <View style = {styles.planner_text_box}>
+                        <TextInput
+                            placeholder = {'Enter Event (e.g. Study APUSH for 20 min Today)'}
+                            textBreakStrategy = {'highQuality'}
+                            numberOfLines = {2}
+                            maxLength = {40}
+                            multiline = {true} 
+                            textAlignVertical = {'center'}
+                            scrollEnabled = {true}
+                            ontextChange = {(text) => this.setState({text})}
+                            style = {styles.planner_event_text}
+                            textAlign = {'center'}
+                            color = {'#2D2D2D'}
+                        />
+                        <TouchableOpacity style={styles.delete_event_button} onPress={new PlannerPage().handleDelete}>
+                            {/*replace with image later*/}
+                            <View style={styles.circle}>
+                                <Text style={{textAlign: 'center', color: '#616161'}}>x</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </View>
+        )
+    }
 }
 
 class PlannerPage extends React.Component{
@@ -42,6 +61,7 @@ class PlannerPage extends React.Component{
         super(props);
 
         this.handleAdd = this.handleAdd.bind(this);
+        this.handleDelete = this.handleDelete.bind(this);
 
         this.state = {
             data: []
@@ -49,23 +69,31 @@ class PlannerPage extends React.Component{
     }
 
     handleAdd() {
-        let newData = {content: 'secs'};
+        let newData = {content: "bruh"};
 
         this.setState({
             data: [...this.state.data, newData]
         });
     }
 
+    handleDelete(key) {
+        Alert.alert('bruh')
+    }
+
     render() {
         let added_boxes = this.state.data.map((data, index) => {
+            //console.log(this.state.data[index].content + " " + index)
             return (
-                <PlannerBox key = {index} passed_data = {data} />
+                <PlannerBox 
+                    key={index} 
+                    numChars={data}
+                />      
             );
         });
 
         return (
             <View style = {styles.container}>
-                <ScrollView contentContainerStyle = {{paddingBottom: 50, marginTop: 20}}>
+                <ScrollView>
                     <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
                         {added_boxes} 
                         <TouchableOpacity style = {styles.planner_add_button} onPress = {this.handleAdd}> 
@@ -91,8 +119,15 @@ const PlannerStack = () => {
 
 const styles = StyleSheet.create({
     container: {
-        height: "100%",
+        height: '100%',
         flex: 1,
+    },
+    circle: {
+        backgroundColor: '#c9c9c9',
+        width: 18, 
+        height: 18, 
+        borderRadius: 18/2,
+        marginRight: 10,
     },
     planner_event_box: {
         minHeight: 80,
@@ -107,7 +142,6 @@ const styles = StyleSheet.create({
         flex:1,
         height: 50,
         width: Dimensions.get('window').width - 80,
-        padding: 20,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#EAEAEA',
@@ -116,19 +150,28 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     planner_add_text: {
+        marginTop: 0,
         fontSize: 15,
         fontFamily: 'Raleway-Medium',
-        color: '#2D2D2D'
+        color: '#2D2D2D',
+        flexWrap: 'wrap'
     },
     planner_text_box: {
         backgroundColor: 'rgba(255,255,255,0)',
         minHeight: 30,
         marginLeft: 15,
         marginRight: 15,
+        flexDirection: 'row',
     },  
     planner_event_text: {
         fontSize: 15,
         fontFamily: 'Raleway-Medium',
+        padding: 6,
+        marginLeft: 10,
+    },
+    delete_event_button: {
+        justifyContent: 'center',
+        color: '#2D2D2D',
     },
 });
 
