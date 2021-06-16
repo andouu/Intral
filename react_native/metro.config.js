@@ -14,4 +14,9 @@ module.exports = {
       },
     }),
   },
+  resolver: {
+    extraNodeModules: {
+      studentVue: require('studentVue.js'),
+    }
+  }
 };

@@ -13,16 +13,23 @@ import {
     Alert
 } from 'react-native';
 
-
+const maxChars = 40;
 
 class PlannerBox extends React.Component { 
     constructor(props) {
         super(props);
 
+        this.charsLeft = this.charsLeft.bind(this);
+
         this.state = {
-            text: "",
-        }
-    };
+            text: "", 
+            charsLeft: maxChars
+        };
+    }
+    
+    charsLeft() {
+        
+    }
 
     render(){
         return(
@@ -33,11 +40,18 @@ class PlannerBox extends React.Component {
                             placeholder = {'Enter Event (e.g. Study APUSH for 20 min Today)'}
                             textBreakStrategy = {'highQuality'}
                             numberOfLines = {2}
-                            maxLength = {40}
+                            maxLength = {maxChars}
                             multiline = {true} 
                             textAlignVertical = {'center'}
                             scrollEnabled = {true}
-                            ontextChange = {(text) => this.setState({text: text})}
+                            onChangeText = {
+                                text => {
+                                    this.setState({
+                                        text: text,
+                                        charsLeft: maxChars - text.length
+                                    })
+                                }
+                            }
                             style = {styles.planner_event_text}
                             textAlign = {'center'}
                             color = {'#2D2D2D'}
@@ -47,6 +61,7 @@ class PlannerBox extends React.Component {
                             <View style={styles.circle}>
                                 <Text style={{textAlign: 'center', color: '#616161', bottom: 2, right: 0.1}}>x</Text>
                             </View>
+                            <Text style= {styles.planner_charCt}>{this.state.charsLeft}</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -174,6 +189,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         color: '#2D2D2D',
     },
+    planner_charCt: {
+        position: 'absolute',
+        bottom: -5, 
+        color: '#2e2e2e',
+        left: 1,
+    },
+    
 });
 
 export default PlannerStack;

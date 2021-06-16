@@ -14,13 +14,16 @@
     "@react-navigation/bottom-tabs": "^5.11.7",
     "@react-navigation/native": "^5.9.2",
     "@react-navigation/stack": "^5.14.2",
+    "fbjs": "^3.0.0",
+    "node-libs-react-native": "^1.2.1",
     "prop-types": "^15.7.2",
     "react": "16.13.1",
     "react-native": "^0.64.2",
     "react-native-gesture-handler": "^1.9.0",
-    "react-native-reanimated": "^1.13.2",
+    "react-native-reanimated": "^2.2.0",
     "react-native-safe-area-context": "^3.1.9",
-    "react-native-screens": "^2.17.1"
+    "react-native-screens": "^2.17.1",
+    "studentvue.js": "^0.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",
