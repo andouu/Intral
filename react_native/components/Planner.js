@@ -18,14 +18,13 @@ import {
 class PlannerBox extends React.Component { 
     constructor(props) {
         super(props);
-        this.state={
-            text:''
-        };
+
+        this.state = {
+            text: "",
+        }
     };
 
     render(){
-        for(let i in this.props)
-            console.log(i)
         return(
             <View>
                 <TouchableOpacity style = {styles.planner_event_box}>
@@ -38,15 +37,15 @@ class PlannerBox extends React.Component {
                             multiline = {true} 
                             textAlignVertical = {'center'}
                             scrollEnabled = {true}
-                            ontextChange = {(text) => this.setState({text})}
+                            ontextChange = {(text) => this.setState({text: text})}
                             style = {styles.planner_event_text}
                             textAlign = {'center'}
                             color = {'#2D2D2D'}
                         />
-                        <TouchableOpacity style={styles.delete_event_button} onPress={new PlannerPage().handleDelete}>
+                        <TouchableOpacity style={styles.delete_event_button} onPress={() => this.props.handleDelete(this.props.index)}>
                             {/*replace with image later*/}
                             <View style={styles.circle}>
-                                <Text style={{textAlign: 'center', color: '#616161'}}>x</Text>
+                                <Text style={{textAlign: 'center', color: '#616161', bottom: 2, right: 0.1}}>x</Text>
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -64,30 +63,32 @@ class PlannerPage extends React.Component{
         this.handleDelete = this.handleDelete.bind(this);
 
         this.state = {
-            data: []
+            events: []
         }
     }
 
     handleAdd() {
-        let newData = {content: "bruh"};
-
-        this.setState({
-            data: [...this.state.data, newData]
-        });
+        this.setState((prevState) => {
+            let { events } = prevState;
+            return {
+                events: events.concat({ key: events.length })
+            };
+        })
     }
 
     handleDelete(key) {
-        Alert.alert('bruh')
+        this.setState((prevState) => {
+            let events = prevState.events.slice();
+            events.splice(key, 1);
+            return { events: events };
+        })
     }
 
     render() {
-        let added_boxes = this.state.data.map((data, index) => {
+        let event_boxes = this.state.events.map((data, index) => {
             //console.log(this.state.data[index].content + " " + index)
             return (
-                <PlannerBox 
-                    key={index} 
-                    numChars={data}
-                />      
+                <PlannerBox index={index} text={index.toString()} handleDelete={this.handleDelete}/>       
             );
         });
 
@@ -95,8 +96,8 @@ class PlannerPage extends React.Component{
             <View style = {styles.container}>
                 <ScrollView>
                     <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-                        {added_boxes} 
-                        <TouchableOpacity style = {styles.planner_add_button} onPress = {this.handleAdd}> 
+                        {event_boxes}
+                        <TouchableOpacity style = {styles.planner_add_button} onPress = {this.handleAdd}>
                         {/*Buttons can't be stylized (not very much at least), so use TouchableOpacities or similar */}
                             <Text style = {styles.planner_add_text}>Add Planner Event</Text>  
                         </TouchableOpacity>                  
