@@ -9,7 +9,7 @@ import {Alert, component} from 'react-native';
 import GradebookStack from './components/Gradebook';
 import PlannerStack from './components/Planner';
 import SettingsStack from './components/Settings';
-
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
     Image,
 } from 'react-native';
@@ -23,46 +23,48 @@ navTheme.colors.background = '#FFFFFF';
 
 const App = () => {
     return (
-        <NavigationContainer theme = {navTheme}>
-            <Tab.Navigator>
-                <Tab.Screen 
-                    name = "Planner" 
-                    component = {PlannerStack} 
-                    options = {{
-                        tabBarIcon: ({}) => (
-                            <Image style = {{height: 30, width: 30}}  
-                                source = {require('./assets/images/CAS_planner_icon.png')
-                            }/>
-                        ),
-                        tabBarLabel: 'Planner'
-                    }}
-                />
-                <Tab.Screen 
-                    name = "Grades" 
-                    component = {GradebookStack} 
-                    options = {{
-                        tabBarIcon: ({}) => (
-                            <Image style = {{height: 30, width: 30}}  
-                                source = {require('./assets/images/CAS_grade_book_icon.png')
-                            }/>
-                        ),
-                        tabBarLabel: 'Grades'
-                    }}
-                />
-                <Tab.Screen 
-                    name = "Settings" 
-                    component = {SettingsStack} 
-                    options = {{
-                        tabBarIcon: ({}) => (
-                            <Image style = {{height: 30, width: 30}}  
-                                source = {require('./assets/images/CAS_settings_icon.png')
-                            }/>
-                        ),
-                        tabBarLabel: 'Settings'
-                    }}
-                /> 
-            </Tab.Navigator>
-        </NavigationContainer>
+        <SafeAreaProvider>
+            <NavigationContainer theme = {navTheme}>
+                <Tab.Navigator>
+                    <Tab.Screen 
+                        name = "Planner" 
+                        component = {PlannerStack} 
+                        options = {{
+                            tabBarIcon: ({}) => (
+                                <Image style = {{height: 30, width: 30}}  
+                                    source = {require('./assets/images/CAS_planner_icon.png')
+                                }/>
+                            ),
+                            tabBarLabel: 'Planner'
+                        }}
+                    />
+                    <Tab.Screen 
+                        name = "Grades" 
+                        component = {GradebookStack} 
+                        options = {{
+                            tabBarIcon: ({}) => (
+                                <Image style = {{height: 30, width: 30}}  
+                                    source = {require('./assets/images/CAS_grade_book_icon.png')
+                                }/>
+                            ),
+                            tabBarLabel: 'Grades'
+                        }}
+                    />
+                    <Tab.Screen 
+                        name = "Settings" 
+                        component = {SettingsStack} 
+                        options = {{
+                            tabBarIcon: ({}) => (
+                                <Image style = {{height: 30, width: 30}}  
+                                    source = {require('./assets/images/CAS_settings_icon.png')
+                                }/>
+                            ),
+                            tabBarLabel: 'Settings'
+                        }}
+                    /> 
+                </Tab.Navigator>
+            </NavigationContainer>
+        </SafeAreaProvider>
     );
 };
 

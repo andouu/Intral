@@ -8,6 +8,10 @@ target 'react_native' do
 
   use_react_native!(:path => config["reactNativePath"])
 
+  pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
+
+  pod 'react-native-safe-area-context', :path => '../node_modules/react-native-safe-area-context'
+
   target 'react_nativeTests' do
     inherit! :complete
     # Pods for testing

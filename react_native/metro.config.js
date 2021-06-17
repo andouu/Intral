@@ -13,10 +13,5 @@ module.exports = {
         inlineRequires: false,
       },
     }),
-  },
-  resolver: {
-    extraNodeModules: {
-      studentVue: require('studentVue.js'),
-    }
   }
 };

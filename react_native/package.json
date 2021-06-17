@@ -19,11 +19,12 @@
     "prop-types": "^15.7.2",
     "react": "16.13.1",
     "react-native": "^0.64.2",
+    "react-native-elements": "^3.4.2",
     "react-native-gesture-handler": "^1.9.0",
     "react-native-reanimated": "^2.2.0",
-    "react-native-safe-area-context": "^3.1.9",
+    "react-native-safe-area-context": "^3.2.0",
     "react-native-screens": "^2.17.1",
-    "studentvue.js": "^0.0.3"
+    "react-native-vector-icons": "^8.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",

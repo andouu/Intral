@@ -13,22 +13,18 @@ import {
     Alert
 } from 'react-native';
 
+import { Icon } from 'react-native-elements'
+
 const maxChars = 40;
 
 class PlannerBox extends React.Component { 
     constructor(props) {
         super(props);
 
-        this.charsLeft = this.charsLeft.bind(this);
-
         this.state = {
             text: "", 
             charsLeft: maxChars
         };
-    }
-    
-    charsLeft() {
-        
     }
 
     render(){
@@ -56,13 +52,16 @@ class PlannerBox extends React.Component {
                             textAlign = {'center'}
                             color = {'#2D2D2D'}
                         />
-                        <TouchableOpacity style={styles.delete_event_button} onPress={() => this.props.handleDelete(this.props.index)}>
-                            {/*replace with image later*/}
-                            <View style={styles.circle}>
-                                <Text style={{textAlign: 'center', color: '#616161', bottom: 2, right: 0.1}}>x</Text>
-                            </View>
-                            <Text style= {styles.planner_charCt}>{this.state.charsLeft}</Text>
+                        <TouchableOpacity style={styles.planner_delete_button}>
+                            <Icon
+                                name='x'
+                                type='feather'
+                                color='#616161'
+                                size={15}
+                                onPress={() => this.props.handleDelete(this.props.index)}
+                            />
                         </TouchableOpacity>
+                        <Text style= {styles.planner_charCt}>{this.state.charsLeft}</Text>
                     </View>
                 </TouchableOpacity>
             </View>
@@ -103,7 +102,7 @@ class PlannerPage extends React.Component{
         let event_boxes = this.state.events.map((data, index) => {
             //console.log(this.state.data[index].content + " " + index)
             return (
-                <PlannerBox index={index} text={index.toString()} handleDelete={this.handleDelete}/>       
+                <PlannerBox key={index} index={index} text={index.toString()} handleDelete={this.handleDelete}/>       
             );
         });
 
@@ -112,12 +111,17 @@ class PlannerPage extends React.Component{
                 <ScrollView>
                     <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
                         {event_boxes}
-                        <TouchableOpacity style = {styles.planner_add_button} onPress = {this.handleAdd}>
-                        {/*Buttons can't be stylized (not very much at least), so use TouchableOpacities or similar */}
-                            <Text style = {styles.planner_add_text}>Add Planner Event</Text>  
-                        </TouchableOpacity>                  
                     </View>
                 </ScrollView>
+                <View style={styles.planner_add_button}>
+                    <Icon
+                        name='plus'
+                        type='feather'
+                        size={35}
+                        color='#234465'
+                        onPress={this.handleAdd}
+                    />
+                </View>
             </View>
         );
     }
@@ -138,13 +142,6 @@ const styles = StyleSheet.create({
         height: '100%',
         flex: 1,
     },
-    circle: {
-        backgroundColor: '#c9c9c9',
-        width: 18, 
-        height: 18, 
-        borderRadius: 18/2,
-        marginRight: 10,
-    },
     planner_event_box: {
         minHeight: 80,
         width: Dimensions.get('window').width - 80,
@@ -155,15 +152,14 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     planner_add_button: {
-        flex:1,
-        height: 50,
-        width: Dimensions.get('window').width - 80,
-        alignItems: 'center',
+        width: 60,
+        height: 60,
+        borderRadius: 50,
         justifyContent: 'center',
         backgroundColor: '#EAEAEA',
-        fontFamily: 'Raleway-SemiBold',
-        margin: 8,
-        borderRadius: 10,
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
     },
     planner_add_text: {
         marginTop: 0,
@@ -185,17 +181,21 @@ const styles = StyleSheet.create({
         padding: 6,
         marginLeft: 10,
     },
-    delete_event_button: {
+    planner_delete_button: {
+        width: 18, 
+        height: 18, 
+        borderRadius: 9,
         justifyContent: 'center',
-        color: '#2D2D2D',
+        backgroundColor: '#c9c9c9',
+        bottom: 5,
+        right: 5,
     },
     planner_charCt: {
         position: 'absolute',
-        bottom: -5, 
         color: '#2e2e2e',
-        left: 1,
+        bottom: -5, 
+        right: 5,
     },
-    
 });
 
 export default PlannerStack;
