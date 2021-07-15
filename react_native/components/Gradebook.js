@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-
+import { getGrades } from './api.js';
 import {
     ScrollView,
     View,
@@ -9,57 +10,58 @@ import {
     StyleSheet,
 } from 'react-native';
 
-class GradeBoxes extends React.Component {
-    constructor(props) {
-        super(props);
+const username = 'your own username here'
+const password = 'your own password here'
+let quarter = 4;
 
-        this.state = {
-            gradeData: [ /* Will load data from api to here for grades */
-                {grade: 'A', period: 1, teacher: 'Ms. Boness'},
-                {grade: 'B', period: 2, teacher: 'Mr. Kimmm'},
-                {grade: 'C', period: 3, teacher: 'eeeeee'},
-                {grade: 'D', period: 4, teacher: 'Mr. Benneteeet'},
-                {grade: 'F', period: 5, teacher: 'AP US History'},
-                {grade: 'A', period: 6, teacher: 'Gopal'},
-                {grade: 'B', period: 7, teacher: 'Also Gopal'},
-            ]
+const GradeBoxes = (props) => { 
+    const[grades, setGrades] = useState([]);
+
+    const isFocused = useIsFocused(); // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
+    useEffect(() => {                 // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
+        if(isFocused) {
+            (async() => {                                                               // async function to provide scope for await keyword
+                let tmpGrades = await getGrades(username, password, quarter, 'grades'); // pulls data from api asyncronously from api.js
+                let classObjs = tmpGrades.map((period, i) => {
+                    let classInfo = { // creates object to be used in the array of school classes (state)
+                        gradeLtr: period.Marks.Mark.CalculatedScoreString, 
+                        gradePct: period.Marks.Mark.CalculatedScoreRaw, 
+                        period: period.Period, 
+                        teacher: period.Staff
+                    }; 
+                    return classInfo;
+                })
+                setGrades(classObjs)
+            })();         
         }
-    }
-    /*
-    render() {
-        let grades = this.state.gradeData.map((data, i) => {
-            return(`${data.grade}, ${i}`);
-        });
-        console.log(grades);
-        return(null);        
-    }
-    */
-    render() { 
-        let grades = this.state.gradeData.map((data, i) => {
-            //console.log(data);
-            return(
-                <TouchableOpacity style = {gradeStyles.grade_display} key = {i}>
-                    <Text style = {gradeStyles.grade_letter}>{`${data.grade}`}</Text>
-                    <View style = {gradeStyles.vertical_line}></View>
-                    <Text style = {gradeStyles.grade_info}>{`Period ${data.period}: ${data.teacher}`}</Text>
-                </TouchableOpacity> 
-            );
-        });
-        
-        return(          
-            grades.map(obj => {
-                return(obj);
-            })
-        );
-    }
+    }, [isFocused])
     
+    let gradeObjects = grades.map((data, i) => {
+        return(
+            <TouchableOpacity style = {gradeStyles.grade_display} key = {i}>
+                <View>
+                    <Text style = {gradeStyles.grade_letter}>{data.gradeLtr}</Text> 
+                </View>
+                <View style = {gradeStyles.vertical_line}></View>
+                <Text style = {gradeStyles.grade_info}>{`Period ${data.period}: ${data.teacher}`}</Text>
+            </TouchableOpacity> 
+        );
+    });
+
+    return(          
+        gradeObjects.map(obj => {
+            return(obj);
+        })
+    );
 }
 
 class GradebookPage extends React.Component{
     constructor(props) {
         super(props);
+
     }
-    render() {
+
+    render() {     
         return(
             <View style = {gradeStyles.container}>
                 <ScrollView style = {gradeStyles.grade_container} contentContainerStyle = {{paddingBottom: 10, marginTop: -20}}>
