@@ -10,8 +10,8 @@ import {
     StyleSheet,
 } from 'react-native';
 
-const username = 'your own username here'
-const password = 'your own password here'
+const username = 'your username'
+const password = 'your password'
 let quarter = 4;
 
 const GradeBoxes = (props) => { 
