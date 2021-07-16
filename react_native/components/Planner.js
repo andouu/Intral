@@ -29,16 +29,16 @@ class PlannerBox extends React.Component {
 
     render(){
         return(
-            <View>
+            <View style = {{flex: 1, alignItems: 'center'}}>
                 <TouchableOpacity style = {styles.planner_event_box}>
                     <View style = {styles.planner_text_box}>
                         <TextInput
-                            placeholder = {'Enter Event (e.g. Study APUSH for 20 min Today)'}
-                            textBreakStrategy = {'highQuality'}
+                            placeholder = 'Enter Event (e.g. Study for 20 min Today)'
+                            textBreakStrategy = 'highQuality'
                             numberOfLines = {2}
                             maxLength = {maxChars}
                             multiline = {true} 
-                            textAlignVertical = {'center'}
+                            textAlignVertical = 'center'
                             scrollEnabled = {true}
                             onChangeText = {
                                 text => {
@@ -49,8 +49,8 @@ class PlannerBox extends React.Component {
                                 }
                             }
                             style = {styles.planner_event_text}
-                            textAlign = {'center'}
-                            color = {'#2D2D2D'}
+                            textAlign = 'center'
+                            color = '#2D2D2D'
                         />
                         <TouchableOpacity style={styles.planner_delete_button}>
                             <Icon
@@ -98,18 +98,28 @@ class PlannerPage extends React.Component{
         })
     }
 
-    render() {
+    render() { //TODO: re-write this to use flatlist as flatlist offers better performance when loading many items (suitable for planner)
         let event_boxes = this.state.events.map((data, index) => {
-            //console.log(this.state.data[index].content + " " + index)
             return (
                 <PlannerBox key={index} index={index} text={index.toString()} handleDelete={this.handleDelete}/>       
             );
         });
-
+        let helperText; 
+        if (this.state.events.length === 0) {
+            helperText = (
+                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 140, height: "100%"}}>
+                    <Text style = {{textAlign: 'center', color: 'black', opacity: 0.3}}>
+                        There are no events in your planner right now...{'\n'}
+                        Click the button in the bottom right to add one!
+                    </Text>
+                </View>
+            );
+        }
         return (
             <View style = {styles.container}>
-                <ScrollView>
-                    <View style = {{flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+                {helperText}
+                <ScrollView style = {{paddingTop: 5}}>
+                    <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center'}}>
                         {event_boxes}
                     </View>
                 </ScrollView>
@@ -118,7 +128,7 @@ class PlannerPage extends React.Component{
                         name='plus'
                         type='feather'
                         size={35}
-                        color='#234465'
+                        color='black'
                         onPress={this.handleAdd}
                     />
                 </View>
@@ -139,17 +149,20 @@ const PlannerStack = () => {
 
 const styles = StyleSheet.create({
     container: {
-        height: '100%',
         flex: 1,
+        height: '100%',
+        width: "100%",
+        padding: 15,
+        paddingTop: 0,
+        paddingBottom: 0,
     },
     planner_event_box: {
         minHeight: 80,
-        width: Dimensions.get('window').width - 80,
         backgroundColor: '#EAEAEA',
         alignItems: 'center',
         justifyContent: 'center',
-        margin: 8,
-        borderRadius: 10,
+        borderRadius: 5,
+        marginBottom: 15,
     },
     planner_add_button: {
         width: 60,
@@ -188,13 +201,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: '#c9c9c9',
         bottom: 5,
-        right: 5,
+        right: -1,
     },
     planner_charCt: {
         position: 'absolute',
         color: '#2e2e2e',
         bottom: -5, 
-        right: 5,
+        right: 0,
     },
 });
 

@@ -1,6 +1,6 @@
 export const getGrades = async(username, password, quarter, type) => {
     try {
-        const response = await fetch('http://{your local ipv4 here}:3000/login', { // run ipconfig in a terminal and find your local ipv4 (should be something like 10.0.0.162). 
+        const response = await fetch('http://your ip:3000/login', { // run ipconfig in a terminal and find your local ipv4 (should be something like 10.0.0.162). 
             method: 'POST',                                                 // NOTE: you HAVE to run the local server from the other git repo (intral-server) for this to work.
             headers: {
                 'Accept': 'application/json',
@@ -14,7 +14,6 @@ export const getGrades = async(username, password, quarter, type) => {
             })
         });
         let json = await response.json();
-        //console.log(json);
         return json;
     } catch (err) {
         console.log(err);
