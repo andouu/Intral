@@ -108,7 +108,7 @@ class PlannerPage extends React.Component{
         if (this.state.events.length === 0) {
             helperText = (
                 <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 140, height: "100%"}}>
-                    <Text style = {{textAlign: 'center', color: 'black', opacity: 0.3}}>
+                    <Text style = {styles.helper_text}>
                         There are no events in your planner right now...{'\n'}
                         Click the button in the bottom right to add one!
                     </Text>
@@ -209,6 +209,12 @@ const styles = StyleSheet.create({
         bottom: -5, 
         right: 0,
     },
+    helper_text: {
+        fontFamily: 'ProximaNova-Regular',
+        textAlign: 'center',
+        color: 'black',
+        opacity: 0.5,
+    },  
 });
 
 export default PlannerStack;

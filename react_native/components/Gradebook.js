@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from './api.js';
+import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
 import {
     ScrollView,
     View,
@@ -11,8 +12,10 @@ import {
     Pressable,
     SafeAreaView,
     FlatList,
+    Image,
     StatusBar,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const username = 'your username'
 const password = 'your password'
@@ -109,15 +112,22 @@ const Assignment = ({ index, name, data, navigation }) => (
             ]
         }>
         <View style = {gradeStyles.assignmentDescriptionWrapper}>
-            <Text style = {{fontFamily: 'Raleway-Medium', fontSize: 15}}>{name}</Text>
-            <Text style = {{fontFamily: 'Raleway-Medium', fontSize: 10, alignSelf: 'flex-end', position: 'absolute', right: 0}}>{data.Points}</Text>
+            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 15}}>{name}</Text>
+            <Text style = {{fontFamily: 'ProximaNova-Regular', fontSize: 10, alignSelf: 'flex-end', position: 'absolute', right: 0}}>{data.Points}</Text>
         </View>
     </Pressable>   
 );
 
-const ClassDetailsScreen = ({ route, navigation}) => {
+const ClassDetailsScreen = ({ route, navigation }) => {
     const {periodNumber, classInfo } = route.params;
+    const [isDropped, setDropped] = useState(false);
+    const [weights, setWeights] = useState([]);
+    const [totalPct, setPct] = useState(0);
     let assignments = classInfo.Marks.Mark.Assignments.Assignment;
+    useEffect(() => {
+        let arr = classInfo.Marks.Mark.GradeCalculationSummary.AssignmentGradeCalc;
+        setPct(arr[arr.length - 1].WeightedPct);
+    });
     const renderItem = ({ item, index }) => {
         let name = item.Measure;
         return (
@@ -132,10 +142,24 @@ const ClassDetailsScreen = ({ route, navigation}) => {
 
     return (
         <SafeAreaView style={gradeStyles.container}>
-            <View style={{ flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0 }}>
-                <Text style={gradeStyles.class_info_header}>
+            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0}}>
+                <Text style={[{marginBottom: 10}, gradeStyles.info_header]}>
                     Period {parseInt(periodNumber)+1}: {classInfo.Title}
                 </Text>
+                <Text style={gradeStyles.info_subheader}>
+                    {totalPct}
+                </Text>
+                <View style = {{width: '100%', height: isDropped ? 200 : 20}}>
+                    <View style = {{flex: isDropped ? 1 : 0}}>
+                        {/*bar graphs for weights in here*/}
+                    </View>
+                    <Pressable 
+                        style = {({pressed}) => [{opacity: pressed ? 0.5 : 1}, gradeStyles.dropdown_button]}
+                        onPress = {() => setDropped(!isDropped)}
+                    >
+                        <Image style = {[gradeStyles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg}></Image>
+                    </Pressable>
+                </View>
                 <View style={gradeStyles.horizontalDivider} />
                 <View style = {{flex: 1, justifyContent: "center", width: "100%"}}>
                     <FlatList
@@ -153,10 +177,26 @@ const ClassDetailsScreen = ({ route, navigation}) => {
 const AssignmentDetailsScreen = ({ route, navigation }) => {
     const { details, name } = route.params;
     return (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", marginLeft: 15, marginRight: 15, marginTop: 5 }}>
-            <Text>Assignment details for {name}</Text>
+        <View style={{ flex: 1, alignItems: "flex-start", justifyContent: "flex-start", marginLeft: 15, marginRight: 15, marginTop: 5 }}>
+            <Text style = {[{marginBottom: 0}, gradeStyles.info_header]}>{name}:</Text>
+            <Text style = {[gradeStyles.info_subheader, {fontSize: 15, marginTop: -2, marginBottom: 10, color: 'rgba(0, 0, 0, 0.75)'}]}>{details.Type}</Text>
+            <Text style = {gradeStyles.info_subheader}>Score: {details.Points}</Text>
+            <View style = {gradeStyles.horizontalDivider} />
+            <AssignmentDetail detail = 'Description' data = {details.MeasureDescription === '' ? 'N/A' : details.MeasureDescription}></AssignmentDetail>
+            <AssignmentDetail detail = 'Assign Date' data = {details.Date}></AssignmentDetail>
+            <AssignmentDetail detail = 'Due Date' data = {details.DueDate}></AssignmentDetail>
+            <AssignmentDetail detail = 'Notes' data = {details.Notes === '' ? 'N/A' : details.Notes}></AssignmentDetail>
         </View>
     )
+}
+
+const AssignmentDetail = ({detail, data}) => {
+    return (
+        <View style = {{width: '100%', minHeight: 30, marginTop: -10, marginBottom: 25}}>
+            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 18}}>{detail}: </Text>
+            <Text style = {{fontSize: 15, fontFamily: "ProximaNova-Regular"}}>{data}</Text>
+        </View>
+    ); 
 }
 
 const StackNav = createStackNavigator();
@@ -180,11 +220,17 @@ const gradeStyles = StyleSheet.create({
         paddingTop: 0,
         paddingBottom: 0,
     },
+    image: {
+        flex: 1,
+        width: 20,
+        height: 20,
+        resizeMode: 'contain',
+    },
     horizontalDivider: {
         borderBottomColor: "black",
         borderBottomWidth: StyleSheet.hairlineWidth,
         width: "100%",
-        marginTop: 20,
+        marginTop: 15,
         marginBottom: 25,
     },
     vertical_line: {
@@ -237,14 +283,27 @@ const gradeStyles = StyleSheet.create({
         textAlign: "left",
         textAlignVertical: "center",
     },
-    class_info_header: {
-        fontFamily: "Raleway-Medium",
+    info_header: {
+        fontFamily: "Proxima Nova Extrabold",
         fontSize: 25,
+    },
+    info_subheader: {
+        fontFamily: "Proxima Nova Bold",
+        fontSize: 18,
+        fontWeight: "300",
+        color: "rgba(0, 0, 0, 0.5)",
     },
     assignmentDescriptionWrapper: {
         flex: 1,
         width: "100%",
         flexDirection: "row",
+        alignItems: "center",
+    },
+    dropdown_button: {
+        flex: 1,
+        width: "100%",
+        maxHeight: 20,
+        marginBottom: -5,
         alignItems: "center",
     },
 });
