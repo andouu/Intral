@@ -6,9 +6,9 @@ import React, {
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Alert, component } from 'react-native';
-import GradebookStack from './components/Gradebook';
-import PlannerStack from './components/Planner';
-import SettingsStack from './components/Settings';
+import GradebookScreen from './screens/GradebookScreen';
+import PlannerScreen from './screens/PlannerScreen';
+import PersonalScreen from './screens/PersonalScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
     Image,
@@ -29,7 +29,7 @@ const App = () => {
                 <Tab.Navigator>
                     <Tab.Screen 
                         name = "Planner" 
-                        component = {PlannerStack} 
+                        component = {PlannerScreen} 
                         options = {{
                             tabBarIcon: ({}) => (
                                 <Image style = {{height: 30, width: 30 }}  
@@ -41,7 +41,7 @@ const App = () => {
                     />
                     <Tab.Screen 
                         name = "Grades" 
-                        component = {GradebookStack} 
+                        component = {GradebookScreen} 
                         options = {{
                             tabBarIcon: ({}) => (
                                 <Image style = {{height: 30, width: 30}}  
@@ -52,15 +52,15 @@ const App = () => {
                         }}
                     />
                     <Tab.Screen 
-                        name = "Settings" 
-                        component = {SettingsStack} 
+                        name = "Personal" 
+                        component = {PersonalScreen} 
                         options = {{
                             tabBarIcon: ({}) => (
                                 <Image style = {{height: 30, width: 30}}  
                                     source = {require('./assets/images/CAS_settings_icon.png')}
                                 />
                             ),
-                            tabBarLabel: 'Settings'
+                            tabBarLabel: 'You'
                         }}
                     /> 
                 </Tab.Navigator>

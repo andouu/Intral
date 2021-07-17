@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { getGrades } from './api.js';
+import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
     ScrollView,
     View,
@@ -13,12 +14,28 @@ import {
     SafeAreaView,
     FlatList,
     Image,
+    Dimensions,
     StatusBar,
 } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+    BarChart,
+    LineChart,
+} from 'react-native-chart-kit';
+
+const chartConfig = {
+    backgroundGradientFrom: "#1E2923",
+    backgroundGradientFromOpacity: 0,
+    backgroundGradientTo: "#08130D",
+    backgroundGradientToOpacity: 0,
+    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    strokeWidth: 2, 
+    barPercentage: 0.75,
+    useShadowColorFromDataset: false // optional
+};
 
 const username = 'your username'
 const password = 'your password'
+const screenWidth = Dimensions.get('window').width;
 let quarter = 1;
 
 const GradeBoxes = () => { 
@@ -121,13 +138,42 @@ const Assignment = ({ index, name, data, navigation }) => (
 const ClassDetailsScreen = ({ route, navigation }) => {
     const {periodNumber, classInfo } = route.params;
     const [isDropped, setDropped] = useState(false);
-    const [weights, setWeights] = useState([]);
-    const [totalPct, setPct] = useState(0);
-    let assignments = classInfo.Marks.Mark.Assignments.Assignment;
-    useEffect(() => {
-        let arr = classInfo.Marks.Mark.GradeCalculationSummary.AssignmentGradeCalc;
-        setPct(arr[arr.length - 1].WeightedPct);
-    });
+
+    let gradeSummary = classInfo.Marks.Mark.GradeCalculationSummary.AssignmentGradeCalc;
+    let isOneWeight = !Array.isArray(gradeSummary);                                      // if there is only one weight, then the array is undefined, so we need to check for that
+    let tmpTotalPct = parseFloat(classInfo.Marks.Mark.CalculatedScoreRaw).toFixed(2);    // rounds total percent to 2 decimal places
+
+    const [categoryData, setCategoryData] = useState(isOneWeight ? tmpTotalPct : gradeSummary);
+    const [totalPct, setPct] = useState(tmpTotalPct);
+    
+    let labels, classValues; // for the bar chart
+    if(!isOneWeight) {
+        labels = categoryData.map(data => {
+            let words = data.Type.split(' ');
+            let capitalized = '';
+            if(words.length > 1) {
+                for(let i=0; i<words.length-1; i++) {
+                    capitalized += words[i][0].toUpperCase() + words[i].substring(1).toLowerCase() + ' '; 
+                }
+            }
+            let lastWord = words[words.length - 1];
+            capitalized += lastWord[0].toUpperCase() + lastWord.substring(1).toLowerCase();
+            return capitalized;
+        });
+
+        
+        classValues = categoryData.map(data => {
+            return parseFloat(data.WeightedPct.substring(0, data.WeightedPct.length - 1));
+        });
+    } else {
+        labels = ['Total'];
+        classValues = totalPct;
+    } 
+
+    const [graphData, setGraphData] = useState({ labels: labels, datasets: [{ data: classValues }, { data: [40, 40, 20, 100]}] });
+    
+    const assignments = classInfo.Marks.Mark.Assignments.Assignment;
+
     const renderItem = ({ item, index }) => {
         let name = item.Measure;
         return (
@@ -146,16 +192,30 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                 <Text style={[{marginBottom: 10}, gradeStyles.info_header]}>
                     Period {parseInt(periodNumber)+1}: {classInfo.Title}
                 </Text>
-                <Text style={gradeStyles.info_subheader}>
-                    {totalPct}
+                <Text style={[gradeStyles.info_subheader, {marginBottom: 5}]}>
+                    {totalPct}% {isDropped ? '\n' : null}
                 </Text>
-                <View style = {{width: '100%', height: isDropped ? 200 : 20}}>
+                <View style = {{width: '100%', height: isDropped ? 220 : 20}}>
                     <View style = {{flex: isDropped ? 1 : 0}}>
                         {/*bar graphs for weights in here*/}
+                        {isDropped  
+                            ? (
+                                <BarChart
+                                    data={graphData}
+                                    width = {screenWidth - 30}
+                                    height = {200}
+                                    yAxisLabel = '%'
+                                    chartConfig = {chartConfig}
+                                />
+                            ) 
+                            : null
+                        }
                     </View>
                     <Pressable 
                         style = {({pressed}) => [{opacity: pressed ? 0.5 : 1}, gradeStyles.dropdown_button]}
-                        onPress = {() => setDropped(!isDropped)}
+                        onPress = {() => {
+                            setDropped(!isDropped); 
+                        }}
                     >
                         <Image style = {[gradeStyles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg}></Image>
                     </Pressable>
@@ -167,6 +227,7 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                         renderItem = {(item, index) => renderItem(item, index)}
                         keyExtractor = {(item) => item.GradebookID}
                         style = {{ flex: 1, width: "100%" }}
+                        extraData = {assignments}
                     />
                 </View>
             </View>
@@ -201,7 +262,7 @@ const AssignmentDetail = ({detail, data}) => {
 
 const StackNav = createStackNavigator();
 
-function GradebookStack(){
+function GradebookScreen(){
     return (
         <StackNav.Navigator initialRouteName="GradeBook">
             <StackNav.Screen name="Gradebook" component={GradebookPage} />
@@ -242,7 +303,7 @@ const gradeStyles = StyleSheet.create({
         position: "absolute"
     },
     button_wrapper: {
-        height: 60,
+        minHeight: 75,
         padding: 10,
         marginBottom: 15,
         width: "100%",
@@ -308,4 +369,4 @@ const gradeStyles = StyleSheet.create({
     },
 });
 
-export default GradebookStack;
+export default GradebookScreen;

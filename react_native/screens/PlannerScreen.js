@@ -139,7 +139,7 @@ class PlannerPage extends React.Component{
 
 const StackNav = createStackNavigator();
 
-const PlannerStack = () => {
+const PlannerScreen = () => {
     return(
         <StackNav.Navigator>
             <StackNav.Screen name = 'Planner' component = {PlannerPage} />
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     planner_add_text: {
         marginTop: 0,
         fontSize: 15,
-        fontFamily: 'Raleway-Medium',
+        fontFamily: 'ProximaNova-Regular',
         color: '#2D2D2D',
         flexWrap: 'wrap'
     },
@@ -190,7 +190,8 @@ const styles = StyleSheet.create({
     },  
     planner_event_text: {
         fontSize: 15,
-        fontFamily: 'Raleway-Medium',
+        fontFamily: 'ProximaNova-Regular',
+        fontWeight: 'normal',
         padding: 6,
         marginLeft: 10,
     },
@@ -217,4 +218,4 @@ const styles = StyleSheet.create({
     },  
 });
 
-export default PlannerStack;
+export default PlannerScreen;

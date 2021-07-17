@@ -33,7 +33,7 @@ const SettingsPage = () => {
 
 const StackNav = createStackNavigator();
 
-function SettingsStack() {
+function PersonalScreen() {
     return (
         <StackNav.Navigator>
             <StackNav.Screen name = 'Settings' component = {SettingsPage} />
@@ -58,4 +58,4 @@ const styles = StyleSheet.create({
     }
 });
 
-export default SettingsStack;
+export default PersonalScreen;
