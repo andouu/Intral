@@ -2,7 +2,27 @@ const serverip = 'your ip' // run ipconfig in a terminal and find your local ipv
 const serverport = '3000'     // NOTE: you HAVE to run the local server from the other git repo (intral-server) for pulling to work.
 const fullurl = `http://${serverip}:${serverport}/login/`;
 
-export const getGrades = async(username, password, quarter, type) => {             // NOTE: MUST ENCRYPT DATA BEFORE SENDING IN PRODUCTION BUILD!!! 
+export const login = async(username, password) => {
+    try {
+        const response = await fetch(fullurl, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password
+            })
+        });
+        let json = await response.json();
+        return json;
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+export const getGrades = async(username, password, quarter) => {                   // NOTE: MUST ENCRYPT DATA BEFORE SENDING IN PRODUCTION BUILD!!! 
     try {                                                                          // We can't send plaintext passwords over unprotected networks!!!
         const response = await fetch(fullurl + 'grades', {                
             method: 'POST',                                                        
@@ -14,7 +34,6 @@ export const getGrades = async(username, password, quarter, type) => {          
                 user: username,
                 passwd: password,
                 qtr: quarter,
-                type: type
             })
         });
         let json = await response.json(); // convert the response to a javascript object from a json string
