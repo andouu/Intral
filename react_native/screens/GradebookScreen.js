@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
@@ -15,12 +15,15 @@ import {
     FlatList,
     Image,
     Dimensions,
+    RefreshControl,
     StatusBar,
+    Alert,
 } from 'react-native';
 import {
     BarChart,
     LineChart,
 } from 'react-native-chart-kit';
+import { withSafeAreaInsets } from 'react-native-safe-area-context';
 
 const chartConfig = {
     backgroundGradientFrom: "#1E2923",
@@ -38,23 +41,8 @@ const password = 'your password'
 const screenWidth = Dimensions.get('window').width;
 let quarter = 1;
 
-const GradeBoxes = () => { 
-    const[classes, setClasses] = useState([]);
+const GradeBoxes = ({classes}) => { 
     const navigation = useNavigation();
-    const isFocused = useIsFocused(); // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
-                                      // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
-    useEffect(() => {                 
-        if(isFocused) {
-            (async() => { // async function to provide scope for await keyword
-                try {
-                    let pull = await getGrades(username, password, quarter, 'grades'); // pulls data from api asyncronously from api.js
-                    setClasses(pull)
-                } catch(err) {
-                    console.error(err);
-                }                                                            
-            })();         
-        }
-    }, [isFocused])
     
     let gradeObjects = classes.map((period, i) => {
         let classSummary = {                                     // creates object to be used in the array of school classes (state)
@@ -92,23 +80,53 @@ const GradeBoxes = () => {
     );
 }
 
-class GradebookPage extends React.Component{
-    constructor(props) {
-        super(props);
+const wait = (timeout) => {
+    return new Promise(resolve => setTimeout(resolve, timeout));
+}
 
-    }
-
-    render() {     
-        return (
-            <View style = {gradeStyles.container}>
-                <ScrollView style={gradeStyles.grade_container} contentContainerStyle = {{paddingBottom: 10, marginTop: 5}}>
-                    <View style = {{flexDirection: 'column', justifyContent: 'center', flex: 1}}>
-                        <GradeBoxes />     
-                    </View>
-                </ScrollView>
-            </View>
-        );
+const GradebookPage = () => {  
+    const [refreshing, setRefreshing] = useState(false);
+    const [classes, setClasses] = useState([]);
+    const isFocused = useIsFocused();                // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
+                                                     // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
+    const refreshClasses = async() => {              // async function to provide scope for await keyword
+        try {
+            let pull = await getGrades(username, password, quarter, 'grades'); // pulls data from api asyncronously from api.js
+            setClasses(pull);
+        } catch(err) {
+            console.error(err);
+        }                                                             
     } 
+    useEffect(() => {                 
+        if(isFocused) {
+            refreshClasses();     
+        }
+    }, [isFocused]); // set array to empty array to only run useEffect once; currently runs on every focus
+
+    const onRefresh = useCallback(async() => { // refreshes class data when the user refreshes the screen
+        setRefreshing(true);
+        await refreshClasses();                // wait for the data to load before setting the refreshing state to false
+        setRefreshing(false);
+    }, []);
+
+    return (
+        <SafeAreaView style = {gradeStyles.container}>
+            <ScrollView 
+                style={gradeStyles.grade_container} 
+                contentContainerStyle = {{paddingBottom: 10, marginTop: 5}}
+                refreshControl = {
+                    <RefreshControl
+                        refreshing = {refreshing}
+                        onRefresh = {onRefresh}
+                    />
+                }
+            >
+                <View style = {{flexDirection: 'column', justifyContent: 'center', flex: 1}}>
+                    <GradeBoxes classes = {classes} />     
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
 }
 
 const Assignment = ({ index, name, data, navigation }) => (
