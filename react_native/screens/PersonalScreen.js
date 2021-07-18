@@ -1,5 +1,6 @@
-import React, {useState} from 'react';
-import {createStackNavigator} from '@react-navigation/stack';
+import React, { useEffect, useState } from 'react';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { getStudentInfo } from '../components/api.js';
 
 import {
     StyleSheet,
@@ -7,9 +8,14 @@ import {
     Dimensions,
     View,
     Text,
+    Image,
+    ActivityIndicator,
 } from 'react-native';
 
-const SettingsPage = () => {
+const username = 'your username' // temporary for testing, authentication isn't up yet
+const password = 'your password'
+
+const SettingsScreen = () => {
     const [isEnabled, setIsEnabled] = useState(false);
     const toggleSwitch = () => setIsEnabled(previousState => !previousState);
     
@@ -31,19 +37,59 @@ const SettingsPage = () => {
     );
 }
 
-const StackNav = createStackNavigator();
+const ProfileScreen = () => {
+    const [studentInfo, setStudentInfo] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const refreshInfo = async() => {
+        try {
+            let info = await getStudentInfo(username, password);
+            setStudentInfo(info);
+            setIsLoading(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    useEffect(() => {
+        refreshInfo();
+    }, [])
+
+    return (
+        <View style = {styles.container}>
+            {
+                isLoading ?  
+                    <ActivityIndicator size = 'large' color = 'black' />
+                : (
+                    <View style = {[styles.container, {flexDirection: 'column'}]}>
+                        <View>
+                            <Image source={{uri: `data:image/png;base64, ${studentInfo.StudentInfo.Photo}`}} style={styles.profilePic} />
+                        </View>
+                        <Text>This is your profile page</Text>
+                    </View>
+                )  
+            }
+        </View>
+    )
+}
+
+const Drawer = createDrawerNavigator();
 
 function PersonalScreen() {
     return (
-        <StackNav.Navigator>
-            <StackNav.Screen name = 'Settings' component = {SettingsPage} />
-        </StackNav.Navigator>
+        <Drawer.Navigator initialRouteName = 'Home'>
+            <Drawer.Screen name = 'Home' component = {ProfileScreen} />
+            <Drawer.Screen name = 'Settings' component = {SettingsScreen} />
+        </Drawer.Navigator>
     );
 }
 const styles = StyleSheet.create({
     container: {
-        height: "100%",
         flex: 1,
+        height: "100%",
+        width: "100%",
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     setting_box: {
         width: Dimensions.get('window').width - 40,
@@ -52,10 +98,16 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         alignItems: 'center',
         margin: 15,
-        borderRadius: 15,
+        borderRadius: 5,
         backgroundColor: '#EAEAEA',
         flex: 1,
-    }
+    },
+    profilePic: {
+        width: 150,
+        height: 150,
+        borderRadius: 90,
+        overflow: 'hidden',
+    },
 });
 
 export default PersonalScreen;

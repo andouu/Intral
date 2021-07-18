@@ -16,8 +16,8 @@ import {
     Image,
     Dimensions,
     RefreshControl,
+    ActivityIndicator,
     StatusBar,
-    Alert,
 } from 'react-native';
 import {
     BarChart,
@@ -36,12 +36,69 @@ const chartConfig = {
     useShadowColorFromDataset: false // optional
 };
 
-const username = 'your username'
+const username = 'your username' // should import username and password from a central location after authentication
 const password = 'your password'
 const screenWidth = Dimensions.get('window').width;
 let quarter = 1;
 
-const GradeBoxes = ({classes}) => { 
+const wait = (timeout) => {
+    return new Promise(resolve => setTimeout(resolve, timeout));
+}
+
+const GradebookPage = () => {
+    const [isLoading, setIsLoading] = useState(true);  
+    const [refreshing, setRefreshing] = useState(false);
+    const [classes, setClasses] = useState([]);
+    const isFocused = useIsFocused();               // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
+                                                    // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
+    const refreshClasses = async() => {             // async function to provide scope for await keyword
+        try {
+            let pull = await getGrades(username, password, quarter); // pulls data from api asyncronously from api.js
+            setClasses(pull);
+            setIsLoading(false);
+        } catch(err) {
+            console.error(err);
+        }                                                             
+    } 
+    useEffect(() => {                 
+        if(isFocused) {
+            refreshClasses();     
+        }
+    }, [isFocused]); // set array to empty array to only run useEffect once; currently runs on every focus
+
+    const onRefresh = useCallback(async() => { // refreshes class data when the user refreshes the screen
+        setRefreshing(true);
+        await refreshClasses();                // wait for the data to load before setting the refreshing state to false
+        setRefreshing(false);
+    }, []);
+
+    return (
+        <SafeAreaView style = {gradeStyles.container}>
+            {isLoading ? (
+                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+                    <ActivityIndicator size = 'large' color = 'black' />
+                </View>
+            ) : (
+                <ScrollView 
+                    style={gradeStyles.grade_container} 
+                    contentContainerStyle = {{paddingBottom: 10, marginTop: 5}}
+                    refreshControl = {
+                        <RefreshControl
+                            refreshing = {refreshing}
+                            onRefresh = {onRefresh}
+                        />
+                    }
+                >
+                    <View style = {{flexDirection: 'column', justifyContent: 'center', flex: 1}}>
+                        <GradeBoxes classes = {classes} />     
+                    </View>
+                </ScrollView>
+            )}   
+        </SafeAreaView>
+    );
+}
+
+const GradeBoxes = ({ classes }) => { 
     const navigation = useNavigation();
     
     let gradeObjects = classes.map((period, i) => {
@@ -77,55 +134,6 @@ const GradeBoxes = ({classes}) => {
         gradeObjects.map(obj => {
             return (obj);
         })
-    );
-}
-
-const wait = (timeout) => {
-    return new Promise(resolve => setTimeout(resolve, timeout));
-}
-
-const GradebookPage = () => {  
-    const [refreshing, setRefreshing] = useState(false);
-    const [classes, setClasses] = useState([]);
-    const isFocused = useIsFocused();                // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
-                                                     // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
-    const refreshClasses = async() => {              // async function to provide scope for await keyword
-        try {
-            let pull = await getGrades(username, password, quarter, 'grades'); // pulls data from api asyncronously from api.js
-            setClasses(pull);
-        } catch(err) {
-            console.error(err);
-        }                                                             
-    } 
-    useEffect(() => {                 
-        if(isFocused) {
-            refreshClasses();     
-        }
-    }, [isFocused]); // set array to empty array to only run useEffect once; currently runs on every focus
-
-    const onRefresh = useCallback(async() => { // refreshes class data when the user refreshes the screen
-        setRefreshing(true);
-        await refreshClasses();                // wait for the data to load before setting the refreshing state to false
-        setRefreshing(false);
-    }, []);
-
-    return (
-        <SafeAreaView style = {gradeStyles.container}>
-            <ScrollView 
-                style={gradeStyles.grade_container} 
-                contentContainerStyle = {{paddingBottom: 10, marginTop: 5}}
-                refreshControl = {
-                    <RefreshControl
-                        refreshing = {refreshing}
-                        onRefresh = {onRefresh}
-                    />
-                }
-            >
-                <View style = {{flexDirection: 'column', justifyContent: 'center', flex: 1}}>
-                    <GradeBoxes classes = {classes} />     
-                </View>
-            </ScrollView>
-        </SafeAreaView>
     );
 }
 
@@ -185,7 +193,7 @@ const ClassDetailsScreen = ({ route, navigation }) => {
         });
     } else {
         labels = ['Total'];
-        classValues = totalPct;
+        classValues = [totalPct];
     } 
 
     const [graphData, setGraphData] = useState({ labels: labels, datasets: [{ data: classValues }, { data: [40, 40, 20, 100]}] });
@@ -235,7 +243,7 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                             setDropped(!isDropped); 
                         }}
                     >
-                        <Image style = {[gradeStyles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg}></Image>
+                        <Image style = {[gradeStyles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg} />
                     </Pressable>
                 </View>
                 <View style={gradeStyles.horizontalDivider} />
@@ -278,15 +286,15 @@ const AssignmentDetail = ({detail, data}) => {
     ); 
 }
 
-const StackNav = createStackNavigator();
+const Stack = createStackNavigator();
 
 function GradebookScreen(){
     return (
-        <StackNav.Navigator initialRouteName="GradeBook">
-            <StackNav.Screen name="Gradebook" component={GradebookPage} />
-            <StackNav.Screen name="Class Details" component={ClassDetailsScreen} />
-            <StackNav.Screen name="Assignment Details" component={AssignmentDetailsScreen} />
-        </StackNav.Navigator>
+        <Stack.Navigator initialRouteName="GradeBook">
+            <Stack.Screen name="Gradebook" component={GradebookPage} />
+            <Stack.Screen name="Class Details" component={ClassDetailsScreen} />
+            <Stack.Screen name="Assignment Details" component={AssignmentDetailsScreen} />
+        </Stack.Navigator>
     );
 }
 
@@ -335,6 +343,7 @@ const gradeStyles = StyleSheet.create({
     },
     grade_display: {
         width: "100%",
+        minHeight: 80,
         padding: 5,
         marginBottom: 15,
         borderRadius: 5,
@@ -346,15 +355,15 @@ const gradeStyles = StyleSheet.create({
     grade_letter: {
         flex: 1,
         fontSize: 45,
-        paddingBottom: 8,
+        paddingBottom: 0,
         left: 18,
-        fontFamily: "Raleway-SemiBold",
+        fontFamily: "Proxima Nova Bold",
         textAlign: "left",
         textAlignVertical: "center",
     },
     grade_info: {
         flex: 4,
-        fontFamily: 'Raleway-Medium',
+        fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
         paddingLeft: 45,
         flexWrap: "wrap",
