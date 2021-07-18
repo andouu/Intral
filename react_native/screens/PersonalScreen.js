@@ -12,8 +12,10 @@ import {
     ActivityIndicator,
 } from 'react-native';
 
-const username = 'your username' // temporary for testing, authentication isn't up yet
-const password = 'your password'
+const credentials = require('../credentials.json') // WARNING: temporary solution
+
+const username = credentials.username // temporary for testing, authentication isn't up yet
+const password = credentials.password
 
 const SettingsScreen = () => {
     const [isEnabled, setIsEnabled] = useState(false);

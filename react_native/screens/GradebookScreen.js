@@ -36,8 +36,9 @@ const chartConfig = {
     useShadowColorFromDataset: false // optional
 };
 
-const username = 'your username' // should import username and password from a central location after authentication
-const password = 'your password'
+const credentials = require('../credentials.json'); // WARNING: temporary solution
+const username = credentials.username // should import username and password from a central location after authentication
+const password = credentials.password
 const screenWidth = Dimensions.get('window').width;
 let quarter = 1;
 
