@@ -164,7 +164,7 @@ const Assignment = ({ index, name, data, navigation }) => (
 
 const ClassDetailsScreen = ({ route, navigation }) => {
     const {periodNumber, classInfo } = route.params;
-    const [isDropped, setDropped] = useState(false);
+    const [isDropped, setIsDropped] = useState(false);
 
     let gradeSummary = classInfo.Marks.Mark.GradeCalculationSummary.AssignmentGradeCalc;
     let isOneWeight = !Array.isArray(gradeSummary);                                      // if there is only one weight, then the array is undefined, so we need to check for that
@@ -241,7 +241,7 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                     <Pressable 
                         style = {({pressed}) => [{opacity: pressed ? 0.5 : 1}, gradeStyles.dropdown_button]}
                         onPress = {() => {
-                            setDropped(!isDropped); 
+                            setIsDropped(!isDropped); 
                         }}
                     >
                         <Image style = {[gradeStyles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg} />
