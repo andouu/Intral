@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { getStudentInfo } from '../components/api.js';
-
+import { AuthContext } from '../components/context';
 import {
     StyleSheet,
     Switch,
@@ -10,6 +10,7 @@ import {
     Text,
     Image,
     ActivityIndicator,
+    Pressable,
 } from 'react-native';
 
 const credentials = require('../credentials.json') // WARNING: temporary solution
@@ -19,10 +20,11 @@ const password = credentials.password
 
 const SettingsScreen = () => {
     const [isEnabled, setIsEnabled] = useState(false);
+    const { signOut } = useContext(AuthContext);
     const toggleSwitch = () => setIsEnabled(previousState => !previousState);
     
     return(
-        <View style = {{flex:1, flexDirection: 'row', justifyContent: 'center', padding: 10}}>
+        <View style = {{flex:1, flexDirection: 'column', justifyContent: 'center', padding: 15}}>
             <View style = {styles.setting_box}>
                 <Text style = {{flex: 2, marginLeft: 20, fontSize: 20, fontFamily: 'Raleway-Medium', color: '#373737', height: 32}}>Darkmode:</Text>
                     <Switch 
@@ -34,6 +36,14 @@ const SettingsScreen = () => {
                             marginRight: 10,
                         }}
                     />
+            </View>
+            <View style = {[styles.setting_box, {backgroundColor: null}]}>
+                <Pressable 
+                    style = {({pressed}) => [{opacity: pressed ? 0.5 : 1}, styles.logout_button]}
+                    onPress = {() => signOut()}
+                >
+                    <Text>Sign Out</Text>
+                </Pressable>
             </View>
         </View>
     );
@@ -57,20 +67,22 @@ const ProfileScreen = () => {
         refreshInfo();
     }, [])
 
+    if(isLoading) {
+        return (
+            <View style = {styles.container}>
+                <ActivityIndicator size = 'large' color = 'black' />
+            </View> 
+        );
+    }
+
     return (
         <View style = {styles.container}>
-            {
-                isLoading ?  
-                    <ActivityIndicator size = 'large' color = 'black' />
-                : (
-                    <View style = {[styles.container, {flexDirection: 'column'}]}>
-                        <View>
-                            <Image source={{uri: `data:image/png;base64, ${studentInfo.StudentInfo.Photo}`}} style={styles.profilePic} />
-                        </View>
-                        <Text>This is your profile page</Text>
-                    </View>
-                )  
-            }
+            <View style = {[styles.container, {flexDirection: 'column'}]}>
+                <View>
+                    <Image source={{uri: `data:image/png;base64, ${studentInfo.StudentInfo.Photo}`}} style={styles.profilePic} />
+                </View>
+                <Text>This is your profile page</Text>
+            </View>
         </View>
     )
 }
@@ -102,13 +114,22 @@ const styles = StyleSheet.create({
         margin: 15,
         borderRadius: 5,
         backgroundColor: '#EAEAEA',
-        flex: 1,
     },
     profilePic: {
         width: 150,
         height: 150,
         borderRadius: 90,
         overflow: 'hidden',
+    },
+    logout_button: {
+        minHeight: 75,
+        padding: 10,
+        marginBottom: 15,
+        width: "100%",
+        flexDirection: "column",
+        justifyContent: "center",
+        borderRadius: 5,
+        backgroundColor: "#EAEAEA",
     },
 });
 
