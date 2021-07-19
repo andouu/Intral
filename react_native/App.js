@@ -7,26 +7,23 @@ import React, {
     useReducer,
 } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+// WARNING: AsyncStorage is NOT SECURE BY ITSELF. Pair with other libraries such as react-native-keychain and etc. when storing sensitive data.
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
     Image,
     View,
     ActivityIndicator,
 } from 'react-native';
-
-import GradebookScreen from './screens/GradebookScreen';
-import PlannerScreen from './screens/PlannerScreen';
-import PersonalScreen from './screens/PersonalScreen';
+import MainStackScreen from './screens/MainStackScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
 import { AuthContext } from './components/context';
-import { login } from './components/api';
-import { DrawerContentScrollView } from '@react-navigation/drawer';
 
 /*Since we're using bottomTabNavigator, you have to create each screen as a stackNavigator, as a child under the tab navigator*/
 
-const Tab = createBottomTabNavigator();
+const Drawer = createDrawerNavigator();
 
 const navTheme = DefaultTheme;
 navTheme.colors.background = '#FFFFFF';
@@ -102,13 +99,13 @@ const App = () => {
         setTimeout(async() => {
             let userToken;
             userToken = null;
-            try {
+            try {                                                     // TODO: Securely store userData in AsyncStorage with react-native-keychain, etc.
                 userToken = await AsyncStorage.getItem('userToken');
             } catch(err) {
                 console.log(err);
             }
             dispatch({ type: 'REGISTER', token: userToken });
-        }, 1000)
+        }, 0)
     }, []);
 
     if(loginState.isLoading) {
@@ -124,49 +121,13 @@ const App = () => {
             <SafeAreaProvider>
                 <NavigationContainer theme = {DefaultTheme}>
                     {loginState.userToken !== null ? (
-                        <Tab.Navigator>
-                            <Tab.Screen 
-                                name = "Planner" 
-                                component = { PlannerScreen } 
-                                options = {{
-                                    tabBarIcon: ({}) => (
-                                        <Image style = {{height: 30, width: 30 }}  
-                                            source = { require('./assets/images/CAS_planner_icon.png') }
-                                        />
-                                    ),
-                                    tabBarLabel: 'Planner'
-                                }}
-                            />
-                            <Tab.Screen 
-                                name = "Grades" 
-                                component = { GradebookScreen } 
-                                options = {{
-                                    tabBarIcon: ({}) => (
-                                        <Image style = {{height: 30, width: 30}}  
-                                            source = { require('./assets/images/CAS_grade_book_icon.png') }
-                                        />
-                                    ),
-                                    tabBarLabel: 'Grades'
-                                }}
-                            />
-                            <Tab.Screen 
-                                name = "Personal" 
-                                component = { PersonalScreen } 
-                                options = {{
-                                    tabBarIcon: ({}) => (
-                                        <Image style = {{height: 30, width: 30}}  
-                                            source = { require('./assets/images/CAS_settings_icon.png') }
-                                        />
-                                    ),
-                                    tabBarLabel: 'You'
-                                }}
-                            /> 
-                        </Tab.Navigator> 
+                        <Drawer.Navigator>
+                            <Drawer.Screen name = 'Home' component = {MainStackScreen} />
+                            <Drawer.Screen name = 'Settings' component = {SettingsScreen} />
+                        </Drawer.Navigator>
                     ) : (
                         <RootStackScreen />
-                    )}
-                    
-                    
+                    )} 
                 </NavigationContainer>
             </SafeAreaProvider>
         </AuthContext.Provider>
