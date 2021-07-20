@@ -25,6 +25,10 @@ import {
 } from 'react-native-chart-kit';
 import { withSafeAreaInsets } from 'react-native-safe-area-context';
 
+const dummyAdd = require('../dummy data/add');
+const dummyRemove = require('../dummy data/remove');
+const dummyAddRemove = require('../dummy data/addRemove');
+
 const chartConfig = {
     backgroundGradientFrom: "#1E2923",
     backgroundGradientFromOpacity: 0,
@@ -46,21 +50,120 @@ const wait = (timeout) => {
     return new Promise(resolve => setTimeout(resolve, timeout));
 }
 
+const validChanges = {        // to check for valid changes; we don't really care about gradebookID changes (if it even changes)
+    Type: 'Assignment Type',
+    DueDate: 'Due Date',
+    Points: 'Points',         // points over score because idk
+    Notes: 'Teacher Notes',
+}
+
 const GradebookPage = () => {
     const [isLoading, setIsLoading] = useState(true);  
     const [refreshing, setRefreshing] = useState(false);
     const [classes, setClasses] = useState([]);
     const isFocused = useIsFocused();               // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
                                                     // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
-    const refreshClasses = async() => {             // async function to provide scope for await keyword
+
+    const findDifference = async(original, newData) => {
+        let added = [];
+        let removed = [];
+        let changed = [];
+        for(let i=0; i<original.length; i++) { // loop through all the classes
+            let currAssignments = original[i].Marks.Mark.Assignments.Assignment.slice();     // make a copy of the current assignments
+            let compareAssignments = newData[i].Marks.Mark.Assignments.Assignment.slice();   // make a copy of the incoming assignments (to compare against)
+            let tmpAdded = []; // temporary array to hold the new assignments
+            let tmpChanged = []; // temporary array to hold the changed assignments
+            const len = compareAssignments.length;
+            for(let j=0; j<len; j++) {
+                let index = currAssignments.findIndex(item => item.Measure === compareAssignments[j].Measure); // check if the assignment in the compare array exists in the current assignments
+                if(index === -1) { // if it doesn't exist
+                    tmpAdded.push(compareAssignments[j]); // add it to the new assignments array
+                } else {
+                    let tmp = [];
+                    for(var key in compareAssignments[j]) {
+                        if(validChanges[key]) // check if the key is a change we're looking for
+                        {
+                            if(compareAssignments[j][key] !== currAssignments[index][key]) {
+                                tmp.push(validChanges[key]);
+                            }
+                        }
+                    }
+                    if(tmp.length > 0) { // check if there are any changes
+                        tmpChanged.push({ Measure: compareAssignments[j].Measure, changes: tmp });
+                    }
+                    currAssignments.splice(index, 1); // remove it from the current assignments copy. At the end of the loop, the removed assignments will be anything not removed from the copy.
+                }
+            }
+
+            if(tmpAdded.length > 0) { // if there are any added, removed, or changed assignments, add them to the return object, otherwise don't add anything.
+                added.push({ period: i, assignments: tmpAdded });
+            }
+            if(currAssignments.length > 0) {
+                removed.push({ period: i, assignments: currAssignments });
+            }
+            if(tmpChanged.length > 0) {
+                changed.push({ period: i, assignments: tmpChanged });
+            }
+        }
+
+        let result = {}; // the return object
+
+        if(added.length > 0) {               // if there are any added assignments or removed assignments, return them.
+            result.added = added;
+        }
+        if(removed.length > 0) {
+            result.removed = removed;
+        }
+        if(changed.length > 0) {
+            result.changed = changed;
+        }
+        
+        return result;
+    }
+    
+    const logDiff = (diff) => {
+        for(let key in diff){
+            let arr = diff[key];
+            arr.forEach(item => {
+                console.log('Period ' + (item.period + 1) + ' ' + key.toString() + ' ' + item.assignments.length + ' assignments: ');
+                item.assignments.forEach(assignment => {
+                    if(key !== 'changed') {
+                        console.log(assignment.Measure);
+                    } else {
+                        let changeArray = assignment.changes;
+                        let fullMessage = '';
+                        fullMessage +=  assignment.Measure + ': ';
+                        for(let i=0; i<changeArray.length-1; i++) {
+                            fullMessage += changeArray[i] + ', ';
+                        }
+                        fullMessage += changeArray[changeArray.length-1];
+                        console.log(fullMessage)
+                    }
+                });
+            });
+        }
+    }
+
+    const refreshClasses = async() => {  // async function to provide scope for await keyword
         try {
-            let pull = await getGrades(username, password, quarter); // pulls data from api asyncronously from api.js
+            let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
+            if(classes !== []) {
+                let difference = await findDifference(pull, dummyAddRemove);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
+
+                if(Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
+                    logDiff(difference);
+                    // send new push notifications here based on the differences
+                } else {
+                    console.log('no changes');
+                }
+            }
             setClasses(pull);
             setIsLoading(false);
         } catch(err) {
             console.error(err);
         }                                                             
     } 
+
     useEffect(() => {                 
         if(isFocused) {
             refreshClasses();     
