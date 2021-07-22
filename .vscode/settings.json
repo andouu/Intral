@@ -1,3 +1,4 @@
 {
-    "terminal.integrated.shell.windows": "C:\\WINDOWS\\System32\\cmd.exe"
+    "terminal.integrated.shell.windows": "C:\\WINDOWS\\System32\\cmd.exe",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

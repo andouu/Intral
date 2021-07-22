@@ -116,7 +116,7 @@ const App = () => {
         );
     }
     
-    return (
+    return ( // TODO: Android immersive mode
         <AuthContext.Provider value = {authContext}>
             <SafeAreaProvider>
                 <NavigationContainer theme = {DefaultTheme}>

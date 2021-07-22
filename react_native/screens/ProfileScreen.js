@@ -27,8 +27,10 @@ const HomePage = () => {
     const refreshInfo = async() => {
         try {
             let info = await getStudentInfo(username, password);
-            setStudentInfo(info);
-            setIsLoading(false);
+            if(!info.text) {
+                setStudentInfo(info);
+                setIsLoading(false);
+            }
         } catch (err) {
             console.log(err);
         }
