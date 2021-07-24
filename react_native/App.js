@@ -1,7 +1,6 @@
 import 'react-native-gesture-handler';
 /*import react-native-gesture-handler HAS TO BE the FIRST line */;
 import React, {
-    useState,
     useEffect,
     useMemo,
     useReducer,
@@ -12,11 +11,12 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
-    Image,
     View,
     ActivityIndicator,
     StatusBar,
+    StyleSheet,
 } from 'react-native';
+import { swatch, swatchRGB } from './components/theme';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
@@ -125,7 +125,12 @@ const App = () => {
                 />
                 <NavigationContainer theme = {DefaultTheme}>
                     {loginState.userToken !== null ? (
-                        <Drawer.Navigator>
+                        <Drawer.Navigator 
+                            initialRouteName='Home'
+                            drawerContentOptions={{
+                                style: styles.drawerMain,
+                            }}
+                        >
                             <Drawer.Screen name = 'Home' component = {MainStackScreen} />
                             <Drawer.Screen name = 'Settings' component = {SettingsScreen} />
                         </Drawer.Navigator>
@@ -137,5 +142,12 @@ const App = () => {
         </AuthContext.Provider>
     );
 };
+
+const styles = StyleSheet.create({
+    drawerMain: {
+        backgroundColor: swatch['s1'],
+
+    }
+});
 
 export default App;

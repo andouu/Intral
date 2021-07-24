@@ -3,7 +3,7 @@ import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-nav
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { swatch, swatchRGB } from '../components/theme.js';
 import {
     ScrollView,
     View,
@@ -179,8 +179,8 @@ const GradebookPage = () => {
     return (
         <SafeAreaView style = {gradeStyles.container}>
             {isLoading ? (
-                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-                    <ActivityIndicator size = 'large' color = 'black' />
+                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: swatch['s1']}}>
+                    <ActivityIndicator size = 'large' color = {swatch['s4']} />
                 </View>
             ) : (
                 <ScrollView 
@@ -318,7 +318,7 @@ const ClassDetailsScreen = ({ route, navigation }) => {
 
     return (
         <SafeAreaView style={gradeStyles.container}>
-            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0}}>
+            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0, padding: 15,}}>
                 <Text style={[{marginBottom: 10}, gradeStyles.info_header]}>
                     Period {parseInt(periodNumber)+1}: {classInfo.Title}
                 </Text>
@@ -395,9 +395,21 @@ const Stack = createStackNavigator();
 function GradebookScreen(){
     return (
         <Stack.Navigator initialRouteName="GradeBook">
-            <Stack.Screen name="Gradebook" component={GradebookPage} />
-            <Stack.Screen name="Class Details" component={ClassDetailsScreen} />
-            <Stack.Screen name="Assignment Details" component={AssignmentDetailsScreen} />
+            <Stack.Screen 
+                name="Gradebook" 
+                component={GradebookPage} 
+                options={{headerShown: false}}
+            />
+            <Stack.Screen 
+                name="Class Details" 
+                component={ClassDetailsScreen} 
+                options={{headerShown: false}}
+            />
+            <Stack.Screen 
+                name="Assignment Details" 
+                component={AssignmentDetailsScreen} 
+                options={{headerShown: false}}
+            />
         </Stack.Navigator>
     );
 }
@@ -410,6 +422,7 @@ const gradeStyles = StyleSheet.create({
         padding: 15,
         paddingTop: 0,
         paddingBottom: 0,
+        backgroundColor: swatch['s1'],
     },
     image: {
         flex: 1,
@@ -418,7 +431,7 @@ const gradeStyles = StyleSheet.create({
         resizeMode: 'contain',
     },
     horizontalDivider: {
-        borderBottomColor: "black",
+        borderBottomColor: swatch['s6'],
         borderBottomWidth: StyleSheet.hairlineWidth,
         width: "100%",
         marginTop: 15,
@@ -429,7 +442,7 @@ const gradeStyles = StyleSheet.create({
         left: 100,
         alignSelf: "center",
         width: StyleSheet.hairlineWidth,
-        backgroundColor: "rgba(0,0,0,1)",
+        backgroundColor: swatch['s4'],
         position: "absolute"
     },
     button_wrapper: {
@@ -450,8 +463,8 @@ const gradeStyles = StyleSheet.create({
         minHeight: 80,
         padding: 5,
         marginBottom: 15,
-        borderRadius: 5,
-        backgroundColor: "#EAEAEA",
+        borderRadius: 15,
+        backgroundColor: swatch['s2'],
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
@@ -461,12 +474,14 @@ const gradeStyles = StyleSheet.create({
         fontSize: 45,
         paddingBottom: 0,
         left: 18,
+        color: swatch['s6'],
         fontFamily: "Proxima Nova Bold",
         textAlign: "left",
         textAlignVertical: "center",
     },
     grade_info: {
         flex: 4,
+        color: swatch['s6'],
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
         paddingLeft: 45,
@@ -476,14 +491,15 @@ const gradeStyles = StyleSheet.create({
         textAlignVertical: "center",
     },
     info_header: {
+        color: swatch['s6'],
         fontFamily: "Proxima Nova Extrabold",
-        fontSize: 25,
+        fontSize: 40,
     },
     info_subheader: {
         fontFamily: "Proxima Nova Bold",
-        fontSize: 18,
+        fontSize: 30,
         fontWeight: "300",
-        color: "rgba(0, 0, 0, 0.5)",
+        color: `rgba(${swatchRGB.s4.r}, ${swatchRGB.s4.g}, ${swatchRGB.s4.b}, 1)`,
     },
     assignmentDescriptionWrapper: {
         flex: 1,

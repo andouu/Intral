@@ -127,7 +127,8 @@ const LoginField = ({ handleLogin, secureEntry, updateData }) => {
             <View style={styles.field}>
                 <Text style={styles.footer_text}>Username:</Text>
                 {/* Icon for username */}
-                <TextInput                
+                <TextInput    
+                    autoCapitalize='none'            
                     placeholder = 'Username'
                     onChangeText={text => {
                         updateData('username', text);
@@ -141,6 +142,7 @@ const LoginField = ({ handleLogin, secureEntry, updateData }) => {
                         {/* Replace with icon for password */}
                     </View>
                     <TextInput
+                        autoCapitalize='none'
                         style={styles.footer_input}
                         placeholder = 'Password'
                         onChangeText={text => {

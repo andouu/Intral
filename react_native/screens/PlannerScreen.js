@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
+import { swatch, swatchRGB } from '../components/theme'
+import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 
 const maxChars = 40;
 
@@ -27,6 +29,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                 <View style = {styles.planner_text_box}>
                     <TextInput
                         placeholder = 'Enter Event (e.g. Study for 20 min Today)'
+                        placeholderTextColor={`rgba(${swatchRGB.s6.r}, ${swatchRGB.s6.g}, ${swatchRGB.s6.b}, 0.5)`}
                         textBreakStrategy = 'highQuality'
                         numberOfLines = {2}
                         maxLength = {maxChars}
@@ -42,14 +45,13 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                         onEndEditing = { () => handleTextChange(index, text, charsLeft) }
                         style = {styles.planner_event_text}
                         textAlign = 'center'
-                        color = '#2D2D2D'
                     />
                     <TouchableOpacity style={styles.planner_delete_button}>
                         <Icon
                             name='x'
                             type='feather'
-                            color='#616161'
-                            size={15}
+                            color='red'
+                            size={20}
                             onPress={() => handleDelete(index)}
                         />
                     </TouchableOpacity>
@@ -60,7 +62,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
     )
 }
 
-const PlannerPage = (props) => {
+const PlannerPage = ({ navigation }) => {
     const [events, setEvents] = useState([]);
 
     const handleAdd = async() => {
@@ -130,10 +132,10 @@ const PlannerPage = (props) => {
         );
     });
 
-    let helperText; 
+    let helperText = null; 
     if (events.length === 0) {
         helperText = (
-            <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 140, height: "100%"}}>
+            <View style = {{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
                 <Text style = {styles.helper_text}>
                     There are no events in your planner right now...{'\n'}
                     Click the button in the bottom right to add one!
@@ -143,18 +145,36 @@ const PlannerPage = (props) => {
     }
     return ( 
         <View style = {styles.container}>
-            {helperText}
-            <ScrollView style = {{paddingTop: 5}}>
-                <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center'}}>
-                    {event_boxes}
+            <View style={styles.optionsBar}>
+                <View style={styles.menu_button}>
+                    <MaterialDesignIcons.Button 
+                        underlayColor={`rgba(${swatchRGB.s4.r}, ${swatchRGB.s4.g}, ${swatchRGB.s4.b}, 0.5)`}
+                        activeOpacity={0.5}
+                        right={2}
+                        bottom={4}
+                        hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
+                        borderRadius = {80}
+                        name='menu' 
+                        color={swatch['s4']} 
+                        size={35}
+                        backgroundColor='transparent'
+                        onPress={() => navigation.openDrawer()} 
+                        style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
+                    />
                 </View>
+            </View>
+            {helperText}
+            <ScrollView style={{flex: 1}} contentContainerStyle={{alignItems: 'center', justifyContent: 'center'}}>
+                <View style = {{flex: 1, flexDirection: 'column', alignSelf: 'stretch', justifyContent: 'center'}}>
+                    {event_boxes}
+                </View>        
             </ScrollView>
             <View style={styles.planner_add_button}>
                 <Icon
                     name='plus'
                     type='feather'
                     size={35}
-                    color='black'
+                    color={swatch['s7']}
                     onPress={handleAdd}
                 />
             </View>
@@ -167,7 +187,13 @@ const StackNav = createStackNavigator();
 const PlannerScreen = () => {
     return(
         <StackNav.Navigator>
-            <StackNav.Screen name = 'Planner' component = {PlannerPage} />
+            <StackNav.Screen 
+                name = 'Planner' 
+                component = {PlannerPage} 
+                options={{
+                    headerShown: false,
+                }}
+            />
         </StackNav.Navigator> 
     );
 }
@@ -180,13 +206,15 @@ const styles = StyleSheet.create({
         padding: 15,
         paddingTop: 0,
         paddingBottom: 0,
+        backgroundColor: swatch['s1'],
     },
     planner_event_box: {
         minHeight: 80,
-        backgroundColor: '#EAEAEA',
+        width: '100%',
+        backgroundColor: swatch['s2'],
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 5,
+        borderRadius: 15,
         marginBottom: 15,
     },
     planner_add_button: {
@@ -194,7 +222,7 @@ const styles = StyleSheet.create({
         height: 60,
         borderRadius: 50,
         justifyContent: 'center',
-        backgroundColor: '#EAEAEA',
+        backgroundColor: swatch['s5'],
         position: 'absolute',
         bottom: 20,
         right: 20,
@@ -203,11 +231,11 @@ const styles = StyleSheet.create({
         marginTop: 0,
         fontSize: 15,
         fontFamily: 'ProximaNova-Regular',
-        color: '#2D2D2D',
+        color: swatch['s6'],
         flexWrap: 'wrap'
     },
     planner_text_box: {
-        backgroundColor: 'rgba(255,255,255,0)',
+        backgroundColor: 'transparent',
         minHeight: 30,
         marginLeft: 15,
         marginRight: 15,
@@ -217,6 +245,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
+        color: swatch['s6'],
         padding: 6,
         marginLeft: 10,
     },
@@ -225,22 +254,41 @@ const styles = StyleSheet.create({
         height: 18, 
         borderRadius: 9,
         justifyContent: 'center',
-        backgroundColor: '#c9c9c9',
+        backgroundColor: 'transparent',
         bottom: 5,
-        right: -1,
+        right: -17,
     },
     planner_charCt: {
         position: 'absolute',
-        color: '#2e2e2e',
+        color: swatch['s4'],
         bottom: -5, 
-        right: 0,
+        right: -15,
     },
     helper_text: {
         fontFamily: 'ProximaNova-Regular',
         textAlign: 'center',
-        color: 'black',
+        color: swatch['s6'],
         opacity: 0.5,
     },  
+    optionsBar: {
+        height: 100,
+        top: 0,
+        width: '100%',
+        flexDirection: 'row',
+        alignSelf: 'flex-start',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },  
+    menu_button: {
+        alignSelf: 'center',
+        padding: 0,
+        marginRight: 'auto',
+        width: 45,
+        maxHeight: 45,
+        borderRadius: 40,
+        borderWidth: 1,
+        borderColor: `rgba(${swatchRGB.s4.r}, ${swatchRGB.s4.g}, ${swatchRGB.s4.b}, 0.5)`,
+    },
 });
 
 export default PlannerScreen;
