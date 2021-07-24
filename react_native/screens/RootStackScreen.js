@@ -15,7 +15,7 @@ const RootStackScreen = ({ navigation }) => (
         style={{backgroundColor: 'blue'}}
         options={{
             title: '',
-            headerStyle: { backgroundColor: '#7FB685' },
+            headerStyle: { backgroundColor: 'white' /* '#7FB685' */ },
             headerTintColor: 'white',
             animationEnabled: false,
         }} />

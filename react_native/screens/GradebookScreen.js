@@ -266,7 +266,7 @@ const Assignment = ({ index, name, data, navigation }) => (
 );
 
 const ClassDetailsScreen = ({ route, navigation }) => {
-    const {periodNumber, classInfo } = route.params;
+    const { periodNumber, classInfo } = route.params;
     const [isDropped, setIsDropped] = useState(false);
 
     let gradeSummary = classInfo.Marks.Mark.GradeCalculationSummary.AssignmentGradeCalc;

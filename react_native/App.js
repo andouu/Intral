@@ -15,6 +15,7 @@ import {
     Image,
     View,
     ActivityIndicator,
+    StatusBar,
 } from 'react-native';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -119,6 +120,9 @@ const App = () => {
     return ( // TODO: Android immersive mode
         <AuthContext.Provider value = {authContext}>
             <SafeAreaProvider>
+                <StatusBar
+                    hidden={true}
+                />
                 <NavigationContainer theme = {DefaultTheme}>
                     {loginState.userToken !== null ? (
                         <Drawer.Navigator>

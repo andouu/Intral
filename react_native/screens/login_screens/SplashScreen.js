@@ -25,7 +25,7 @@ const textOpacity = useSharedValue(0);
 
   const footerStyle = useAnimatedStyle(() => {
     return {
-      backgroundColor: withTiming(`rgba(255, 255, 255, ${cardOpacity.value})`, {duration: 400}),
+      backgroundColor: withTiming(`rgba(99, 99, 99, ${cardOpacity.value})`, {duration: 400}),
       transform: [{translateY: withTiming(cardY.value, {duration: 800, easing: Easing.bezier(0.5, 0.01, 0, 1)})}],
     };
   });
@@ -60,14 +60,14 @@ const textOpacity = useSharedValue(0);
     style={{
       flex: 1,
       flexDirection: 'column',
-      backgroundColor: '#7FB685'
+      backgroundColor: 'rgba(25, 25, 24, 1)' //'#7FB685'
     }}>
     <View style={{flex: 3, alignItems: 'center', justifyContent: 'center'}}>
       <Animated.Text style={[{color: 'white', fontWeight: 'bold', fontSize: 55}, textStyle]}>Welcome!</Animated.Text>
     </View>
     <Animated.View 
       style={[
-        {flex: 2, backgroundColor: 'rgba(255, 255, 255, 0)', borderTopLeftRadius: 30, borderTopRightRadius: 30, alignItems: 'center', justifyContent: 'center'},
+        {flex: 2, borderTopLeftRadius: 30, borderTopRightRadius: 30, alignItems: 'center', justifyContent: 'center'},
         footerStyle,
       ]}>
         <Button title='Sign In!' onPress={() => navigation.navigate('Login')} />

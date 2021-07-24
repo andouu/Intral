@@ -1,6 +1,7 @@
 import React from 'react';
 import {
     Image,
+    View,
 } from 'react-native'
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -12,7 +13,7 @@ const Tab = createBottomTabNavigator();
 
 const MainStackScreen = () => {
     return (
-        <Tab.Navigator initialRouteName>
+        <Tab.Navigator initialRouteName='Personal' tabBar={props => <TabBar {...props} />}>
             <Tab.Screen 
                 name = "Personal" 
                 component = { ProfileScreen } 
@@ -51,6 +52,13 @@ const MainStackScreen = () => {
             /> 
         </Tab.Navigator> 
     )
+}
+
+const TabBar = () => {
+
+    return (
+        <View style={{width: '100%', height: 70, backgroundColor: 'blue'}}></View>
+    );
 }
 
 export default MainStackScreen;

@@ -18,7 +18,7 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 
-const bgColor = '#7FB685';
+const bgColor = 'rgba(25, 25, 24, 1)' //'#7FB685';
 
 const LoginScreen = ({ navigation }) => { 
     const [data, setData] = useState({
@@ -31,11 +31,11 @@ const LoginScreen = ({ navigation }) => {
     const textSize = useSharedValue(55);
     const textY = useSharedValue(75);
     const cardOpacity = useSharedValue(1);
-    const cardY = useSharedValue(193);
+    const cardY = useSharedValue(190);
 
     const footerStyle = useAnimatedStyle(() => {
         return {
-        backgroundColor: withTiming(`rgba(255, 255, 255, ${cardOpacity.value})`, {duration: 400}),
+        backgroundColor: withTiming(`rgba(99, 99, 99, ${cardOpacity.value})`, {duration: 400}),
         transform: [{translateY: withTiming(cardY.value, {duration: 600, easing: Easing.bezier(0.5, 0.01, 0, 1)})}],
         };
     });
@@ -79,13 +79,13 @@ const LoginScreen = ({ navigation }) => {
                 return;
             }
 
-            let loggedIn = await verify(data.username, data.password);
-            if(!loggedIn) {
-                Alert.alert('oh you naughty boy', 'Invalid username or password. Please try again!', [
-                    { text: 'Ok' }
-                ]);
-                return;
-            }
+            // let loggedIn = await verify(data.username, data.password);
+            // if(!loggedIn) {
+            //     Alert.alert('oh you naughty boy', 'Invalid username or password. Please try again!', [
+            //         { text: 'Ok' }
+            //     ]);
+            //     return;
+            // }
             signIn(data.username);
         } catch(err) {
             console.log(err);
@@ -104,7 +104,7 @@ const LoginScreen = ({ navigation }) => {
             style={{
             flex: 1,
             flexDirection: 'column',
-            backgroundColor: '#7FB685'
+            backgroundColor: bgColor //'#7FB685'
         }}>
             <View style={{flex: 2, alignItems: 'center', justifyContent: 'center'}}>
             <Animated.Text style={[{color: 'white', fontWeight: 'bold', fontSize: 55}, textStyle]}>Sign in</Animated.Text>
@@ -124,7 +124,7 @@ const LoginScreen = ({ navigation }) => {
 const LoginField = ({ handleLogin, secureEntry, updateData }) => {
     return (
         <View style={{width: '100%', height: '100%', alignItems: 'flex-start', justifyContent: 'flex-start'}}>
-            <View style={styles.field} >
+            <View style={styles.field}>
                 <Text style={styles.footer_text}>Username:</Text>
                 {/* Icon for username */}
                 <TextInput                
@@ -188,7 +188,7 @@ const styles = StyleSheet.create ({
     }, 
     card: {
         flex: 5, 
-        backgroundColor: 'rgba(255, 255, 255, 0)', 
+        backgroundColor: 'rgba(99, 99, 99, 0)', 
         borderTopLeftRadius: 30, 
         borderTopRightRadius: 30, 
         alignItems: 'center', 
@@ -204,6 +204,7 @@ const styles = StyleSheet.create ({
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     footer_text: {
+        color: 'white',
         marginBottom: 2,
         fontFamily: 'ProximaNova-Regular',
         fontSize: 17,
