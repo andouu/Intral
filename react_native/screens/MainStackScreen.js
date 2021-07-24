@@ -112,6 +112,7 @@ const TabBar = ({ state, descriptors, navigation }) => { // custom tab navigatio
 
                 return (
                     <Pressable
+                        key={index}
                         accessibilityRole='button'
                         accessibilityState={isFocused ? { selected: true } : {}}
                         accessibilityLabel={options.tabBarAccessibilityLabel}
