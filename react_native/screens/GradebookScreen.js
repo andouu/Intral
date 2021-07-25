@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
@@ -64,7 +65,7 @@ const GradebookPage = () => {
     const isFocused = useIsFocused();               // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
                                                     // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
 
-    const findDifference = async(original, newData) => {
+    const findDifference = (original, newData) => {
         let added = [];
         let removed = [];
         let changed = [];
@@ -148,27 +149,33 @@ const GradebookPage = () => {
         try {
             let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
             if(classes !== []) {
-                let difference = await findDifference(pull, dummyAddRemove);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
+                let storedClasses = await AsyncStorage.getItem('classes');
+                let prev = JSON.parse(storedClasses); // local async storage pull
+                if (Array.isArray(prev)) {
+                    let difference = findDifference(prev, dummyAddRemove);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
+                    //TODO replace above with let difference = findDifference(prev, pull); later
 
-                if(Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
-                    logDiff(difference);
-                    // send new push notifications here based on the differences
-                } else {
-                    console.log('no changes');
+                    if(Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
+                        logDiff(difference);
+                        // send new push notifications here based on the differences
+                    } else {
+                        console.log('no changes');
+                    }
                 }
             }
+            await AsyncStorage.setItem('classes', JSON.stringify(pull));
             setClasses(pull);
             setIsLoading(false);
         } catch(err) {
             console.error(err);
-        }                                                             
-    } 
-
-    useEffect(() => {                 
-        if(isFocused) {
-            refreshClasses();     
         }
-    }, [isFocused]); // set array to empty array to only run useEffect once; currently runs on every focus
+    }
+
+    useEffect(async () => {                 
+        if(isFocused) {
+            await refreshClasses();
+        }
+    }, []); // runs once (and saves to local async storage), user can manually refresh
 
     const onRefresh = useCallback(async() => { // refreshes class data when the user refreshes the screen
         setRefreshing(true);
