@@ -7,6 +7,7 @@ export const swatch = {
     s6: '#f7f8f9',
     s7: '#a37133',
     s8: '#598ac5',
+    s9: '#191919',
 }
 
 export const hexToRgb = (hex) => {
@@ -25,4 +26,9 @@ export const swatchRGB = (() => {
     }
     return tmp;
 })(); 
+
+export const toRGBA = (color, opacity) => { // takes rgb color (no hex)
+    console.log(color)
+    return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
+}
 
