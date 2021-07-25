@@ -28,7 +28,6 @@ export const swatchRGB = (() => {
 })(); 
 
 export const toRGBA = (color, opacity) => { // takes rgb color (no hex)
-    console.log(color)
     return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
 }
 

@@ -89,6 +89,7 @@ const Card = ({ style, outlined=false, children }) => {
                 borderWidth: outlined ? (style.borderWidth ? style.borderWidth : 1.5) : 0,
                 borderColor: outlined ? (style.borderColor ? style.borderColor : swatch.s4) : 'transparent',
                 padding: style.padding ? style.padding : 10,
+                marginBottom: style.marginBottom ? style.marginBottom : 10,
             },
         });
     }
@@ -211,10 +212,11 @@ const HomePage = () => {
                         padding: 0,
                         borderColor: 'transparent',
                     }}
-                    outlined={true}
+                    outlined={false}
                 >
                     <CustomLineChart />               
                 </Card>
+                
             </View>
         </ScrollView>
     )
