@@ -10,7 +10,10 @@ import {
     StyleSheet,
     Dimensions,
     Button,
-    Alert
+    Alert,
+    Modal,
+    Pressable,
+    Touchable
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
@@ -20,44 +23,106 @@ import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcon
 const maxChars = 40;
 
 const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
+    const [modalVisible, setModalVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(true);
     const [text, setText] = useState(data.text);
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
     return(
-        <View style = {{flex: 1, alignItems: 'center'}}>
-            <TouchableOpacity style = {styles.planner_event_box}>
+        <View style = {styles.planner_event_container}>
+            <Pressable
+                style={({pressed}) => [
+                    {
+                        opacity: pressed || modalVisible
+                            ? 0.8
+                            : 1
+                    },
+                    styles.planner_event_box
+                ]}
+            >
+                <Modal
+                    animationType='slide'
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={() => {
+                        setModalVisible(false);
+                    }}
+                >
+                    <View style={styles.planner_event_container}>
+                        <View style={styles.planner_event_modal}>
+                            <Pressable
+                                onPress={() => setModalVisible(false)}
+                                style={[
+                                    {
+                                        backgroundColor: swatch['s6'],
+                                    },
+                                    styles.planner_event_modal_button
+                                ]}
+                            >
+                                <Text style={styles.planner_event_modal_text}>Hide</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => {
+                                    setIsEditing(true);
+                                    setModalVisible(false);
+                                }}
+                                style={[
+                                    {
+                                        backgroundColor: swatch['s4']
+                                    },
+                                    styles.planner_event_modal_button
+                                ]}
+                            >
+                                <Text style={styles.planner_event_modal_text}>Edit</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => handleDelete(index)}
+                                style={[
+                                    {
+                                        backgroundColor: swatch['s2']
+                                    },
+                                    styles.planner_event_modal_button
+                                ]}
+                            >
+                                <Text style={styles.planner_event_modal_text}>Delete</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </Modal>
+                {!modalVisible && !isEditing && <TouchableOpacity style={styles.planner_event_edit_button}>
+                    <Icon
+                        name='edit'
+                        type='feather'
+                        size={20}
+                        onPress={() => setModalVisible(true)}
+                    />
+                </TouchableOpacity>}
+                {isEditing && <Text style= {styles.planner_event_charCount}>{ charsLeft }</Text>}
                 <View style = {styles.planner_text_box}>
                     <TextInput
-                        placeholder = 'Enter Event (e.g. Study for 20 min Today)'
+                        placeholder='Enter Event (e.g. Study for 20 min Today)'
                         placeholderTextColor={`rgba(${swatchRGB.s6.r}, ${swatchRGB.s6.g}, ${swatchRGB.s6.b}, 0.5)`}
-                        textBreakStrategy = 'highQuality'
-                        numberOfLines = {2}
-                        maxLength = {maxChars}
-                        multiline = {true} 
-                        textAlignVertical = 'center'
-                        scrollEnabled = {true}
-                        value = {text}
-                        onChangeText = { text => {
-                                setText(text);
-                                setCharsLeft(maxChars - text.length);
-                            } 
-                        }
-                        onEndEditing = { () => handleTextChange(index, text, charsLeft) }
-                        style = {styles.planner_event_text}
-                        textAlign = 'center'
+                        textBreakStrategy='highQuality'
+                        numberOfLines={2}
+                        maxLength={maxChars}
+                        multiline={true} 
+                        textAlignVertical='center'
+                        scrollEnabled={true}
+                        value={text}
+                        editable={isEditing}
+                        onChangeText={text => {
+                            setText(text);
+                            setCharsLeft(maxChars - text.length);
+                        }}
+                        onEndEditing={ () => {
+                            handleTextChange(index, text, charsLeft);
+                            setIsEditing(false);
+                        }}
+                        style={styles.planner_event_text}
+                        textAlign='center'
                     />
-                    <TouchableOpacity style={styles.planner_delete_button}>
-                        <Icon
-                            name='x'
-                            type='feather'
-                            color='red'
-                            size={20}
-                            onPress={() => handleDelete(index)}
-                        />
-                    </TouchableOpacity>
-                    <Text style= {styles.planner_charCt}>{ charsLeft }</Text>
                 </View>
-            </TouchableOpacity>
+            </Pressable>
         </View>
     )
 }
@@ -68,7 +133,7 @@ const PlannerPage = ({ navigation }) => {
     const handleAdd = async() => {
         try {
             let newList = events.slice();
-            let randomKey = getRandom(10);
+            let randomKey = getRandomKey(10);
             newList.push({ key: randomKey, data: { text: '', charsLeft: maxChars } });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newList));
             setEvents(newList);
@@ -77,12 +142,12 @@ const PlannerPage = ({ navigation }) => {
         }
     }
 
-    const handleDelete = async(key) => {
+    const handleDelete = async(index) => {
         try {
-            let prevEvents = events.slice();
-            prevEvents.splice(key, 1);
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(prevEvents));
-            setEvents(prevEvents);
+            let newEvents = events.slice();
+            newEvents.splice(index, 1);
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            setEvents(newEvents);
         } catch(err) {
             console.log(err);
         }
@@ -116,7 +181,7 @@ const PlannerPage = ({ navigation }) => {
         }
     }, []);
 
-    const getRandom = (length) => { // only pseudorandom, do not use for any sensitive data
+    const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
         let result = ''
         let characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let charlen = characters.length;
@@ -128,21 +193,16 @@ const PlannerPage = ({ navigation }) => {
 
     let event_boxes = events.map((event, index) => { //TODO: re-write this to use flatlist as flatlist offers better performance when loading many items (suitable for planner)
         return (
-            <PlannerBox key = {event.key} index = {index} data = {event.data} handleDelete = {handleDelete} handleTextChange = {handleTextChange} />       
+            <PlannerBox 
+                key={event.key}
+                index={index}
+                data={event.data}
+                handleDelete={handleDelete}
+                handleTextChange={handleTextChange}
+            />
         );
     });
 
-    let helperText = null; 
-    if (events.length === 0) {
-        helperText = (
-            <View style = {{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
-                <Text style = {styles.helper_text}>
-                    There are no events in your planner right now...{'\n'}
-                    Click the button in the bottom right to add one!
-                </Text>
-            </View>
-        );
-    }
     return ( 
         <View style = {styles.container}>
             <View style={styles.optionsBar}>
@@ -163,11 +223,15 @@ const PlannerPage = ({ navigation }) => {
                     />
                 </View>
             </View>
-            {helperText}
-            <ScrollView style={{flex: 1}} contentContainerStyle={{alignItems: 'center', justifyContent: 'center'}}>
-                <View style = {{flex: 1, flexDirection: 'column', alignSelf: 'stretch', justifyContent: 'center'}}>
-                    {event_boxes}
-                </View>        
+            {events.length === 0 &&
+                <View style = {{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
+                    <Text style = {styles.helper_text}>
+                        There are no events in your planner right now...{'\n'}
+                        Click the button on the bottom right to add one!
+                    </Text>
+                </View>}
+            <ScrollView>
+                {event_boxes}
             </ScrollView>
             <View style={styles.planner_add_button}>
                 <Icon
@@ -200,22 +264,73 @@ const PlannerScreen = () => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
         height: '100%',
-        width: "100%",
-        padding: 15,
+        width: '100%',
+        padding: 15 ,
         paddingTop: 0,
         paddingBottom: 0,
         backgroundColor: swatch['s1'],
     },
-    planner_event_box: {
+    planner_event_container: {
+        flex: 1,
         minHeight: 80,
+        marginBottom: 15
+    },
+    planner_event_box: {
         width: '100%',
-        backgroundColor: swatch['s2'],
-        alignItems: 'center',
-        justifyContent: 'center',
         borderRadius: 15,
-        marginBottom: 15,
+        backgroundColor: swatch['s2'],
+        justifyContent: 'center',
+        padding: 15
+    },
+    planner_event_edit_button: {
+        width: 25,
+        height: 25,
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        position: 'absolute',
+        right: 8,
+    },
+    planner_event_modal: {
+        marginTop: Dimensions.get('window').height / 3 - 10,
+        marginLeft: 15,
+        marginRight: 15,
+        height: '30%',
+        borderRadius: 15,
+        backgroundColor: `rgba(${swatchRGB.s3.r}, ${swatchRGB.s3.g}, ${swatchRGB.s3.b}, 0.8)`,
+        flexDirection: 'row',
+        padding: 5,
+    },
+    planner_event_modal_button: {
+        flex: 1,
+        borderRadius: 10,
+        margin: 5,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    planner_event_modal_text: {
+        fontSize: 25,
+        fontFamily: 'ProximaNova-Regular',
+        fontWeight: 'bold',
+        color: swatch['s1'],
+    },
+    planner_event_charCount: {
+        color: swatch['s4'],
+        position: 'absolute',
+        right: 13
+    },
+    planner_text_box: {
+        backgroundColor: 'transparent',
+        minHeight: 30,
+        flexDirection: 'column',
+        marginLeft: 20,
+        marginRight: 20
+    },  
+    planner_event_text: {
+        fontSize: 15,   
+        fontFamily: 'ProximaNova-Regular',
+        fontWeight: 'normal',
+        color: swatch['s6'],
     },
     planner_add_button: {
         width: 60,
@@ -226,43 +341,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
         right: 20,
-    },
-    planner_add_text: {
-        marginTop: 0,
-        fontSize: 15,
-        fontFamily: 'ProximaNova-Regular',
-        color: swatch['s6'],
-        flexWrap: 'wrap'
-    },
-    planner_text_box: {
-        backgroundColor: 'transparent',
-        minHeight: 30,
-        marginLeft: 15,
-        marginRight: 15,
-        flexDirection: 'row',
-    },  
-    planner_event_text: {
-        fontSize: 15,
-        fontFamily: 'ProximaNova-Regular',
-        fontWeight: 'normal',
-        color: swatch['s6'],
-        padding: 6,
-        marginLeft: 10,
-    },
-    planner_delete_button: {
-        width: 18, 
-        height: 18, 
-        borderRadius: 9,
-        justifyContent: 'center',
-        backgroundColor: 'transparent',
-        bottom: 5,
-        right: -17,
-    },
-    planner_charCt: {
-        position: 'absolute',
-        color: swatch['s4'],
-        bottom: -5, 
-        right: -15,
     },
     helper_text: {
         fontFamily: 'ProximaNova-Regular',
