@@ -3,6 +3,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 
 import {
     ScrollView,
+    FlatList,
     View,
     Text,
     TouchableOpacity,
@@ -17,14 +18,17 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
-import { swatch, swatchRGB } from '../components/theme'
+import { swatch, swatchRGB, toRGBA } from '../components/theme'
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import { ThemeProvider } from '@react-navigation/native';
+import CollapsibleList from 'react-native-collapsible-list';
 
 const maxChars = 40;
 
 const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
     const [modalVisible, setModalVisible] = useState(false);
-    const [isEditing, setIsEditing] = useState(true);
+    const [isEditing, setIsEditing] = useState(data.text === '' ? true : false);
+
     const [text, setText] = useState(data.text);
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
@@ -101,7 +105,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                 <View style = {styles.planner_text_box}>
                     <TextInput
                         placeholder='Enter Event (e.g. Study for 20 min Today)'
-                        placeholderTextColor={`rgba(${swatchRGB.s6.r}, ${swatchRGB.s6.g}, ${swatchRGB.s6.b}, 0.5)`}
+                        placeholderTextColor={toRGBA(swatchRGB.s6, 0.5)}
                         textBreakStrategy='highQuality'
                         numberOfLines={2}
                         maxLength={maxChars}
@@ -190,25 +194,13 @@ const PlannerPage = ({ navigation }) => {
         }
         return result;
     }
-
-    let event_boxes = events.map((event, index) => { //TODO: re-write this to use flatlist as flatlist offers better performance when loading many items (suitable for planner)
-        return (
-            <PlannerBox 
-                key={event.key}
-                index={index}
-                data={event.data}
-                handleDelete={handleDelete}
-                handleTextChange={handleTextChange}
-            />
-        );
-    });
-
+    
     return ( 
         <View style = {styles.container}>
             <View style={styles.optionsBar}>
                 <View style={styles.menu_button}>
                     <MaterialDesignIcons.Button 
-                        underlayColor={`rgba(${swatchRGB.s4.r}, ${swatchRGB.s4.g}, ${swatchRGB.s4.b}, 0.5)`}
+                        underlayColor={toRGBA(swatchRGB.s4, 0.5)}
                         activeOpacity={0.5}
                         right={2}
                         bottom={4}
@@ -230,9 +222,33 @@ const PlannerPage = ({ navigation }) => {
                         Click the button on the bottom right to add one!
                     </Text>
                 </View>}
+            {/*
             <ScrollView>
-                {event_boxes}
+                <CollapsibleList
+                    numberOfVisibleItems={0}
+                    wrapperStyle={{overflow: 'scroll', borderRadius: 15}}
+                    buttonContent={
+                        <View>
+                            <Text>Class X</Text>
+                        </View>
+                    }
+                >
+                    {event_boxes}
+                </CollapsibleList>
             </ScrollView>
+            */}
+            <FlatList
+                data={events}
+                renderItem={({item, index}) => 
+                    <PlannerBox 
+                        key={item.key}
+                        index={index}
+                        data={item.data}
+                        handleDelete={handleDelete}
+                        handleTextChange={handleTextChange}
+                    />}
+                keyExtractor={(item) => item.key}
+            />
             <View style={styles.planner_add_button}>
                 <Icon
                     name='plus'
@@ -297,7 +313,7 @@ const styles = StyleSheet.create({
         marginRight: 15,
         height: '30%',
         borderRadius: 15,
-        backgroundColor: `rgba(${swatchRGB.s3.r}, ${swatchRGB.s3.g}, ${swatchRGB.s3.b}, 0.8)`,
+        backgroundColor: toRGBA(swatchRGB.s3, 0.8),
         flexDirection: 'row',
         padding: 5,
     },
@@ -365,7 +381,7 @@ const styles = StyleSheet.create({
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
-        borderColor: `rgba(${swatchRGB.s4.r}, ${swatchRGB.s4.g}, ${swatchRGB.s4.b}, 0.5)`,
+        borderColor: toRGBA(swatchRGB.s4, 0.5),
     },
 });
 
