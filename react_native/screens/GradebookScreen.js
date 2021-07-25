@@ -23,7 +23,6 @@ import {
     BarChart,
     LineChart,
 } from 'react-native-chart-kit';
-import { withSafeAreaInsets } from 'react-native-safe-area-context';
 
 const dummyAdd = require('../dummy data/add');
 const dummyRemove = require('../dummy data/remove');

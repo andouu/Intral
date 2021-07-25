@@ -10,7 +10,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import GradebookScreen from './GradebookScreen';
 import ProfileScreen from './ProfileScreen';
 import RemindersDrawer from './RemindersDrawer';
-import { swatch, swatchRGB } from '../components/theme';
+import { swatch, swatchRGB, toRGBA } from '../components/theme';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 
 const tabIconSize = 35;
@@ -33,9 +33,6 @@ const MainStackScreen = () => {
                 options = {{
                     tabBarIcon: (tintColor) => {
                         return(
-                            // <Image style = {{height: tabIconSize-7, width: tabIconSize-7, tintColor: tintColor}} // -6 size because David's icons are bigger than Adi's (temporary)
-                            //     source = { require('../assets/images/profile.png') }
-                            // />
                             <MaterialDesignIcons name='account' color={tintColor} size={tabIconSize + 3} /> // +3 because original icon was too small
                         );
                     },
@@ -47,9 +44,6 @@ const MainStackScreen = () => {
                 options = {{
                     tabBarIcon: (tintColor) => {
                         return(
-                            // <Image style = {{height: tabIconSize, width: tabIconSize, tintColor: tintColor}}  
-                            //     source = { require('../assets/images/CAS_grade_book_icon.png') }
-                            // />
                             <MaterialDesignIcons name='school' color={tintColor} size={tabIconSize} />
                         );
                     },
@@ -62,9 +56,6 @@ const MainStackScreen = () => {
                 options = {{
                     tabBarIcon: (tintColor) => {
                         return(
-                            // <Image style = {{height: tabIconSize, width: tabIconSize, tintColor: tintColor}}  
-                            //     source = { require('../assets/images/CAS_planner_icon.png') }
-                            // />
                             <MaterialDesignIcons name='book' color={tintColor} size={tabIconSize - 5} /> // -5 because original size was too big
                         );
                     },
@@ -83,12 +74,13 @@ const TabBar = ({ state, descriptors, navigation }) => { // custom tab navigatio
     }
 
     return (
+        <View style={{backgroundColor: swatch.s1}}>
         <View style={styles.tabContainer}>
             {state.routes.map((route, index) => {
                 const { options } = descriptors[route.key];
                 const isFocused = state.index === index;
 
-                const iconColor = isFocused ? swatch['s3'] : swatch['s4'];
+                const iconColor = isFocused ? swatch.s3 : swatch.s4;
                 const icon = options.tabBarIcon(iconColor);
 
                 const onPress = () => {
@@ -126,6 +118,7 @@ const TabBar = ({ state, descriptors, navigation }) => { // custom tab navigatio
                 );
             })}
         </View>
+        </View>
     );
 }
 
@@ -133,8 +126,10 @@ const styles = StyleSheet.create({
     tabContainer: {
         width: '100%', 
         height: 80,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
         flexDirection: 'row',
-        backgroundColor: swatch['s1'],
+        backgroundColor: swatch.s9,
     },
     tabButton: {
         flex: 1,
