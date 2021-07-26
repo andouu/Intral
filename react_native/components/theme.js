@@ -8,6 +8,10 @@ export const swatch = {
     s7: '#a37133',
     s8: '#598ac5',
     s9: '#191919',
+    s10: '#04cc47',
+    s11: '#ff3b3b',
+    s12: '#7733ff',
+    s13: '#34343b',
 }
 
 export const hexToRgb = (hex) => {
