@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getStudentInfo } from '../components/api.js';
-import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
+import GoogleIcon from 'react-native-vector-icons/MaterialIcons'
 import {
     StyleSheet,
     Dimensions,
@@ -13,11 +14,11 @@ import {
     RefreshControl,
     ScrollView,
     PixelRatio,
+    Pressable,
 } from 'react-native';
 import {
     LineChart,
 } from 'react-native-chart-kit';
-import GoogleIcon from 'react-native-vector-icons/MaterialIcons'
 import { swatch, swatchRGB, toRGBA } from '../components/theme'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -49,13 +50,72 @@ const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleyd
     return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
 }
 
-const Header = ({ studentInfo }) => {
+const NotificationBell = ({ changes, notifsSeen, handleNotifsSeen, handleScroll }) => {
+    const getNumNotifs = (obj) => {
+        let total = 0;
+        for(let key in obj) {
+            obj[key].forEach(period => {
+                total += period.assignments.length;
+            })
+        }
+        return total;
+    }
+    
+    const calcOffset = (width) => {
+        return -9.377 * Math.log(0.025 * width);
+    }
+
+    const numNotifs = getNumNotifs(changes);
+    
+    const [notifWidth, setNotifWidth] = useState(15);
+
+    const handlePress = async() => {
+        try {
+            handleScroll(390);
+            if(notifsSeen === false) {
+                setTimeout(() => {
+                    handleNotifsSeen(true);
+                }, 600);
+            }
+        } catch(err){
+            console.log(err);
+        }
+    }
+    
+    return (
+        <Pressable 
+            style={({pressed}) => [
+                styles.notifBellContainer,
+                {
+                    opacity: pressed ? 0.5 : 1, 
+                    backgroundColor: pressed ? swatch.s4 : 'transparent',
+                    borderColor: pressed ? swatch.s4 : toRGBA(swatchRGB.s4, 0.5),
+                }  
+            ]}
+            onPress={() => handlePress()}
+        >
+            <GoogleIcon name='notifications' style={styles.notifBell} color={swatch.s7} size={35} />
+            {numNotifs > 0 && !notifsSeen ? (
+                <View 
+                    style={[styles.notifBellWarn, {right: calcOffset(notifWidth)}]}
+                    onLayout={(event) => {
+                        setNotifWidth(event.nativeEvent.layout.width);
+                    }}
+                >
+                    <Text style={styles.notifBellWarnText}>{ numNotifs }</Text>
+                </View>
+            ) : null}
+        </Pressable>
+    );
+}
+
+const Header = ({ studentInfo, changes, notifsSeen, handleScroll, handleNotifsSeen }) => {
     const navigation = useNavigation();
 
     return (
         <View style={styles.optionsBar}>
             <View style={styles.menu_button}>
-                <MaterialDesignIcons.Button 
+                <MaterialDesignIcon.Button 
                     underlayColor={toRGBA(swatchRGB.s4, 0.5)}
                     activeOpacity={0.5}
                     right={2}
@@ -70,6 +130,7 @@ const Header = ({ studentInfo }) => {
                     style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
                 />
             </View>
+            <NotificationBell changes={changes} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} />
             <View style={styles.profilePic_container}>
                 <Image source={{uri: `data:image/png;base64, ${studentInfo.StudentInfo.Photo}`}} style={styles.profilePic} />
             </View>
@@ -192,7 +253,7 @@ const ChangeTypeIcon = ({ type, size }) => {
     )
 }
 
-const ChangeEvent = ({ data }) => {
+const ChangeEvent = ({ key, data }) => {
     const type = data.eventType[0].toUpperCase() + data.eventType.substr(1);
     let typeText = '';
     if(type !== 'Changed') {
@@ -215,7 +276,7 @@ const ChangeEvent = ({ data }) => {
             <View style={styles.changeEventCardRight}>
                 <View style={{flex: 1}}>
                     <Text style={styles.changeEventMainText}>
-                        P{data.period+1}
+                        P{data.period+1}{' '}
                         <Text style={styles.changeEventMainSubtext}>{type}:</Text>
                     </Text>
                     <Text style={styles.assignmentDetail}>
@@ -232,9 +293,19 @@ const ChangeEvent = ({ data }) => {
 
 const HomePage = () => {
     const [studentInfo, setStudentInfo] = useState([]);
+    const [notifsSeen, setNotifsSeen] = useState(false);
     const [gradeChanges, setGradeChanges] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const scrollRef = useRef();
+    const handleScroll = (y) => {
+        scrollRef.current?.scrollTo({ y: y, animated: true });
+    }
+   
+    useEffect(() => {
+        refreshInfo();
+    }, [notifsSeen])
 
     const refreshInfo = async() => {
         try {
@@ -248,19 +319,22 @@ const HomePage = () => {
             let changesJSON = await AsyncStorage.getItem('gradebookChanges');
             let changesParsed = await JSON.parse(changesJSON);
             setGradeChanges(changesParsed);
+            let notifCondJSON = await AsyncStorage.getItem('notifsSeen');
+            if(notifCondJSON === null) {
+                await AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: false }));
+                notifCondJSON = 'false';
+            }
+            let notifCondParsed = await JSON.parse(notifCondJSON);
+            setNotifsSeen(notifCondParsed.seen);
         } catch (err) {
             console.log(err);
         }
     }
 
-    useEffect(() => {
-        refreshInfo();
-    }, [])
-
     if(isLoading) {
         return (
             <View style = {[styles.container, {alignItems: 'center', justifyContent: 'center'}]}>
-                <ActivityIndicator size = 'large' color={swatch['s4']} />
+                <ActivityIndicator size = 'large' color={swatch.s4} />
             </View> 
         );
     }
@@ -287,7 +361,7 @@ const HomePage = () => {
         return objArr;
     }
 
-    let changes = getChangeObjs();
+    let changeObjs = getChangeObjs();
     
     const calcGpaDelta = (data) => {
         let dataArr = data.datasets[0].data;
@@ -304,6 +378,11 @@ const HomePage = () => {
     const pctColor = (gpaDelta > 0) ? swatch.s10 : (gpaDelta < 0) ? swatch.s11 : swatch.s5
     const deltaChar = (gpaDelta > 0) ? '+' : ''
 
+    const handleNotifsSeen = (newState) => {
+        setNotifsSeen(newState);
+        AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: newState }))
+    }
+
     return (
         <ScrollView 
             style = {styles.container}
@@ -313,8 +392,9 @@ const HomePage = () => {
                     onRefresh={refreshInfo}
                 />
             }
+            ref={scrollRef}
         >
-            <Header studentInfo={studentInfo} />
+            <Header studentInfo={studentInfo} changes={gradeChanges} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} />
             <View style = {styles.main_container}>
                 <Text style={styles.header_text}>Hi {studentInfo.StudentInfo.FormattedName.split(' ')[0]}!</Text>
                 <Text style={styles.cardHeader_text}>
@@ -336,7 +416,7 @@ const HomePage = () => {
                 </Card>
                 <Text style={styles.cardHeader_text}>Latest Updates:</Text>
                 <Card customStyle={{padding: 15, paddingTop: 10, paddingBottom: 10, minHeight: 400, borderColor: toRGBA(swatchRGB.s2, 1)}} outlined={true}>
-                    { changes }
+                    { changeObjs }
                 </Card>
             </View>
         </ScrollView>
@@ -455,7 +535,8 @@ const styles = StyleSheet.create({
     },
     changeEventMainText: {
         fontFamily: 'Proxima Nova Bold',
-        fontSize: 80,
+        top: 0,
+        fontSize: 50,
         textAlignVertical: 'center',
         color: swatch.s6,
     },
@@ -466,6 +547,7 @@ const styles = StyleSheet.create({
         color: swatch.s5,
     },
     assignmentDetail: {
+        top: 0,
         fontFamily: 'ProximaNova-Regular',
         fontSize: 18,
         color: swatch.s6,
@@ -481,6 +563,36 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderRadius: 40, 
         backgroundColor: toRGBA(swatchRGB.s2, 0.4),
+    },
+    notifBellContainer: {
+        minWidth: 50,
+        height: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 15,
+        borderRadius: 40,
+        borderWidth: 1,
+        borderColor: toRGBA(swatchRGB.s4, 0.5),
+    },
+    notifBell: {
+        bottom: 1.5,
+    },
+    notifBellWarn: {
+        position: 'absolute',
+        bottom: 10,
+        right: 10,
+        minWidth: 15,
+        minHeight: 13,
+        borderRadius: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 1.5,
+        backgroundColor: swatch.s11,
+    },
+    notifBellWarnText: {
+        fontSize: 11,
+        fontFamily: 'ProximaNova-Regular',
+        color: swatch.s6,
     },
 });
 
