@@ -2,31 +2,29 @@ import React, { useState, useEffect } from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
 
 import {
-    ScrollView,
     FlatList,
+    SectionList,
     View,
     Text,
     TouchableOpacity,
     TextInput,
     StyleSheet,
     Dimensions,
-    Button,
-    Alert,
     Modal,
     Pressable,
-    Touchable
+    ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
-import { swatchDark } from '../components/themes';
-import { toRGBA } from '../components/utils';
-import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { ThemeProvider } from '@react-navigation/native';
-import CollapsibleList from 'react-native-collapsible-list';
+import { swatch, swatchRGB, toRGBA } from '../components/theme'
+import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import { useIsFocused, ThemeProvider } from '@react-navigation/native';
+import Accordion from 'react-native-collapsible/Accordion'
+import { TimePickerAndroid } from 'react-native';
 
 const maxChars = 40;
 
-const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
+const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(data.text === '' ? true : false);
 
@@ -59,7 +57,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                                 onPress={() => setModalVisible(false)}
                                 style={[
                                     {
-                                        backgroundColor: swatchDark['s6'],
+                                        backgroundColor: swatch.s6,
                                     },
                                     styles.planner_event_modal_button
                                 ]}
@@ -73,7 +71,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                                 }}
                                 style={[
                                     {
-                                        backgroundColor: swatchDark['s4']
+                                        backgroundColor: swatch.s4
                                     },
                                     styles.planner_event_modal_button
                                 ]}
@@ -81,10 +79,10 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                                 <Text style={styles.planner_event_modal_text}>Edit</Text>
                             </Pressable>
                             <Pressable
-                                onPress={() => handleDelete(index)}
+                                onPress={() => handleDelete(sectionIdx, eventIdx)}
                                 style={[
                                     {
-                                        backgroundColor: swatchDark['s2']
+                                        backgroundColor: swatch.s2
                                     },
                                     styles.planner_event_modal_button
                                 ]}
@@ -99,6 +97,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                         name='edit'
                         type='feather'
                         size={20}
+                        color={swatch.s2}
                         onPress={() => setModalVisible(true)}
                     />
                 </TouchableOpacity>}
@@ -120,8 +119,11 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                             setCharsLeft(maxChars - text.length);
                         }}
                         onEndEditing={ () => {
-                            handleTextChange(index, text, charsLeft);
-                            setIsEditing(false);
+                            if (text !== "")
+                            {
+                                handleTextChange(sectionIdx, eventIdx, text, charsLeft);
+                                setIsEditing(false);
+                            }
                         }}
                         style={styles.planner_event_text}
                         textAlign='center'
@@ -133,43 +135,48 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
 }
 
 const PlannerPage = ({ navigation }) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const isFocused = useIsFocused();
+    const[activeSections, setActiveSections] = useState([]);
     const [events, setEvents] = useState([]);
 
-    const handleAdd = async() => {
+    const refreshClasses = async() => {
         try {
-            let newList = events.slice();
-            let randomKey = getRandomKey(10);
-            newList.push({ key: randomKey, data: { text: '', charsLeft: maxChars } });
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newList));
-            setEvents(newList);
+            let storedClasses = await AsyncStorage.getItem('classes');
+            let parsed = await JSON.parse(storedClasses);
+            if (Array.isArray(parsed)) {
+                let eventSections;
+                if (events.length === 0) {
+                    eventSections = [];
+                    parsed.map((item, index) => {
+                        eventSections.push({
+                            name: item.Title,
+                            index: index,
+                            key: getRandomKey(10),
+                            data: []
+                        })
+                    });
+                } else {
+                    eventSections = events.slice();
+                    parsed.map((item, index) => {
+                        eventSections[index].name = item.Title;
+                    });
+                }
+                await AsyncStorage.setItem('plannerEvents', JSON.stringify(eventSections));
+                setEvents(eventSections);
+                setIsLoading(false);
+            }
         } catch(err) {
-            console.log(err);
+            console.log(err)
         }
-    }
+    };
 
-    const handleDelete = async(index) => {
-        try {
-            let newEvents = events.slice();
-            newEvents.splice(index, 1);
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
-            setEvents(newEvents);
-        } catch(err) {
-            console.log(err);
+    useEffect(async() => {
+        if (isFocused) {
+            await refreshClasses();
         }
-    }
+    }, [isFocused]);
 
-    const handleTextChange = async(index, newText, newCharsLeft) => {
-        try {
-            let currEvents = events.slice();
-            let edits = currEvents[index];
-            edits.data.text = newText;
-            edits.data.charsLeft = newCharsLeft;
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(currEvents));
-            setEvents(currEvents);
-        } catch(err) {
-            console.log(err);
-        }
-    }
 
     useEffect(async() => {
         try {
@@ -177,14 +184,47 @@ const PlannerPage = ({ navigation }) => {
             let parsed = await JSON.parse(storedEvents);
             if(Array.isArray(parsed)) {
                 setEvents(parsed);
-            } else {
-                await AsyncStorage.setItem('plannerEvents', JSON.stringify([]));
-                setEvents([]);
             }
         } catch(err) {
             console.log(err);
         }
     }, []);
+
+    const handleAdd = async(sectionIdx) => {
+        try {
+            let newEvents = events.slice();
+            let randomKey = getRandomKey(10);
+            newEvents[sectionIdx].data.push({ key: randomKey, data: { text: '', charsLeft: maxChars } });
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            setEvents(newEvents);
+        } catch(err) {
+            console.log(err);
+        }
+    }
+
+    const handleDelete = async(sectionIdx, eventIdx) => {
+        try {
+            let newEvents = events.slice();
+            newEvents[sectionIdx].data.splice(eventIdx, 1);
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            setEvents(newEvents);
+        } catch(err) {
+            console.log(err);
+        }
+    }
+
+    const handleTextChange = async(sectionIdx, eventIdx, newText, newCharsLeft) => {
+        try {
+            let currEvents = events.slice();
+            let edits = currEvents[sectionIdx].data[eventIdx];
+            edits.data.text = newText;
+            edits.data.charsLeft = newCharsLeft;
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(currEvents));
+            setEvents(currEvents);
+        } catch(err) {
+            console.log(err);
+        }
+    }   
 
     const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
         let result = ''
@@ -195,10 +235,19 @@ const PlannerPage = ({ navigation }) => {
         }
         return result;
     }
+
+    const checkEventsEmpty = () => {
+        for (let i = 0; i < events.length; i ++) {
+            if (events[i].data.length !== 0) {
+                return false;
+            }
+        }
+        return true;
+    }
     
     return ( 
         <View style = {styles.container}>
-            <View style={styles.optionsBar}>
+            <View style={styles.options_bar}>
                 <View style={styles.menu_button}>
                     <MaterialDesignIcons.Button 
                         underlayColor={toRGBA(swatchDark.s4, 0.5)}
@@ -208,7 +257,7 @@ const PlannerPage = ({ navigation }) => {
                         hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                         borderRadius = {80}
                         name='menu' 
-                        color={swatchDark['s4']} 
+                        color={swatch.s4} 
                         size={35}
                         backgroundColor='transparent'
                         onPress={() => navigation.openDrawer()} 
@@ -216,49 +265,81 @@ const PlannerPage = ({ navigation }) => {
                     />
                 </View>
             </View>
-            {events.length === 0 &&
-                <View style = {{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
-                    <Text style = {styles.helper_text}>
-                        There are no events in your planner right now...{'\n'}
-                        Click the button on the bottom right to add one!
-                    </Text>
-                </View>}
-            {/*
-            <ScrollView>
-                <CollapsibleList
-                    numberOfVisibleItems={0}
-                    wrapperStyle={{overflow: 'scroll', borderRadius: 15}}
-                    buttonContent={
-                        <View>
-                            <Text>Class X</Text>
-                        </View>
-                    }
-                >
-                    {event_boxes}
-                </CollapsibleList>
-            </ScrollView>
-            */}
-            <FlatList
-                data={events}
-                renderItem={({item, index}) => 
+            {isLoading ? (
+                <View style = {styles.planner_loading_container}>
+                    <ActivityIndicator size = 'large' color = {swatch.s4} />
+                </View>
+            ) : (
+                checkEventsEmpty() ? (  
+                    <View style={{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
+                        <Text style={styles.planner_helper_text}>
+                            There are no events in your planner right now...{'\n'}
+                            Click the button on the bottom right to add one!
+                        </Text>
+                    </View>
+                ) : (
+                    <Accordion
+                        sections={events}
+                        activeSections={activeSections}
+                        expandFromBottom={false}
+                        containerStyle={styles.planner_accordion_container}
+                        renderSectionTitle={(section) =>
+                            <View></View> //must have to avoid errors
+                        }
+                        renderHeader={(section) =>
+                            <View style={styles.planner_section_button}>
+                                <Text style={styles.planner_section_button_text}>{section.name}</Text>
+                            </View>
+                        }
+                        renderContent={(section) =>
+                            <FlatList
+                                data={section.data}
+                                renderItem={({item, index}) =>
+                                    <PlannerBox
+                                        key={item.key}
+                                        sectionIdx={section.index}
+                                        eventIdx={index}
+                                        data={item.data}
+                                        handleDelete={handleDelete}
+                                        handleTextChange={handleTextChange}
+                                    />
+                                }
+                                keyExtractor={item => item.key}
+                            />
+                        }
+                        onChange={(activeSections) => setActiveSections(activeSections)}
+                        keyExtractor={item => item.key}
+                    />
+                )
+            )}
+            {/*<SectionList
+                sections={events}
+                renderItem={({item, index, section}) =>
                     <PlannerBox 
                         key={item.key}
-                        index={index}
+                        sectionIdx={section.index}
+                        eventIdx={index}
                         data={item.data}
                         handleDelete={handleDelete}
                         handleTextChange={handleTextChange}
-                    />}
-                keyExtractor={(item) => item.key}
-            />
-            <View style={styles.planner_add_button}>
-                <Icon
-                    name='plus'
-                    type='feather'
-                    size={35}
-                    color={swatchDark['s7']}
-                    onPress={handleAdd}
-                />
-            </View>
+                    />
+                }
+                renderSectionHeader={({ section: {name} }) => (
+                    <View style={styles.planner_section_button}>
+                        <Text style={styles.planner_section_button_text}>{name}</Text>
+                    </View>
+                )}
+            />*/}
+            {!isLoading &&
+                <View style={styles.planner_add_button}>
+                    <Icon
+                        name='plus'
+                        type='feather'
+                        size={35}
+                        color={swatch.s7}
+                        onPress={() => {setActiveSections([3]); handleAdd(3);}} //TODO: UI dropdown menu to select a class, then pass in that class's (period - 1) into handleAdd
+                    />
+                </View>}
         </View>
     );
 }
@@ -286,17 +367,44 @@ const styles = StyleSheet.create({
         padding: 15 ,
         paddingTop: 0,
         paddingBottom: 0,
-        backgroundColor: swatchDark.s1,
+        backgroundColor: swatch.s1,
+    },
+    planner_loading_container: {
+        flex: 1,
+        marginBottom: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: swatch.s1
+    },
+    planner_accordion_container: {
+        marginTop: -15,
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        overflow: 'scroll'
+    },
+    planner_section_button: {
+        marginTop: 15,
+        backgroundColor: swatch.s3,
+        minHeight: 50,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    planner_section_button_text: {
+        color: swatch.s6,
+        fontFamily: 'ProximaNova-Regular',
+        fontSize: 15
     },
     planner_event_container: {
         flex: 1,
-        minHeight: 80,
         marginBottom: 15
     },
     planner_event_box: {
         width: '100%',
-        borderRadius: 15,
-        backgroundColor: swatchDark.s2,
+        backgroundColor: swatch.s1,
+        borderColor: swatch.s2,
+        borderBottomWidth: 3,
         justifyContent: 'center',
         padding: 15
     },
@@ -329,10 +437,10 @@ const styles = StyleSheet.create({
         fontSize: 25,
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'bold',
-        color: swatchDark.s1,
+        color: swatch.s1,
     },
     planner_event_charCount: {
-        color: swatchDark['s4'],
+        color: swatch.s4,
         position: 'absolute',
         right: 13
     },
@@ -347,25 +455,25 @@ const styles = StyleSheet.create({
         fontSize: 15,   
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
-        color: swatchDark['s6'],
+        color: swatch.s6,
     },
     planner_add_button: {
         width: 60,
         height: 60,
         borderRadius: 50,
         justifyContent: 'center',
-        backgroundColor: swatchDark['s5'],
+        backgroundColor: swatch.s5,
         position: 'absolute',
         bottom: 20,
         right: 20,
     },
-    helper_text: {
+    planner_helper_text: {
         fontFamily: 'ProximaNova-Regular',
         textAlign: 'center',
-        color: swatchDark['s6'],
+        color: swatch.s6,
         opacity: 0.5,
     },  
-    optionsBar: {
+    options_bar: {
         height: 100,
         top: 0,
         width: '100%',
