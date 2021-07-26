@@ -156,7 +156,8 @@ const GradebookPage = () => {
                     // TODO replace above with let difference = findDifference(prev, pull); later
 
                     if(Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
-                        await AsyncStorage.setItem('gradebookChanges', JSON.stringify(difference)); // save the difference to storage
+                        await AsyncStorage.setItem('gradebookChanges', JSON.stringify(difference));  // save the difference to storage
+                        await AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: false }));   // set the notifs warning to show in profile page everytime there are new changes
                         console.log(await AsyncStorage.getItem('gradebookChanges'));
                         // send new push notifications here based on the differences
                     } else {
