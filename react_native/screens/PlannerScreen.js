@@ -3,6 +3,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 
 import {
     FlatList,
+    ScrollView,
     SectionList,
     View,
     Text,
@@ -20,7 +21,7 @@ import { swatch, swatchRGB, toRGBA } from '../components/theme'
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useIsFocused, ThemeProvider } from '@react-navigation/native';
 import Accordion from 'react-native-collapsible/Accordion'
-import { TimePickerAndroid } from 'react-native';
+import DropDownPicker from 'react-native-dropdown-picker'
 
 const maxChars = 40;
 
@@ -44,7 +45,7 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                 ]}
             >
                 <Modal
-                    animationType='slide'
+                    animationType='fade'
                     transparent={true}
                     visible={modalVisible}
                     onRequestClose={() => {
@@ -115,12 +116,16 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                         value={text}
                         editable={isEditing}
                         onChangeText={text => {
-                            setText(text);
-                            setCharsLeft(maxChars - text.length);
+                            if (text.slice(-1) === '\n') {
+                                handleTextChange(sectionIdx, eventIdx, text, charsLeft);
+                                setIsEditing(false);
+                            } else {
+                                setText(text);
+                                setCharsLeft(maxChars - text.length);
+                            }
                         }}
                         onEndEditing={ () => {
-                            if (text !== "")
-                            {
+                            if (text !== "") {
                                 handleTextChange(sectionIdx, eventIdx, text, charsLeft);
                                 setIsEditing(false);
                             }
@@ -137,8 +142,14 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
 const PlannerPage = ({ navigation }) => {
     const [isLoading, setIsLoading] = useState(true);
     const isFocused = useIsFocused();
-    const[activeSections, setActiveSections] = useState([]);
+
     const [events, setEvents] = useState([]);
+
+    const [activeSections, setActiveSections] = useState([]);
+
+    const [dropdownItems, setDropdownItems] = useState([]);
+    const [dropdownValue, setDropdownValue] = useState(null);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     const refreshClasses = async() => {
         try {
@@ -146,6 +157,7 @@ const PlannerPage = ({ navigation }) => {
             let parsed = await JSON.parse(storedClasses);
             if (Array.isArray(parsed)) {
                 let eventSections;
+                let dropdownData = [];
                 if (events.length === 0) {
                     eventSections = [];
                     parsed.map((item, index) => {
@@ -154,16 +166,19 @@ const PlannerPage = ({ navigation }) => {
                             index: index,
                             key: getRandomKey(10),
                             data: []
-                        })
+                        });
+                        dropdownData.push({label: item.Title, value: index});
                     });
                 } else {
                     eventSections = events.slice();
                     parsed.map((item, index) => {
                         eventSections[index].name = item.Title;
+                        dropdownData.push({label: item.Title, value: index})
                     });
                 }
                 await AsyncStorage.setItem('plannerEvents', JSON.stringify(eventSections));
                 setEvents(eventSections);
+                setDropdownItems(dropdownData);
                 setIsLoading(false);
             }
         } catch(err) {
@@ -183,7 +198,12 @@ const PlannerPage = ({ navigation }) => {
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
             if(Array.isArray(parsed)) {
+                let dropdownData = [];
+                parsed.map((item, index) => {
+                    dropdownData.push({label: item.name, value: index})
+                });
                 setEvents(parsed);
+                setDropdownItems(dropdownData);
             }
         } catch(err) {
             console.log(err);
@@ -200,7 +220,7 @@ const PlannerPage = ({ navigation }) => {
         } catch(err) {
             console.log(err);
         }
-    }
+    };
 
     const handleDelete = async(sectionIdx, eventIdx) => {
         try {
@@ -211,7 +231,7 @@ const PlannerPage = ({ navigation }) => {
         } catch(err) {
             console.log(err);
         }
-    }
+    };
 
     const handleTextChange = async(sectionIdx, eventIdx, newText, newCharsLeft) => {
         try {
@@ -224,7 +244,7 @@ const PlannerPage = ({ navigation }) => {
         } catch(err) {
             console.log(err);
         }
-    }   
+    };
 
     const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
         let result = ''
@@ -234,7 +254,7 @@ const PlannerPage = ({ navigation }) => {
             result += characters.charAt(Math.floor(Math.random() * charlen));
         }
         return result;
-    }
+    };
 
     const checkEventsEmpty = () => {
         for (let i = 0; i < events.length; i ++) {
@@ -243,8 +263,8 @@ const PlannerPage = ({ navigation }) => {
             }
         }
         return true;
-    }
-    
+    };
+
     return ( 
         <View style = {styles.container}>
             <View style={styles.options_bar}>
@@ -307,7 +327,7 @@ const PlannerPage = ({ navigation }) => {
                                 keyExtractor={item => item.key}
                             />
                         }
-                        onChange={(activeSections) => setActiveSections(activeSections)}
+                        onChange={setActiveSections}
                         keyExtractor={item => item.key}
                     />
                 )
@@ -330,16 +350,35 @@ const PlannerPage = ({ navigation }) => {
                     </View>
                 )}
             />*/}
-            {!isLoading &&
+            {!isLoading && <View style={styles.planner_add_menu}>
                 <View style={styles.planner_add_button}>
                     <Icon
                         name='plus'
                         type='feather'
                         size={35}
                         color={swatch.s7}
-                        onPress={() => {setActiveSections([3]); handleAdd(3);}} //TODO: UI dropdown menu to select a class, then pass in that class's (period - 1) into handleAdd
+                        onPress={() => {
+                            handleAdd(dropdownValue);
+                            setDropdownValue(null);
+                            setDropdownOpen(false);
+                        }}
+                        disabled={isLoading}
                     />
-                </View>}
+                </View>
+                <DropDownPicker
+                    items={dropdownItems}
+                    value={dropdownValue}
+                    open={dropdownOpen}
+                    setItems={setDropdownItems}
+                    setValue={setDropdownValue}
+                    setOpen={setDropdownOpen}
+                    containerStyle={styles.planner_dropdown_picker}
+                    textStyle={styles.planner_dropdown_text}
+                    placeholder='Select a section'
+                    theme='DARK'
+                    dropDownDirection='TOP'
+                />
+            </View>}
         </View>
     );
 }
@@ -380,8 +419,7 @@ const styles = StyleSheet.create({
         marginTop: -15,
         flex: 1,
         width: '100%',
-        height: '100%',
-        overflow: 'scroll'
+        height: '100%'
     },
     planner_section_button: {
         marginTop: 15,
@@ -457,15 +495,34 @@ const styles = StyleSheet.create({
         fontWeight: 'normal',
         color: swatch.s6,
     },
+    planner_add_menu: {
+        width: '100%',
+        height: 60,
+        position: 'absolute',
+        bottom: 20,
+        justifyContent: 'center'
+    },
     planner_add_button: {
         width: 60,
         height: 60,
-        borderRadius: 50,
         justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 50,
         backgroundColor: swatch.s5,
         position: 'absolute',
-        bottom: 20,
-        right: 20,
+        right: -5,
+    },
+    planner_dropdown_picker: {
+        width: '70%',
+        height: 50,
+        position: 'absolute',
+        left: 20
+    },
+    planner_dropdown_text: {
+        fontFamily: 'ProximaNova-Regular',
+        fontSize: 15,
+        color: swatch.s4,
+        textAlign: 'left'
     },
     planner_helper_text: {
         fontFamily: 'ProximaNova-Regular',
