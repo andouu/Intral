@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getStudentInfo } from '../components/api.js';
@@ -19,21 +19,11 @@ import {
 import {
     LineChart,
 } from 'react-native-chart-kit';
-import { swatch, swatchRGB, toRGBA } from '../components/theme'; 
+import { swatchDark, toRGBA } from '../components/theme'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeContext } from '../components/themeContext';
 
 const profPicSize = 50;
-
-const data = {
-    labels: ['September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June'],
-    datasets: [
-        {
-        data: [3.8, 3.4, 3.0, 3.2, 3.8, 3.5, 4.0, 3.9, 3.4, 4.0], // TODO: get actual GPAs per month/day
-        color: (/* opacity = 1 */) => `rgba(${swatchRGB.s3.r}, ${swatchRGB.s3.g}, ${swatchRGB.s3.b}, 1)`,
-        strokeWidth: 3 // optional
-        }
-    ],
-};
 
 function* yLabel() {                                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*
     yield* ['0.00', '1.00', '2.00', '3.00', '4.00']; // https://stackoverflow.com/questions/63905403/how-to-change-the-y-axis-values-from-numbers-to-strings-in-react-native-chart-ki
@@ -50,7 +40,7 @@ const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleyd
     return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
 }
 
-const NotificationBell = ({ changes, notifsSeen, handleNotifsSeen, handleScroll }) => {
+const NotificationBell = ({ changes, notifsSeen, handleNotifsSeen, handleScroll, theme }) => {
     const getNumNotifs = (obj) => {
         let total = 0;
         for(let key in obj) {
@@ -88,49 +78,49 @@ const NotificationBell = ({ changes, notifsSeen, handleNotifsSeen, handleScroll 
                 styles.notifBellContainer,
                 {
                     opacity: pressed ? 0.5 : 1, 
-                    backgroundColor: pressed ? swatch.s4 : 'transparent',
-                    borderColor: pressed ? swatch.s4 : toRGBA(swatchRGB.s4, 0.5),
-                }  
+                    backgroundColor: pressed ? theme.s4 : 'transparent',
+                    borderColor: pressed ? theme.s4 : toRGBA(theme.s4, 0.5),
+                },  
             ]}
             onPress={() => handlePress()}
         >
-            <GoogleIcon name='notifications' style={styles.notifBell} color={swatch.s7} size={35} />
+            <GoogleIcon name='notifications' style={styles.notifBell} color={theme.s7} size={35} />
             {numNotifs > 0 && !notifsSeen ? (
                 <View 
-                    style={[styles.notifBellWarn, {right: calcOffset(notifWidth)}]}
+                    style={[styles.notifBellWarn, {right: calcOffset(notifWidth), backgroundColor: theme.s11}]}
                     onLayout={(event) => {
                         setNotifWidth(event.nativeEvent.layout.width);
                     }}
                 >
-                    <Text style={styles.notifBellWarnText}>{ numNotifs }</Text>
+                    <Text style={[styles.notifBellWarnText, {color: theme.s6}]}>{ numNotifs }</Text>
                 </View>
             ) : null}
         </Pressable>
     );
 }
 
-const Header = ({ studentInfo, changes, notifsSeen, handleScroll, handleNotifsSeen }) => {
+const Header = ({ studentInfo, changes, notifsSeen, handleScroll, handleNotifsSeen, theme }) => {
     const navigation = useNavigation();
 
     return (
         <View style={styles.optionsBar}>
-            <View style={styles.menu_button}>
+            <View style={[styles.menu_button, {borderColor: toRGBA(theme.s4, 0.5)}]}>
                 <MaterialDesignIcon.Button 
-                    underlayColor={toRGBA(swatchRGB.s4, 0.5)}
+                    underlayColor={toRGBA(theme.s4, 0.5)}
                     activeOpacity={0.5}
                     right={2}
                     bottom={4}
                     hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                     borderRadius = {80}
                     name='menu' 
-                    color={toRGBA(swatchRGB.s4, 0.5)} 
+                    color={toRGBA(theme.s4, 0.5)} 
                     size={35}
                     backgroundColor='transparent'
                     onPress={() => navigation.openDrawer()} 
                     style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
                 />
             </View>
-            <NotificationBell changes={changes} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} />
+            <NotificationBell changes={changes} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} theme={theme} />
             <View style={styles.profilePic_container}>
                 <Image source={{uri: `data:image/png;base64, ${studentInfo.StudentInfo.Photo}`}} style={styles.profilePic} />
             </View>
@@ -138,7 +128,7 @@ const Header = ({ studentInfo, changes, notifsSeen, handleScroll, handleNotifsSe
     );
 }
 
-const Card = ({ customStyle, outlined=false, children }) => {
+const Card = ({ customStyle, outlined=false, children, theme, data=null }) => {
     const getStyle = () => {
         return StyleSheet.create({
             card: {
@@ -146,10 +136,10 @@ const Card = ({ customStyle, outlined=false, children }) => {
                 minHeight: 150,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: outlined ? 'transparent' : swatch.s2,
+                backgroundColor: outlined ? 'transparent' : theme.s2,
                 borderRadius: 30,
                 borderWidth: outlined ? 1.5 : 0,
-                borderColor: outlined ? swatch.s2 : 'transparent',
+                borderColor: outlined ? theme.s2 : 'transparent',
                 padding: 10,
                 marginBottom: 20,
             },
@@ -157,12 +147,13 @@ const Card = ({ customStyle, outlined=false, children }) => {
     }
     const cardStyle = getStyle();
     const widthDP = widthPctToDP('100%', 0);
+
     return (
         <View style={[cardStyle.card, customStyle]}>
             {children ? React.Children.map(children, child => {
                 if(React.isValidElement(child)) {
                     return (
-                        React.cloneElement(child, {width: widthDP, height: customStyle.height})
+                        React.cloneElement(child, {width: widthDP, height: customStyle.height, theme: theme, data: data})
                     )
                 }
             }) : null}
@@ -170,24 +161,24 @@ const Card = ({ customStyle, outlined=false, children }) => {
     );
 }
 
-const CustomLineChart = ({ width, height }) => {
+const CustomLineChart = ({ width, height, theme, data }) => {
     const chartConfig = {
-        backgroundGradientFrom: swatch.s1,
-        backgroundGradientTo: swatch.s1,
+        backgroundGradientFrom: theme.s1,
+        backgroundGradientTo: theme.s1,
         backgroundGradientFromOpacity: 1,
         backgroundGradientToOpacity: 1,
-        fillShadowGradient: swatch.s3,
+        fillShadowGradient: theme.s3,
         fillShadowGradientOpacity: 0.5,
-        color: () => swatch.s4,
+        color: () => theme.s4,
         propsForBackgroundLines: {
-            stroke: toRGBA(swatchRGB.s6, 0.25),
+            stroke: toRGBA(theme.s6, 0.25),
             strokeWidth: 1.5,
             strokeDasharray: '0',
             strokeDashoffset: null,
         },
         propsForLabels: {
             fontFamily: 'ProximaNova-Regular',
-            fill: swatch.s5,
+            fill: theme.s5,
             fontSize: '10',
         },
         useShadowColorFromDataset: false // optional
@@ -208,7 +199,7 @@ const CustomLineChart = ({ width, height }) => {
                 formatXLabel={(month) => month.substr(0, 3)}
                 formatYLabel={() => yLabelIterator.next().value}
                 withDots={true}
-                getDotColor={(dataPoint, dataPointIndex) => dataPointIndex === data.datasets[0].data.length-1 ? swatch.s3 : 'transparent'}
+                getDotColor={(dataPoint, dataPointIndex) => dataPointIndex === data.datasets[0].data.length-1 ? theme.s3 : 'transparent'}
                 width={width}
                 height={height}
                 chartConfig={chartConfig}
@@ -222,7 +213,7 @@ const CustomLineChart = ({ width, height }) => {
     )
 }
 
-const ChangeTypeIcon = ({ type, size }) => {
+const ChangeTypeIcon = ({ type, size, theme }) => {
     let iconName;
     let iconColor;
     let iconSize = size;
@@ -246,20 +237,20 @@ const ChangeTypeIcon = ({ type, size }) => {
             break;
     }
     return (
-        <View style={[styles.typeIcon, {width: size, height: size}]}>
+        <View style={[styles.typeIcon, {width: size, height: size, borderRadius: 40, backgroundColor: toRGBA(theme.s2, 0.4)}]}>
             <GoogleIcon name={iconName} size={iconSize * 0.75} color={iconColor} />
             {/* TODO: Add a 'goto' icon here (for added and changed events only), that will navigate to the page in the gradebook when pressed */}
         </View>
     )
 }
 
-const ChangeEvent = ({ key, data }) => {
-    const type = data.eventType[0].toUpperCase() + data.eventType.substr(1);
+const ChangeEvent = ({ key, eventData, theme }) => {
+    const type = eventData.eventType[0].toUpperCase() + eventData.eventType.substr(1);
     let typeText = '';
     if(type !== 'Changed') {
-        typeText = data.assignment.Type;
+        typeText = eventData.assignment.Type;
     } else {
-        changes = data.assignment.changes;
+        changes = eventData.assignment.changes;
         if(changes.length > 1) {
             for(let i=0; i<changes.length-1; i++) {
                 typeText += changes[i] + ', ';
@@ -269,19 +260,19 @@ const ChangeEvent = ({ key, data }) => {
     }
 
     return (
-        <View style={styles.changeEventCardContainer}>
+        <View style={[styles.changeEventCardContainer, {borderRadius: 15, backgroundColor: toRGBA(theme.s2, 0.35)}]}>
             <View style={styles.changeEventCardLeft}>
-                <ChangeTypeIcon type={type} size={50} />
+                <ChangeTypeIcon type={type} size={50} theme={theme} />
             </View>
             <View style={styles.changeEventCardRight}>
                 <View style={{flex: 1}}>
-                    <Text style={styles.changeEventMainText}>
-                        P{data.period+1}{' '}
-                        <Text style={styles.changeEventMainSubtext}>{type}:</Text>
+                    <Text style={[styles.changeEventMainText, {color: theme.s6}]}>
+                        P{eventData.period+1}{' '}
+                        <Text style={[styles.changeEventMainSubtext, {color: theme.s5}]}>{type}:</Text>
                     </Text>
-                    <Text style={styles.assignmentDetail}>
-                        {data.assignment.Measure}{' '}
-                        <Text style={styles.assignmentType}>
+                    <Text style={[styles.assignmentDetail, {color: theme.s6}]}>
+                        {eventData.assignment.Measure}{' '}
+                        <Text style={[styles.assignmentType, {color: theme.s4}]}>
                             [{ typeText }]
                         </Text>
                     </Text>
@@ -306,6 +297,20 @@ const HomePage = () => {
     useEffect(() => {
         refreshInfo();
     }, [notifsSeen])
+
+    const context = useContext(ThemeContext);
+    const theme = context.themeData.swatch;
+
+    const data = { // TODO: get actual GPAs per month/day
+        labels: ['September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June'],
+        datasets: [
+            {
+            data: [3.8, 3.4, 3.0, 3.2, 3.8, 3.5, 4.0, 3.9, 3.4, 4.0], 
+            color: (/* opacity = 1 */) => toRGBA(theme.s3, 1),
+            strokeWidth: 3 // optional
+            }
+        ],
+    };
 
     const refreshInfo = async() => {
         try {
@@ -333,8 +338,8 @@ const HomePage = () => {
 
     if(isLoading) {
         return (
-            <View style = {[styles.container, {alignItems: 'center', justifyContent: 'center'}]}>
-                <ActivityIndicator size = 'large' color={swatch.s4} />
+            <View style = {[styles.container, {alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}]}>
+                <ActivityIndicator size = 'large' color={theme.s4} />
             </View> 
         );
     }
@@ -348,11 +353,12 @@ const HomePage = () => {
                     objArr.push(
                         <ChangeEvent 
                             key={assignment.GradebookID} 
-                            data={{
+                            eventData={{
                                 period: period.period,
                                 eventType: key,
                                 assignment: assignment
-                            }} 
+                            }}
+                            theme={theme}
                         />
                     )
                 })
@@ -362,7 +368,6 @@ const HomePage = () => {
     }
 
     let changeObjs = getChangeObjs();
-    
     const calcGpaDelta = (data) => {
         let dataArr = data.datasets[0].data;
         if(dataArr.length >= 2) {
@@ -375,7 +380,7 @@ const HomePage = () => {
         return null;
     }
     const gpaDelta = calcGpaDelta(data);
-    const pctColor = (gpaDelta > 0) ? swatch.s10 : (gpaDelta < 0) ? swatch.s11 : swatch.s5
+    const pctColor = (gpaDelta > 0) ? theme.s10 : (gpaDelta < 0) ? theme.s11 : theme.s5
     const deltaChar = (gpaDelta > 0) ? '+' : ''
 
     const handleNotifsSeen = (newState) => {
@@ -385,7 +390,7 @@ const HomePage = () => {
 
     return (
         <ScrollView 
-            style = {styles.container}
+            style = {[styles.container, {backgroundColor: theme.s1}]}
             refreshControl={
                 <RefreshControl 
                     refreshing={isRefreshing}
@@ -394,10 +399,10 @@ const HomePage = () => {
             }
             ref={scrollRef}
         >
-            <Header studentInfo={studentInfo} changes={gradeChanges} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} />
+            <Header studentInfo={studentInfo} changes={gradeChanges} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} theme={theme} />
             <View style = {styles.main_container}>
-                <Text style={styles.header_text}>Hi {studentInfo.StudentInfo.FormattedName.split(' ')[0]}!</Text>
-                <Text style={styles.cardHeader_text}>
+                <Text style={[styles.header_text, {color: theme.s6}]}>Hi {studentInfo.StudentInfo.FormattedName.split(' ')[0]}!</Text>
+                <Text style={[styles.cardHeader_text, {color: theme.s4}]}>
                     Your GPA Growth Overview:{'  '}
                     <Text style={{color: pctColor}}>
                         {deltaChar}{gpaDelta}%
@@ -411,11 +416,13 @@ const HomePage = () => {
                         borderColor: 'transparent',
                     }}
                     outlined={false}
+                    theme={theme}
+                    data={data}
                 >
                     <CustomLineChart />               
                 </Card>
-                <Text style={styles.cardHeader_text}>Latest Updates:</Text>
-                <Card customStyle={{padding: 15, paddingTop: 10, paddingBottom: 10, minHeight: 400, borderColor: toRGBA(swatchRGB.s2, 1)}} outlined={true}>
+                <Text style={[styles.cardHeader_text, {color: theme.s4}]}>Latest Updates:</Text>
+                <Card customStyle={{padding: 15, paddingTop: 10, paddingBottom: 10, minHeight: 400, borderColor: toRGBA(theme.s2, 1)}} outlined={true} theme={theme}>
                     { changeObjs }
                 </Card>
             </View>
@@ -436,7 +443,7 @@ const ProfileScreen = ({ navigation }) => {
                     headerShown: false,
                 }}
             />
-        </ProfileStack.Navigator>
+        </ProfileStack.Navigator>   
     )
 }
 
@@ -445,7 +452,6 @@ const styles = StyleSheet.create({
         flex: 1,
         height: "100%",
         width: "100%",
-        backgroundColor: swatch.s1,
     },
     main_container: {
         flex: 1, 
@@ -461,7 +467,6 @@ const styles = StyleSheet.create({
     card: {
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: swatch.s2,
         borderRadius: 30,
         padding: 10,
     },
@@ -491,10 +496,8 @@ const styles = StyleSheet.create({
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
-        borderColor: toRGBA(swatchRGB.s4, 0.5),
     },
     header_text: {
-        color: swatch['s6'],
         fontSize: 40,
         fontFamily: 'Proxima Nova Bold',
         opacity: 1,
@@ -502,7 +505,6 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     cardHeader_text: {
-        color: swatch.s4,
         fontFamily: 'Proxima Nova Bold',
         fontSize: 20,
         marginBottom: 15,
@@ -514,9 +516,7 @@ const styles = StyleSheet.create({
         minHeight: 115, 
         marginTop: 5, 
         marginBottom: 5,
-        borderRadius: 15,
         justifyContent: 'center', 
-        backgroundColor: toRGBA(swatchRGB.s2, 0.35),
     },
     changeEventCardLeft: {
         flex: 1.5, 
@@ -538,31 +538,25 @@ const styles = StyleSheet.create({
         top: 0,
         fontSize: 50,
         textAlignVertical: 'center',
-        color: swatch.s6,
     },
     changeEventMainSubtext: {
         fontFamily: 'Proxima Nova Bold',
         fontSize: 23,
         textAlignVertical: 'center',
-        color: swatch.s5,
     },
     assignmentDetail: {
         top: 0,
         fontFamily: 'ProximaNova-Regular',
         fontSize: 18,
-        color: swatch.s6,
         bottom: 10,
     },  
     assignmentType: {
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
-        color: swatch.s4,
     }, 
     typeIcon: {
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 40, 
-        backgroundColor: toRGBA(swatchRGB.s2, 0.4),
     },
     notifBellContainer: {
         minWidth: 50,
@@ -572,7 +566,6 @@ const styles = StyleSheet.create({
         marginRight: 15,
         borderRadius: 40,
         borderWidth: 1,
-        borderColor: toRGBA(swatchRGB.s4, 0.5),
     },
     notifBell: {
         bottom: 1.5,
@@ -587,12 +580,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 1.5,
-        backgroundColor: swatch.s11,
     },
     notifBellWarnText: {
         fontSize: 11,
         fontFamily: 'ProximaNova-Regular',
-        color: swatch.s6,
     },
 });
 

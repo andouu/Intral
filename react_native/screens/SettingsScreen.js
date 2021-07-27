@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import { AuthContext } from '../components/context';
+import { AuthContext } from '../components/authContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
     StyleSheet,

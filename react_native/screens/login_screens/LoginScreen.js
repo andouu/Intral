@@ -8,7 +8,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { AuthContext } from '../../components/context';
+import { AuthContext } from '../../components/authContext';
 import { login } from '../../components/api';
 import { useFocusEffect } from '@react-navigation/core';
 import Animated, {

@@ -3,6 +3,7 @@ import 'react-native-gesture-handler';
 import React, {
     useEffect,
     useMemo,
+    useState,
     useReducer,
 } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
@@ -16,22 +17,30 @@ import {
     StatusBar,
     StyleSheet,
 } from 'react-native';
-import { swatch, swatchRGB } from './components/theme';
+import { swatchDark } from './components/theme';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
-import { AuthContext } from './components/context';
+import { AuthContext } from './components/authContext';
+import { ThemeContext } from './components/themeContext';
 
 /*Since we're using bottomTabNavigator, you have to create each screen as a stackNavigator, as a child under the tab navigator*/
 
 const Drawer = createDrawerNavigator();
 
-const navTheme = DefaultTheme;
-navTheme.colors.background = '#FFFFFF';
-
 const App = () => {
     // const [isLoading, setIsLoading] = useState(true);
     // const [userToken, setUserToken] = useState(null);
+    const [themeData, setThemeData] = useState({
+        theme: 'dark',
+        swatch: swatchDark, // TODO: add lightmode
+    });
+
+    const themeValue = {
+        themeData,
+        setTheme: (newTheme) => {setThemeData({ theme: newTheme, swatch: swatchDark })}
+    }
+    console.log(themeValue);
 
     const initialLoginState = {
         isLoading: true,
@@ -118,7 +127,8 @@ const App = () => {
     }
     
     return ( // TODO: Android immersive mode
-        <AuthContext.Provider value = {authContext}>
+        <AuthContext.Provider value={authContext}>
+        <ThemeContext.Provider value={themeValue}>
             <SafeAreaProvider>
                 <StatusBar
                     hidden={true}
@@ -128,7 +138,7 @@ const App = () => {
                         <Drawer.Navigator 
                             initialRouteName='Home'
                             drawerContentOptions={{
-                                style: styles.drawerMain,
+                                style: {backgroundColor: themeData.theme === 'dark' ? swatchDark.s1 : swatchDark.s1},
                             }}
                         >
                             <Drawer.Screen name = 'Home' component = {MainStackScreen} />
@@ -139,15 +149,9 @@ const App = () => {
                     )} 
                 </NavigationContainer>
             </SafeAreaProvider>
+        </ThemeContext.Provider>
         </AuthContext.Provider>
     );
 };
-
-const styles = StyleSheet.create({
-    drawerMain: {
-        backgroundColor: swatch['s1'],
-
-    }
-});
 
 export default App;

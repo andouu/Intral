@@ -1,17 +1,17 @@
-export const swatch = {
-    s1: '#080a0f',
-    s2: '#484851',
-    s3: '#0170ff',
-    s4: '#a09891',
-    s5: '#c99b3b',
-    s6: '#f7f8f9',
-    s7: '#a37133',
-    s8: '#598ac5',
-    s9: '#191919',
-    s10: '#04cc47',
-    s11: '#ff3b3b',
-    s12: '#7733ff',
-    s13: '#34343b',
+export const swatchDark = {
+    s1: 'rgb(8,10,15)',
+    s2: 'rgb(72,72,81)',
+    s3: 'rgb(1,112,255)',
+    s4: 'rgb(160,152,145)',
+    s5: 'rgb(201,155,59)',
+    s6: 'rgb(247,248,249)',
+    s7: 'rgb(163,113,51)',
+    s8: 'rgb(89,138,197)',
+    s9: 'rgb(25,25,25)',
+    s10: 'rgb(4,204,71)',
+    s11: 'rgb(255,59,59)',
+    s12: 'rgb(119,51,255)',
+    s13: 'rgb(52,52,59)',
 }
 
 export const hexToRgb = (hex) => {
@@ -23,15 +23,7 @@ export const hexToRgb = (hex) => {
     } : null;
 }
 
-export const swatchRGB = (() => {
-    let tmp = {};
-    for(var color in swatch) {
-        tmp[`${color}`] = hexToRgb(swatch[color]);
-    }
-    return tmp;
-})(); 
-
 export const toRGBA = (color, opacity) => { // takes rgb color (no hex)
-    return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
+    return `rgba${color.substr(3, color.length-4)}, ${opacity})`;
 }
 
