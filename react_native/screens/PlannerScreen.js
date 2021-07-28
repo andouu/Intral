@@ -6,22 +6,26 @@ import {
     ScrollView,
     SectionList,
     View,
+    KeyboardAvoidingView,
     Text,
     TouchableOpacity,
     TextInput,
+    Animated,
     StyleSheet,
     Dimensions,
     Modal,
     Pressable,
-    ActivityIndicator
+    ActivityIndicator,
+    Keyboard,
+    LogBox
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
-import { swatch, swatchRGB, toRGBA } from '../components/theme'
-import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import { swatch, swatchRGB, toRGBA } from '../components/theme';
+import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, ThemeProvider } from '@react-navigation/native';
-import Accordion from 'react-native-collapsible/Accordion'
-import DropDownPicker from 'react-native-dropdown-picker'
+import Accordion from 'react-native-collapsible/Accordion';
+import DropDownPicker from 'react-native-dropdown-picker';
 
 const maxChars = 40;
 
@@ -140,6 +144,25 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
 }
 
 const PlannerPage = ({ navigation }) => {
+    useEffect(() => {
+        LogBox.ignoreLogs(['VirtualizedLists should never be nested'])
+    }, []);
+
+    const [keyboardShown, setKeyboardShown] = useState(false);
+    const _keyboardDidShow = () => setKeyboardShown(true);
+    const _keyboardDidHide = () => setKeyboardShown(false);
+
+    useEffect(() => {
+        Keyboard.addListener('keyboardDidShow', _keyboardDidShow);
+        Keyboard.addListener('keyboardDidHide', _keyboardDidHide);
+
+        // cleanup function
+        return () => {
+            Keyboard.removeAllListeners('keyboardDidShow');
+            Keyboard.removeAllListeners('keyboardDidHiiide');
+        };
+    }, [])
+
     const [isLoading, setIsLoading] = useState(true);
     const isFocused = useIsFocused();
 
@@ -150,7 +173,7 @@ const PlannerPage = ({ navigation }) => {
     const [dropdownItems, setDropdownItems] = useState([]);
     const [dropdownValue, setDropdownValue] = useState(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-
+    
     const refreshClasses = async() => {
         try {
             let storedClasses = await AsyncStorage.getItem('classes');
@@ -298,38 +321,49 @@ const PlannerPage = ({ navigation }) => {
                         </Text>
                     </View>
                 ) : (
-                    <Accordion
-                        sections={events}
-                        activeSections={activeSections}
-                        expandFromBottom={false}
-                        containerStyle={styles.planner_accordion_container}
-                        renderSectionTitle={(section) =>
-                            <View></View> //must have to avoid errors
-                        }
-                        renderHeader={(section) =>
-                            <View style={styles.planner_section_button}>
-                                <Text style={styles.planner_section_button_text}>{section.name}</Text>
-                            </View>
-                        }
-                        renderContent={(section) =>
-                            <FlatList
-                                data={section.data}
-                                renderItem={({item, index}) =>
-                                    <PlannerBox
-                                        key={item.key}
-                                        sectionIdx={section.index}
-                                        eventIdx={index}
-                                        data={item.data}
-                                        handleDelete={handleDelete}
-                                        handleTextChange={handleTextChange}
-                                    />
-                                }
-                                keyExtractor={item => item.key}
-                            />
-                        }
-                        onChange={setActiveSections}
-                        keyExtractor={item => item.key}
-                    />
+                    /* <KeyboardAvoidingView
+                        behavior={'height'}
+                    > */
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        <Accordion
+                            sections={events}
+                            activeSections={activeSections}
+                            expandFromBottom={false}
+                            expandMultiple={true}
+                            containerStyle={styles.planner_accordion_container}
+                            //NOTE: THE BEST WAY is: renderAsFlatList={true} and no ScrollView, but it did not render my planner boxes correctly. TODO: fix this and implement renderAsFlatlist={true}
+                            renderSectionTitle={(section) =>
+                                <View></View> //must have to avoid errors
+                            }
+                            renderHeader={(section) =>
+                                <View style={styles.planner_section_button}>
+                                    <Text style={styles.planner_section_button_text}>{section.name}</Text>
+                                </View>
+                            }
+                            renderContent={(section) =>
+                                <FlatList
+                                    scrollEnabled={false}
+                                    data={section.data}
+                                    renderItem={({item, index}) =>
+                                        <PlannerBox
+                                            key={item.key}
+                                            sectionIdx={section.index}
+                                            eventIdx={index}
+                                            data={item.data}
+                                            handleDelete={handleDelete}
+                                            handleTextChange={handleTextChange}
+                                        />
+                                    }
+                                    keyExtractor={item => item.key}
+                                />
+                            }
+                            onChange={(activeSections) => {
+                                //only activates sections that have events stored inside to avoid bugs
+                                setActiveSections(activeSections.filter(section => events.find(event => event.key === section).data.length !== 0));
+                            }}
+                            keyExtractor={item => item.key}
+                        />
+                    </ScrollView>
                 )
             )}
             {/*<SectionList
@@ -350,7 +384,7 @@ const PlannerPage = ({ navigation }) => {
                     </View>
                 )}
             />*/}
-            {!isLoading && <View style={styles.planner_add_menu}>
+            {!isLoading && !keyboardShown && <View style={styles.planner_add_menu}>
                 <View style={styles.planner_add_button}>
                     <Icon
                         name='plus'
@@ -359,6 +393,16 @@ const PlannerPage = ({ navigation }) => {
                         color={swatch.s7}
                         onPress={() => {
                             handleAdd(dropdownValue);
+                            let newKey = events[dropdownValue].key;
+                            let newKeyIsUnique = true;
+                            for (let i = 0; i < activeSections.length; i ++) {
+                                if (activeSections[i] == newKey) {
+                                    newKeyIsUnique = false;
+                                }
+                            }
+                            if (newKeyIsUnique) {
+                                setActiveSections([...activeSections, newKey]);
+                            }
                             setDropdownValue(null);
                             setDropdownOpen(false);
                         }}
@@ -417,6 +461,7 @@ const styles = StyleSheet.create({
     },
     planner_accordion_container: {
         marginTop: -15,
+        marginBottom: 80,
         flex: 1,
         width: '100%',
         height: '100%'
