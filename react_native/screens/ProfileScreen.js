@@ -19,7 +19,7 @@ import {
 import {
     LineChart,
 } from 'react-native-chart-kit';
-import { swatchDark, toRGBA } from '../components/theme'; 
+import { toRGBA } from '../components/utils'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../components/themeContext';
 
@@ -113,7 +113,7 @@ const Header = ({ studentInfo, changes, notifsSeen, handleScroll, handleNotifsSe
                     hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                     borderRadius = {80}
                     name='menu' 
-                    color={toRGBA(theme.s4, 0.5)} 
+                    color={toRGBA(theme.s4, 1)} 
                     size={35}
                     backgroundColor='transparent'
                     onPress={() => navigation.openDrawer()} 
@@ -298,8 +298,8 @@ const HomePage = () => {
         refreshInfo();
     }, [notifsSeen])
 
-    const context = useContext(ThemeContext);
-    const theme = context.themeData.swatch;
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
 
     const data = { // TODO: get actual GPAs per month/day
         labels: ['September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June'],

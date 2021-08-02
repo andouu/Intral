@@ -18,8 +18,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
-import { swatch, swatchRGB, toRGBA } from '../components/theme'
-import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import { swatchDark } from '../components/themes';
+import { toRGBA } from '../components/utils';
+import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ThemeProvider } from '@react-navigation/native';
 import CollapsibleList from 'react-native-collapsible-list';
 
@@ -58,7 +59,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                                 onPress={() => setModalVisible(false)}
                                 style={[
                                     {
-                                        backgroundColor: swatch['s6'],
+                                        backgroundColor: swatchDark['s6'],
                                     },
                                     styles.planner_event_modal_button
                                 ]}
@@ -72,7 +73,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                                 }}
                                 style={[
                                     {
-                                        backgroundColor: swatch['s4']
+                                        backgroundColor: swatchDark['s4']
                                     },
                                     styles.planner_event_modal_button
                                 ]}
@@ -83,7 +84,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                                 onPress={() => handleDelete(index)}
                                 style={[
                                     {
-                                        backgroundColor: swatch['s2']
+                                        backgroundColor: swatchDark['s2']
                                     },
                                     styles.planner_event_modal_button
                                 ]}
@@ -105,7 +106,7 @@ const PlannerBox = ({ index, data, handleDelete, handleTextChange }) => {
                 <View style = {styles.planner_text_box}>
                     <TextInput
                         placeholder='Enter Event (e.g. Study for 20 min Today)'
-                        placeholderTextColor={toRGBA(swatchRGB.s6, 0.5)}
+                        placeholderTextColor={toRGBA(swatchDark.s6, 0.5)}
                         textBreakStrategy='highQuality'
                         numberOfLines={2}
                         maxLength={maxChars}
@@ -200,14 +201,14 @@ const PlannerPage = ({ navigation }) => {
             <View style={styles.optionsBar}>
                 <View style={styles.menu_button}>
                     <MaterialDesignIcons.Button 
-                        underlayColor={toRGBA(swatchRGB.s4, 0.5)}
+                        underlayColor={toRGBA(swatchDark.s4, 0.5)}
                         activeOpacity={0.5}
                         right={2}
                         bottom={4}
                         hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                         borderRadius = {80}
                         name='menu' 
-                        color={swatch['s4']} 
+                        color={swatchDark['s4']} 
                         size={35}
                         backgroundColor='transparent'
                         onPress={() => navigation.openDrawer()} 
@@ -254,7 +255,7 @@ const PlannerPage = ({ navigation }) => {
                     name='plus'
                     type='feather'
                     size={35}
-                    color={swatch['s7']}
+                    color={swatchDark['s7']}
                     onPress={handleAdd}
                 />
             </View>
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
         padding: 15 ,
         paddingTop: 0,
         paddingBottom: 0,
-        backgroundColor: swatch['s1'],
+        backgroundColor: swatchDark.s1,
     },
     planner_event_container: {
         flex: 1,
@@ -295,7 +296,7 @@ const styles = StyleSheet.create({
     planner_event_box: {
         width: '100%',
         borderRadius: 15,
-        backgroundColor: swatch['s2'],
+        backgroundColor: swatchDark.s2,
         justifyContent: 'center',
         padding: 15
     },
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
         marginRight: 15,
         height: '30%',
         borderRadius: 15,
-        backgroundColor: toRGBA(swatchRGB.s3, 0.8),
+        backgroundColor: toRGBA(swatchDark.s3, 0.8),
         flexDirection: 'row',
         padding: 5,
     },
@@ -328,10 +329,10 @@ const styles = StyleSheet.create({
         fontSize: 25,
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'bold',
-        color: swatch['s1'],
+        color: swatchDark.s1,
     },
     planner_event_charCount: {
-        color: swatch['s4'],
+        color: swatchDark['s4'],
         position: 'absolute',
         right: 13
     },
@@ -346,14 +347,14 @@ const styles = StyleSheet.create({
         fontSize: 15,   
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
-        color: swatch['s6'],
+        color: swatchDark['s6'],
     },
     planner_add_button: {
         width: 60,
         height: 60,
         borderRadius: 50,
         justifyContent: 'center',
-        backgroundColor: swatch['s5'],
+        backgroundColor: swatchDark['s5'],
         position: 'absolute',
         bottom: 20,
         right: 20,
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
     helper_text: {
         fontFamily: 'ProximaNova-Regular',
         textAlign: 'center',
-        color: swatch['s6'],
+        color: swatchDark['s6'],
         opacity: 0.5,
     },  
     optionsBar: {
@@ -381,7 +382,7 @@ const styles = StyleSheet.create({
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
-        borderColor: toRGBA(swatchRGB.s4, 0.5),
+        borderColor: toRGBA(swatchDark.s4, 0.5),
     },
 });
 

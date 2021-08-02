@@ -17,7 +17,7 @@ import {
     StatusBar,
     StyleSheet,
 } from 'react-native';
-import { swatchDark } from './components/theme';
+import { swatchDark } from './components/themes';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
@@ -40,7 +40,6 @@ const App = () => {
         themeData,
         setTheme: (newTheme) => {setThemeData({ theme: newTheme, swatch: swatchDark })}
     }
-    console.log(themeValue);
 
     const initialLoginState = {
         isLoading: true,
@@ -133,12 +132,21 @@ const App = () => {
                 <StatusBar
                     hidden={true}
                 />
-                <NavigationContainer theme = {DefaultTheme}>
+                <NavigationContainer 
+                    theme = {{
+                        colors: {
+                            primary: themeData.swatch.s3,
+                            text: themeData.swatch.s6,
+                            card: themeData.swatch.s1,
+                            background: themeData.swatch.s1,
+                        }
+                    }
+                }>
                     {loginState.userToken !== null ? (
                         <Drawer.Navigator 
                             initialRouteName='Home'
                             drawerContentOptions={{
-                                style: {backgroundColor: themeData.theme === 'dark' ? swatchDark.s1 : swatchDark.s1},
+                                style: {backgroundColor: themeData.swatch.s1},
                             }}
                         >
                             <Drawer.Screen name = 'Home' component = {MainStackScreen} />

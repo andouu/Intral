@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import PlannerScreen from './PlannerScreen';
 import CalendarScreen from './CalendarScreen';
-import { swatch, swatchRGB } from '../components/theme';
+import { swatchDark } from '../components/themes';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 
 const Drawer = createDrawerNavigator();
@@ -25,8 +25,7 @@ const RemindersDrawer = () => {
 
 const styles = StyleSheet.create({
     drawerMain: {
-        backgroundColor: swatch['s1'],
-
+        backgroundColor: swatchDark.s1,
     }
 });
 

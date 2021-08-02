@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import {
     Image,
     View,
@@ -10,20 +10,23 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import GradebookScreen from './GradebookScreen';
 import ProfileScreen from './ProfileScreen';
 import RemindersDrawer from './RemindersDrawer';
-import { swatch, swatchRGB, toRGBA } from '../components/theme';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
+import { ThemeContext } from '../components/themeContext';
 
 const tabIconSize = 35;
 
 const Tab = createBottomTabNavigator();
 
 const MainStackScreen = () => {
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
+
     return (
         <Tab.Navigator 
             initialRouteName='Personal' 
-            tabBar={props => <TabBar {...props} />}
+            tabBar={props => <TabBar {...props} theme={theme} />}
             tabBarOptions={{
-                activeTintColor: swatch['s8'],
+                activeTintColor: theme.s8,
                 showIcon: true,
             }}
         >
@@ -66,21 +69,21 @@ const MainStackScreen = () => {
     )
 }
 
-const TabBar = ({ state, descriptors, navigation }) => { // custom tab navigation bar
+const TabBar = ({ state, descriptors, navigation, theme }) => { // custom tab navigation bar
     const focusedOptions = descriptors[state.routes[state.index].key].options;
-    
+
     if(focusedOptions.tabBarVisible === false) {
         return null;
     }
 
     return (
-        <View style={{backgroundColor: swatch.s1}}>
-        <View style={styles.tabContainer}>
+        <View style={{backgroundColor: theme.s1}}>
+        <View style={[styles.tabContainer, {backgroundColor: theme.s9}]}>
             {state.routes.map((route, index) => {
                 const { options } = descriptors[route.key];
                 const isFocused = state.index === index;
 
-                const iconColor = isFocused ? swatch.s3 : swatch.s4;
+                const iconColor = isFocused ? theme.s3 : theme.s4;
                 const icon = options.tabBarIcon(iconColor);
 
                 const onPress = () => {
@@ -125,11 +128,10 @@ const TabBar = ({ state, descriptors, navigation }) => { // custom tab navigatio
 const styles = StyleSheet.create({
     tabContainer: {
         width: '100%', 
-        height: 80,
+        height: 70,
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
         flexDirection: 'row',
-        backgroundColor: swatch.s9,
     },
     tabButton: {
         flex: 1,

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
-import { swatch, swatchRGB } from '../components/theme.js';
+import { ThemeContext } from '../components/themeContext';
 import {
     ScrollView,
     View,
@@ -57,13 +57,14 @@ const validChanges = {        // to check for valid changes; we don't really car
     Notes: 'Teacher Notes',
 }
 
-const GradebookPage = () => {
+const GradebookHomeScreen = () => {
     const [isLoading, setIsLoading] = useState(true);  
     const [refreshing, setRefreshing] = useState(false);
     const [classes, setClasses] = useState([]);
-    const isFocused = useIsFocused();               // Will be used to determine if the user is focused on the screen (aka if the user is looking at the gradepage) 
-                                                    // NOTE: Should probably have student reload manually (if there are no changes), reloading on each focus seems wasteful and inefficient
 
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
+    
     const findDifference = (original, newData) => {
         let added = [];
         let removed = [];
@@ -121,7 +122,7 @@ const GradebookPage = () => {
         return result;
     }
     
-    const logDiff = (diff) => {
+    const logDiff = (diff) => { // for debugging purposes (assignment differences)
         for(let key in diff){
             let arr = diff[key];
             arr.forEach(item => {
@@ -184,14 +185,14 @@ const GradebookPage = () => {
     }, []);
 
     return (
-        <SafeAreaView style = {gradeStyles.container}>
+        <SafeAreaView style = {[styles.container, {backgroundColor: theme.s1}]}>
             {isLoading ? (
-                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: swatch['s1']}}>
-                    <ActivityIndicator size = 'large' color = {swatch['s4']} />
+                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}}>
+                    <ActivityIndicator size = 'large' color = {theme.s4} />
                 </View>
             ) : (
                 <ScrollView 
-                    style={gradeStyles.grade_container} 
+                    style={styles.grade_container} 
                     contentContainerStyle = {{paddingBottom: 10, marginTop: 5}}
                     refreshControl = {
                         <RefreshControl
@@ -201,7 +202,7 @@ const GradebookPage = () => {
                     }
                 >
                     <View style = {{flexDirection: 'column', justifyContent: 'center', flex: 1}}>
-                        <GradeBoxes classes = {classes} />     
+                        <GradeBoxes classes={classes} theme={theme} />     
                     </View>
                 </ScrollView>
             )}   
@@ -209,7 +210,7 @@ const GradebookPage = () => {
     );
 }
 
-const GradeBoxes = ({ classes }) => { 
+const GradeBoxes = ({ classes, theme }) => { 
     const navigation = useNavigation();
     
     let gradeObjects = classes.map((period, i) => {
@@ -221,7 +222,7 @@ const GradeBoxes = ({ classes }) => {
         };
         return(
             <TouchableOpacity 
-                style = {gradeStyles.grade_display}
+                style = {[styles.grade_display, {backgroundColor: theme.s2}]}
                 activeOpacity = {0.5} 
                 key = {i} 
                 onPress={
@@ -233,9 +234,9 @@ const GradeBoxes = ({ classes }) => {
                 }
             }>
                 <View style = {{flex: 1, flexDirection: 'row', justifyContent: 'center', paddingLeft: 15, paddingRight: 15}}>
-                    <Text style = {gradeStyles.grade_letter}>{classSummary.gradeLtr}</Text> 
-                    <View style = {gradeStyles.vertical_line}></View>
-                    <Text style = {gradeStyles.grade_info}>{`Period ${classSummary.period}: ${classSummary.teacher}`}</Text>
+                    <Text style = {[styles.grade_letter, {color: theme.s6}]}>{classSummary.gradeLtr}</Text> 
+                    <View style = {[styles.vertical_line, {backgroundColor: theme.s4}]}></View>
+                    <Text style = {[styles.grade_info, {color: theme.s6}]}>{`Period ${classSummary.period}: ${classSummary.teacher}`}</Text>
                 </View>
             </TouchableOpacity> 
         );
@@ -262,10 +263,10 @@ const Assignment = ({ index, name, data, navigation }) => (
                 {
                     opacity: pressed ? 0.5 : 1,
                 },
-                gradeStyles.button_wrapper
+                styles.button_wrapper
             ]
         }>
-        <View style = {gradeStyles.assignmentDescriptionWrapper}>
+        <View style = {styles.assignmentDescriptionWrapper}>
             <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 15}}>{name}</Text>
             <Text style = {{fontFamily: 'ProximaNova-Regular', fontSize: 10, alignSelf: 'flex-end', position: 'absolute', right: 0}}>{data.Points}</Text>
         </View>
@@ -275,6 +276,9 @@ const Assignment = ({ index, name, data, navigation }) => (
 const ClassDetailsScreen = ({ route, navigation }) => {
     const { periodNumber, classInfo } = route.params;
     const [isDropped, setIsDropped] = useState(false);
+    
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
 
     let gradeSummary = classInfo.Marks.Mark.GradeCalculationSummary.AssignmentGradeCalc;
     let isOneWeight = !Array.isArray(gradeSummary);                                      // if there is only one weight, then the array is undefined, so we need to check for that
@@ -324,12 +328,12 @@ const ClassDetailsScreen = ({ route, navigation }) => {
     }
 
     return (
-        <SafeAreaView style={gradeStyles.container}>
-            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0, padding: 15,}}>
-                <Text style={[{marginBottom: 10}, gradeStyles.info_header]}>
+        <SafeAreaView style={[styles.container, {backgroundColor: theme.s1}]}>
+            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0, padding: 15}}>
+                <Text style={[{marginBottom: 10, color: theme.s6}, styles.info_header]}>
                     Period {parseInt(periodNumber)+1}: {classInfo.Title}
                 </Text>
-                <Text style={[gradeStyles.info_subheader, {marginBottom: 5}]}>
+                <Text style={[styles.info_subheader, {marginBottom: 5, color: theme.s4}]}>
                     {totalPct}% {isDropped ? '\n' : null}
                 </Text>
                 <View style = {{width: '100%', height: isDropped ? 220 : 20}}>
@@ -349,15 +353,15 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                         }
                     </View>
                     <Pressable 
-                        style = {({pressed}) => [{opacity: pressed ? 0.5 : 1}, gradeStyles.dropdown_button]}
+                        style = {({pressed}) => [{opacity: pressed ? 0.5 : 1}, styles.dropdown_button]}
                         onPress = {() => {
                             setIsDropped(!isDropped); 
                         }}
                     >
-                        <Image style = {[gradeStyles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg} />
+                        <Image style = {[styles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg} />
                     </Pressable>
                 </View>
-                <View style={gradeStyles.horizontalDivider} />
+                <View style={[styles.horizontalDivider, {borderBottomColor: theme.s6}]} />
                 <View style = {{flex: 1, justifyContent: "center", width: "100%"}}>
                     <FlatList
                         data = {assignments}
@@ -374,12 +378,16 @@ const ClassDetailsScreen = ({ route, navigation }) => {
 
 const AssignmentDetailsScreen = ({ route, navigation }) => {
     const { details, name } = route.params;
+
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
+
     return (
         <View style={{ flex: 1, alignItems: "flex-start", justifyContent: "flex-start", marginLeft: 15, marginRight: 15, marginTop: 5 }}>
-            <Text style = {[{marginBottom: 0}, gradeStyles.info_header]}>{name}:</Text>
-            <Text style = {[gradeStyles.info_subheader, {fontSize: 15, marginTop: -2, marginBottom: 10, color: 'rgba(0, 0, 0, 0.75)'}]}>{details.Type}</Text>
-            <Text style = {gradeStyles.info_subheader}>Score: {details.Points}</Text>
-            <View style = {gradeStyles.horizontalDivider} />
+            <Text style = {[{marginBottom: 0, color: theme.s6}, styles.info_header]}>{name}:</Text>
+            <Text style = {[styles.info_subheader, {fontSize: 15, marginTop: -2, marginBottom: 10, color: theme.s4}]}>{details.Type}</Text>
+            <Text style = {[styles.info_subheader, {color: theme.s4}]}>Score: {details.Points}</Text>
+            <View style = {styles.horizontalDivider} />
             <AssignmentDetail detail = 'Description' data = {details.MeasureDescription === '' ? 'N/A' : details.MeasureDescription}></AssignmentDetail>
             <AssignmentDetail detail = 'Assign Date' data = {details.Date}></AssignmentDetail>
             <AssignmentDetail detail = 'Due Date' data = {details.DueDate}></AssignmentDetail>
@@ -404,7 +412,7 @@ function GradebookScreen(){
         <Stack.Navigator initialRouteName="GradeBook">
             <Stack.Screen 
                 name="Gradebook" 
-                component={GradebookPage} 
+                component={GradebookHomeScreen} 
                 options={{headerShown: false}}
             />
             <Stack.Screen 
@@ -421,7 +429,7 @@ function GradebookScreen(){
     );
 }
 
-const gradeStyles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         height: "100%",
@@ -429,7 +437,6 @@ const gradeStyles = StyleSheet.create({
         padding: 15,
         paddingTop: 0,
         paddingBottom: 0,
-        backgroundColor: swatch['s1'],
     },
     image: {
         flex: 1,
@@ -438,7 +445,6 @@ const gradeStyles = StyleSheet.create({
         resizeMode: 'contain',
     },
     horizontalDivider: {
-        borderBottomColor: swatch['s6'],
         borderBottomWidth: StyleSheet.hairlineWidth,
         width: "100%",
         marginTop: 15,
@@ -449,7 +455,6 @@ const gradeStyles = StyleSheet.create({
         left: 100,
         alignSelf: "center",
         width: StyleSheet.hairlineWidth,
-        backgroundColor: swatch['s4'],
         position: "absolute"
     },
     button_wrapper: {
@@ -471,7 +476,6 @@ const gradeStyles = StyleSheet.create({
         padding: 5,
         marginBottom: 15,
         borderRadius: 15,
-        backgroundColor: swatch['s2'],
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
@@ -481,14 +485,12 @@ const gradeStyles = StyleSheet.create({
         fontSize: 45,
         paddingBottom: 0,
         left: 18,
-        color: swatch['s6'],
         fontFamily: "Proxima Nova Bold",
         textAlign: "left",
         textAlignVertical: "center",
     },
     grade_info: {
         flex: 4,
-        color: swatch['s6'],
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
         paddingLeft: 45,
@@ -498,7 +500,6 @@ const gradeStyles = StyleSheet.create({
         textAlignVertical: "center",
     },
     info_header: {
-        color: swatch['s6'],
         fontFamily: "Proxima Nova Extrabold",
         fontSize: 40,
     },
@@ -506,7 +507,6 @@ const gradeStyles = StyleSheet.create({
         fontFamily: "Proxima Nova Bold",
         fontSize: 30,
         fontWeight: "300",
-        color: `rgba(${swatchRGB.s4.r}, ${swatchRGB.s4.g}, ${swatchRGB.s4.b}, 1)`,
     },
     assignmentDescriptionWrapper: {
         flex: 1,
