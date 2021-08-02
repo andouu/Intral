@@ -23,6 +23,7 @@
     "react-native": "^0.64.2",
     "react-native-chart-kit": "^6.11.0",
     "react-native-collapsible": "^1.6.0",
+    "react-native-draggable-flatlist": "^2.6.2",
     "react-native-dropdown-picker": "^5.1.21",
     "react-native-elements": "^3.4.2",
     "react-native-gesture-handler": "^1.9.0",
@@ -31,6 +32,7 @@
     "react-native-screens": "^2.17.1",
     "react-native-svg": "^12.1.1",
     "react-native-svg-charts": "^5.4.0",
+    "react-native-swipeable-item": "^1.5.7",
     "react-native-vector-icons": "^8.1.0"
   },
   "devDependencies": {

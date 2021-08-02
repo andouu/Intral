@@ -6200,6 +6200,11 @@ react-native-crypto@^2.0.1:
     public-encrypt "^4.0.0"
     randomfill "^1.0.3"
 
+react-native-draggable-flatlist@^2.6.2:
+  version "2.6.2"
+  resolved "https://registry.yarnpkg.com/react-native-draggable-flatlist/-/react-native-draggable-flatlist-2.6.2.tgz#d1445fd52e75bc4f4ebbd832a8bc4525cebb8302"
+  integrity sha512-0IBS1lgw137FDaDLccUidHXYu/6PbnIO1R0IXYVfxtNOvhFLfJyGOY526vmO72Sf/ch9yayED4+DaQWGBOqNyw==
+
 react-native-dropdown-picker@^5.1.21:
   version "5.1.21"
   resolved "https://registry.yarnpkg.com/react-native-dropdown-picker/-/react-native-dropdown-picker-5.1.21.tgz#f5bf602ef900d1c37cf2602206932cd1962ce75c"
@@ -6295,6 +6300,11 @@ react-native-svg@^12.1.1:
   dependencies:
     css-select "^2.1.0"
     css-tree "^1.0.0-alpha.39"
+
+react-native-swipeable-item@^1.5.7:
+  version "1.5.7"
+  resolved "https://registry.yarnpkg.com/react-native-swipeable-item/-/react-native-swipeable-item-1.5.7.tgz#3ed3e530ae746316c0a336a1929792b36b02cc7f"
+  integrity sha512-Uz29C0g4jDPZpkywPtbfFcAawJTxJ4ouFU03ni7pw+G8t4fTb1vi6QqDVnlqnlFYXcZcFXqVvn+SwT1elvV2/g==
 
 react-native-vector-icons@^8.1.0:
   version "8.1.0"
