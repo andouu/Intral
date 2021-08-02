@@ -12,18 +12,15 @@ import {
     Modal,
     Pressable,
     ActivityIndicator,
-    Keyboard,
     LogBox
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
-import { swatchDark } from '../components/themes';
 import { ThemeContext } from '../components/themeContext';
 import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, ThemeProvider } from '@react-navigation/native';
 import Accordion from 'react-native-collapsible/Accordion';
-import DropDownPicker from 'react-native-dropdown-picker';
 import Animated from 'react-native-reanimated';
 import SwipeableItem from 'react-native-swipeable-item/src';
 
@@ -37,7 +34,7 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
     const renderUnderlayLeft = ({item, percentOpen, open, close}) => (
-        <Animated.View style={[styles.planner_event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s5}]}>
+        <Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s5}]}>
             <TouchableOpacity style={{right: 16}}>
                 <Icon
                     name='edit'
@@ -56,8 +53,8 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
             renderUnderlayLeft={renderUnderlayLeft}
             snapPointsLeft={[70]}
         >
-            <View style = {styles.planner_event_container}>
-                <View style={[styles.planner_event_box, {backgroundColor: theme.s1, borderColor: theme.s2}]}>
+            <View style = {styles.event_container}>
+                <View style={[styles.event_box, {backgroundColor: theme.s1, borderColor: theme.s2}]}>
                     <Modal
                         animationType='fade'
                         transparent={true}
@@ -66,49 +63,34 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                             setModalVisible(false);
                         }}
                     >
-                        <View style={styles.planner_event_container}>
-                            <View style={[styles.planner_event_modal, {backgroundColor: theme.s2}]}>
+                        <View style={styles.event_container}>
+                            <View style={[styles.event_modal, {backgroundColor: theme.s2}]}>
                                 <Pressable
                                     onPress={() => setModalVisible(false)}
-                                    style={[
-                                        {
-                                            backgroundColor: theme.s6,
-                                        },
-                                        styles.planner_event_modal_button
-                                    ]}
+                                    style={[{backgroundColor: theme.s6}, styles.event_modal_button]}
                                 >
-                                    <Text style={[styles.planner_event_modal_text, {color: theme.s1}]}>Hide</Text>
+                                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Hide</Text>
                                 </Pressable>
                                 <Pressable
                                     onPress={() => {
                                         setIsEditing(true);
                                         setModalVisible(false);
                                     }}
-                                    style={[
-                                        {
-                                            backgroundColor: theme.s4
-                                        },
-                                        styles.planner_event_modal_button
-                                    ]}
+                                    style={[{backgroundColor: theme.s4}, styles.event_modal_button]}
                                 >
-                                    <Text style={[styles.planner_event_modal_text, {color: theme.s1}]}>Edit</Text>
+                                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Edit</Text>
                                 </Pressable>
                                 <Pressable
                                     onPress={() => handleDelete(sectionIdx, eventIdx)}
-                                    style={[
-                                        {
-                                            backgroundColor: theme.s2
-                                        },
-                                        styles.planner_event_modal_button
-                                    ]}
+                                    style={[{backgroundColor: theme.s2}, styles.event_modal_button]}
                                 >
-                                    <Text style={[styles.planner_event_modal_text, {color: theme.s1}]}>Delete</Text>
+                                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Delete</Text>
                                 </Pressable>
                             </View>
                         </View>
                     </Modal>
-                    {isEditing && <Text style= {[styles.planner_event_charCount, {color: theme.s4,}]}>{ charsLeft }</Text>}
-                    <View style = {styles.planner_text_box}>
+                    {isEditing && <Text style={[styles.event_charCount, {color: theme.s4,}]}>{ charsLeft }</Text>}
+                    <View style = {styles.text_box}>
                         <TextInput
                             placeholder='Enter Event (e.g. Study for 20 min Today)'
                             placeholderTextColor={toRGBA(theme.s6, 0.5)}
@@ -130,7 +112,7 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                                     setIsEditing(false);
                                 }
                             }}
-                            style={[styles.planner_event_text, {color: theme.s6}]}
+                            style={[styles.event_text, {color: theme.s6}]}
                             textAlign='center'
                         />
                     </View>
@@ -148,31 +130,13 @@ const PlannerPage = ({ navigation }) => {
         LogBox.ignoreLogs(['VirtualizedLists should never be nested'])
     }, []);
 
-    const [keyboardShown, setKeyboardShown] = useState(false);
-    const _keyboardDidShow = () => setKeyboardShown(true);
-    const _keyboardDidHide = () => setKeyboardShown(false);
-
-    useEffect(() => {
-        Keyboard.addListener('keyboardDidShow', _keyboardDidShow);
-        Keyboard.addListener('keyboardDidHide', _keyboardDidHide);
-
-        // cleanup function
-        return () => {
-            Keyboard.removeAllListeners('keyboardDidShow');
-            Keyboard.removeAllListeners('keyboardDidHiiide');
-        };
-    }, [])
-
     const [isLoading, setIsLoading] = useState(true);
     const isFocused = useIsFocused();
 
     const [events, setEvents] = useState([]);
-
     const [activeSections, setActiveSections] = useState([]);
 
-    const [dropdownItems, setDropdownItems] = useState([]);
-    const [dropdownValue, setDropdownValue] = useState(null);
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [addModalVisible, setAddModalVisible] = useState(false);
     
     const refreshClasses = async() => {
         try {
@@ -180,7 +144,6 @@ const PlannerPage = ({ navigation }) => {
             let parsed = await JSON.parse(storedClasses);
             if (Array.isArray(parsed)) {
                 let eventSections;
-                let dropdownData = [];
                 if (events.length === 0) {
                     eventSections = [];
                     parsed.map((item, index) => {
@@ -190,18 +153,15 @@ const PlannerPage = ({ navigation }) => {
                             name: item.Title,
                             data: []
                         });
-                        dropdownData.push({label: item.Title, value: index});
                     });
                 } else {
                     eventSections = events.slice();
                     parsed.map((item, index) => {
                         eventSections[index].name = item.Title;
-                        dropdownData.push({label: item.Title, value: index})
                     });
                 }
                 await AsyncStorage.setItem('plannerEvents', JSON.stringify(eventSections));
                 setEvents(eventSections);
-                setDropdownItems(dropdownData);
                 setIsLoading(false);
             }
         } catch(err) {
@@ -221,12 +181,7 @@ const PlannerPage = ({ navigation }) => {
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
             if(Array.isArray(parsed)) {
-                let dropdownData = [];
-                parsed.map((item, index) => {
-                    dropdownData.push({label: item.name, value: index})
-                });
                 setEvents(parsed);
-                setDropdownItems(dropdownData);
             }
         } catch(err) {
             console.log(err);
@@ -241,7 +196,7 @@ const PlannerPage = ({ navigation }) => {
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             setEvents(newEvents);
 
-            let newKey = newEvents[dropdownValue].key;
+            let newKey = newEvents[sectionIdx].key;
             let newKeyIsUnique = true;
             for (let i = 0; i < activeSections.length; i ++) {
                 if (activeSections[i] === newKey) {
@@ -345,13 +300,13 @@ const PlannerPage = ({ navigation }) => {
                 </View>
             </View>
             {isLoading ? (
-                <View style = {[styles.planner_loading_container, {backgroundColor: theme.s1}]}>
+                <View style = {[styles.loading_container, {backgroundColor: theme.s1}]}>
                     <ActivityIndicator size = 'large' color = {theme.s4} />
                 </View>
             ) : (
                 checkEventsEmpty() ? (  
-                    <View style={{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
-                        <Text style={[styles.planner_helper_text, {color: theme.s6}]}>
+                    <View style={styles.helper_container}>
+                        <Text style={[styles.helper_text, {color: theme.s6}]}>
                             There are no events in your planner right now...{'\n'}
                             Click the button on the bottom right to add one!
                         </Text>
@@ -363,14 +318,14 @@ const PlannerPage = ({ navigation }) => {
                             activeSections={activeSections}
                             expandFromBottom={false}
                             expandMultiple={true}
-                            containerStyle={styles.planner_accordion_container}
+                            containerStyle={styles.accordion_container}
                             //NOTE: THE BEST WAY is: renderAsFlatList={true} and no ScrollView, but it did not render my planner boxes correctly. TODO: fix this and implement renderAsFlatlist={true}
                             renderSectionTitle={(section) =>
                                 <View></View> //must have to avoid errors
                             }
                             renderHeader={(section) =>
-                                <View style={[styles.planner_section_button, {backgroundColor: theme.s3}]}>
-                                    <Text style={[styles.planner_section_button_text, {color: theme.s6}]}>{section.name}</Text>
+                                <View style={[styles.section_button, {backgroundColor: theme.s3}]}>
+                                    <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
                                 </View>
                             }
                             renderContent={accordionSection}
@@ -383,34 +338,54 @@ const PlannerPage = ({ navigation }) => {
                     </ScrollView>
                 )
             )}
-            {!isLoading && !keyboardShown && <View style={styles.planner_add_menu}>
-                <View style={[styles.planner_add_button, {backgroundColor: theme.s5}]}>
+            <Modal
+                animationType='fade'
+                transparent={true}
+                visible={addModalVisible}
+                onRequestClose={() => setAddModalVisible(false)}
+            >
+                <View style={[styles.add_modal, {borderColor: theme.s4, backgroundColor: theme.s13}]}>
+                    <FlatList
+                        showsVerticalScrollIndicator={false}
+                        ListHeaderComponent={() => 
+                            <Pressable
+                                style={[styles.add_modal_back_button, {backgroundColor: theme.s9}]}
+                                onPress={() => setAddModalVisible(false)}
+                            >
+                                <Text style={[styles.add_modal_button_text, {color: theme.s3}]}>Back</Text>
+                            </Pressable>
+                        }
+                        ListHeaderComponentStyle={{alignItems: 'center'}}
+                        ItemSeparatorComponent={() => 
+                            <View style={{borderBottomWidth: 3, borderColor: theme.s2}}></View>
+                        }
+                        data={events}
+                        renderItem={({item, index}) =>
+                            <Pressable
+                                style={({pressed}) => [styles.add_modal_button, {opacity: pressed ? 0.6 : 1}]}
+                                onPress={() => {
+                                    setAddModalVisible(false);
+                                    handleAdd(index);
+                                }}
+                            >
+                                <Text style={[styles.add_modal_button_text, {color: theme.s4}]}>{item.name}</Text>
+                            </Pressable>
+                        }
+                        keyExtractor={item => item.key}
+                    />
+                </View>
+            </Modal>
+            {!isLoading && <View style={styles.add_menu}>
+                <View style={[styles.add_button, {backgroundColor: theme.s5}]}>
                     <Icon
                         name='plus'
                         type='feather'
                         size={35}
                         color={theme.s7}
-                        onPress={() => {
-                            handleAdd(dropdownValue);
-                            setDropdownValue(null);
-                            setDropdownOpen(false);
-                        }}
+                        onPress={() => setAddModalVisible(true)}
                         disabled={isLoading}
                     />
                 </View>
-                <DropDownPicker
-                    items={dropdownItems}
-                    value={dropdownValue}
-                    open={dropdownOpen}
-                    setItems={setDropdownItems}
-                    setValue={setDropdownValue}
-                    setOpen={setDropdownOpen}
-                    containerStyle={styles.planner_dropdown_picker}
-                    textStyle={[styles.planner_dropdown_text, {color: theme.s4}]}
-                    placeholder='Select a section'
-                    theme='DARK'
-                    dropDownDirection='TOP'
-                />
             </View>}
         </View>
     );
@@ -440,46 +415,46 @@ const styles = StyleSheet.create({
         paddingTop: 0,
         paddingBottom: 0,
     },
-    planner_loading_container: {
+    loading_container: {
         flex: 1,
         marginBottom: 50,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    planner_accordion_container: {
+    accordion_container: {
         marginTop: -15,
         marginBottom: 90,
         flex: 1,
         width: '100%',
         height: '100%'
     },
-    planner_section_button: {
+    section_button: {
         marginTop: 15,
         minHeight: 50,
         borderRadius: 15,
         justifyContent: 'center',
         alignItems: 'center'
     },
-    planner_section_button_text: {
+    section_button_text: {
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15
     },
-    planner_event_edit_underlay: {
+    event_edit_underlay: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
     },
-    planner_event_container: {
+    event_container: {
         flex: 1
     },
-    planner_event_box: {
+    event_box: {
         width: '100%',
         borderBottomWidth: 3,
         justifyContent: 'center',
         padding: 25
     },
-    planner_event_modal: {
+    event_modal: {
         marginTop: Dimensions.get('window').height / 3 - 10,
         marginLeft: 15,
         marginRight: 15,
@@ -488,42 +463,42 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         padding: 5,
     },
-    planner_event_modal_button: {
+    event_modal_button: {
         flex: 1,
         borderRadius: 10,
         margin: 5,
         alignItems: 'center',
         justifyContent: 'center'
     },
-    planner_event_modal_text: {
+    event_modal_text: {
         fontSize: 25,
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'bold',
     },
-    planner_event_charCount: {
+    event_charCount: {
         position: 'absolute',
         right: 13
     },
-    planner_text_box: {
+    text_box: {
         backgroundColor: 'transparent',
         minHeight: 30,
         flexDirection: 'column',
         marginLeft: 20,
         marginRight: 20
     },  
-    planner_event_text: {
+    event_text: {
         fontSize: 15,   
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
     },
-    planner_add_menu: {
+    add_menu: {
         width: '100%',
         height: 60,
         position: 'absolute',
         bottom: 20,
         justifyContent: 'center'
     },
-    planner_add_button: {
+    add_button: {
         width: 60,
         height: 60,
         justifyContent: 'center',
@@ -532,22 +507,44 @@ const styles = StyleSheet.create({
         position: 'absolute',
         right: -5,
     },
-    planner_dropdown_picker: {
-        width: '70%',
-        height: 50,
-        position: 'absolute',
-        left: 20
+    add_modal: {
+        marginTop: '60%',
+        marginLeft: 15,
+        marginRight: 15,
+        height: '40%',
+        borderRadius: 15,
+        borderWidth: 2
     },
-    planner_dropdown_text: {
-        fontFamily: 'ProximaNova-Regular',
+    add_modal_back_button: {
+        marginTop: 10,
+        marginBottom: 5,
+        width: '50%',
+        minHeight: 45,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    add_modal_button: {
+        minHeight: 45,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    add_modal_button_text: {
         fontSize: 15,
-        textAlign: 'left'
+        fontFamily: 'ProximaNova-Regular'
     },
-    planner_helper_text: {
+    helper_container: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '90%',
+        paddingBottom: 75
+    },
+    helper_text: {
         fontFamily: 'ProximaNova-Regular',
         textAlign: 'center',
         opacity: 0.5,
-    },  
+    },
     options_bar: {
         height: 100,
         top: 0,
