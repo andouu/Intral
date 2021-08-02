@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
 import {
     FlatList,
@@ -17,7 +17,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
-import { swatch, swatchRGB, toRGBA } from '../components/theme';
+import { swatchDark } from '../components/themes';
+import { ThemeContext } from '../components/themeContext';
+import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, ThemeProvider } from '@react-navigation/native';
 import Accordion from 'react-native-collapsible/Accordion';
@@ -27,7 +29,7 @@ import SwipeableItem from 'react-native-swipeable-item/src';
 
 const maxChars = 40;
 
-const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange }) => {
+const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange, theme }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(data.text === '' ? true : false);
 
@@ -35,13 +37,13 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
     const renderUnderlayLeft = ({item, percentOpen, open, close}) => (
-        <Animated.View style={[styles.planner_event_edit_underlay, {opacity: percentOpen}]}>
+        <Animated.View style={[styles.planner_event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s5}]}>
             <TouchableOpacity style={{right: 16}}>
                 <Icon
                     name='edit'
                     type='feather'
                     size={35}
-                    color={swatch.s2}
+                    color={theme.s2}
                     onPress={() => setModalVisible(true)}
                     onPressOut={close}
                 />
@@ -55,7 +57,7 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
             snapPointsLeft={[70]}
         >
             <View style = {styles.planner_event_container}>
-                <View style={styles.planner_event_box}>
+                <View style={[styles.planner_event_box, {backgroundColor: theme.s1, borderColor: theme.s2}]}>
                     <Modal
                         animationType='fade'
                         transparent={true}
@@ -65,17 +67,17 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                         }}
                     >
                         <View style={styles.planner_event_container}>
-                            <View style={styles.planner_event_modal}>
+                            <View style={[styles.planner_event_modal, {backgroundColor: theme.s2}]}>
                                 <Pressable
                                     onPress={() => setModalVisible(false)}
                                     style={[
                                         {
-                                            backgroundColor: swatch.s6,
+                                            backgroundColor: theme.s6,
                                         },
                                         styles.planner_event_modal_button
                                     ]}
                                 >
-                                    <Text style={styles.planner_event_modal_text}>Hide</Text>
+                                    <Text style={[styles.planner_event_modal_text, {color: theme.s1}]}>Hide</Text>
                                 </Pressable>
                                 <Pressable
                                     onPress={() => {
@@ -84,32 +86,32 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                                     }}
                                     style={[
                                         {
-                                            backgroundColor: swatch.s4
+                                            backgroundColor: theme.s4
                                         },
                                         styles.planner_event_modal_button
                                     ]}
                                 >
-                                    <Text style={styles.planner_event_modal_text}>Edit</Text>
+                                    <Text style={[styles.planner_event_modal_text, {color: theme.s1}]}>Edit</Text>
                                 </Pressable>
                                 <Pressable
                                     onPress={() => handleDelete(sectionIdx, eventIdx)}
                                     style={[
                                         {
-                                            backgroundColor: swatch.s2
+                                            backgroundColor: theme.s2
                                         },
                                         styles.planner_event_modal_button
                                     ]}
                                 >
-                                    <Text style={styles.planner_event_modal_text}>Delete</Text>
+                                    <Text style={[styles.planner_event_modal_text, {color: theme.s1}]}>Delete</Text>
                                 </Pressable>
                             </View>
                         </View>
                     </Modal>
-                    {isEditing && <Text style= {styles.planner_event_charCount}>{ charsLeft }</Text>}
+                    {isEditing && <Text style= {[styles.planner_event_charCount, {color: theme.s4,}]}>{ charsLeft }</Text>}
                     <View style = {styles.planner_text_box}>
                         <TextInput
                             placeholder='Enter Event (e.g. Study for 20 min Today)'
-                            placeholderTextColor={toRGBA(swatchRGB.s6, 0.5)}
+                            placeholderTextColor={toRGBA(theme.s6, 0.5)}
                             textBreakStrategy='highQuality'
                             numberOfLines={2}
                             maxLength={maxChars}
@@ -128,7 +130,7 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                                     setIsEditing(false);
                                 }
                             }}
-                            style={styles.planner_event_text}
+                            style={[styles.planner_event_text, {color: theme.s6}]}
                             textAlign='center'
                         />
                     </View>
@@ -139,6 +141,9 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
 }
 
 const PlannerPage = ({ navigation }) => {
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
+
     useEffect(() => {
         LogBox.ignoreLogs(['VirtualizedLists should never be nested'])
     }, []);
@@ -313,24 +318,25 @@ const PlannerPage = ({ navigation }) => {
                     data={item.data}
                     handleDelete={handleDelete}
                     handleTextChange={handleTextChange}
+                    theme={theme}
                 />
             }
             keyExtractor={item => item.key}
         />;
 
     return ( 
-        <View style = {styles.container}>
+        <View style = {[styles.container, {backgroundColor: theme.s1}]}>
             <View style={styles.options_bar}>
-                <View style={styles.menu_button}>
+                <View style={[styles.menu_button, {borderColor: toRGBA(theme.s4, 0.5)}]}>
                     <MaterialDesignIcons.Button 
-                        underlayColor={toRGBA(swatchDark.s4, 0.5)}
+                        underlayColor={toRGBA(theme.s4, 0.5)}
                         activeOpacity={0.5}
                         right={2}
                         bottom={4}
                         hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                         borderRadius = {80}
                         name='menu' 
-                        color={swatch.s4} 
+                        color={theme.s4} 
                         size={35}
                         backgroundColor='transparent'
                         onPress={() => navigation.openDrawer()} 
@@ -339,13 +345,13 @@ const PlannerPage = ({ navigation }) => {
                 </View>
             </View>
             {isLoading ? (
-                <View style = {styles.planner_loading_container}>
-                    <ActivityIndicator size = 'large' color = {swatch.s4} />
+                <View style = {[styles.planner_loading_container, {backgroundColor: theme.s1}]}>
+                    <ActivityIndicator size = 'large' color = {theme.s4} />
                 </View>
             ) : (
                 checkEventsEmpty() ? (  
                     <View style={{alignItems: 'center', justifyContent: 'center', width: '100%', height: '90%', paddingBottom: 75}}>
-                        <Text style={styles.planner_helper_text}>
+                        <Text style={[styles.planner_helper_text, {color: theme.s6}]}>
                             There are no events in your planner right now...{'\n'}
                             Click the button on the bottom right to add one!
                         </Text>
@@ -363,8 +369,8 @@ const PlannerPage = ({ navigation }) => {
                                 <View></View> //must have to avoid errors
                             }
                             renderHeader={(section) =>
-                                <View style={styles.planner_section_button}>
-                                    <Text style={styles.planner_section_button_text}>{section.name}</Text>
+                                <View style={[styles.planner_section_button, {backgroundColor: theme.s3}]}>
+                                    <Text style={[styles.planner_section_button_text, {color: theme.s6}]}>{section.name}</Text>
                                 </View>
                             }
                             renderContent={accordionSection}
@@ -378,12 +384,12 @@ const PlannerPage = ({ navigation }) => {
                 )
             )}
             {!isLoading && !keyboardShown && <View style={styles.planner_add_menu}>
-                <View style={styles.planner_add_button}>
+                <View style={[styles.planner_add_button, {backgroundColor: theme.s5}]}>
                     <Icon
                         name='plus'
                         type='feather'
                         size={35}
-                        color={swatch.s7}
+                        color={theme.s7}
                         onPress={() => {
                             handleAdd(dropdownValue);
                             setDropdownValue(null);
@@ -400,7 +406,7 @@ const PlannerPage = ({ navigation }) => {
                     setValue={setDropdownValue}
                     setOpen={setDropdownOpen}
                     containerStyle={styles.planner_dropdown_picker}
-                    textStyle={styles.planner_dropdown_text}
+                    textStyle={[styles.planner_dropdown_text, {color: theme.s4}]}
                     placeholder='Select a section'
                     theme='DARK'
                     dropDownDirection='TOP'
@@ -433,14 +439,12 @@ const styles = StyleSheet.create({
         padding: 15 ,
         paddingTop: 0,
         paddingBottom: 0,
-        backgroundColor: swatch.s1,
     },
     planner_loading_container: {
         flex: 1,
         marginBottom: 50,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: swatch.s1
     },
     planner_accordion_container: {
         marginTop: -15,
@@ -451,14 +455,12 @@ const styles = StyleSheet.create({
     },
     planner_section_button: {
         marginTop: 15,
-        backgroundColor: swatch.s3,
         minHeight: 50,
         borderRadius: 15,
         justifyContent: 'center',
         alignItems: 'center'
     },
     planner_section_button_text: {
-        color: swatch.s6,
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15
     },
@@ -467,15 +469,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        backgroundColor: swatch.s5
     },
     planner_event_container: {
         flex: 1
     },
     planner_event_box: {
         width: '100%',
-        backgroundColor: swatch.s1,
-        borderColor: swatch.s2,
         borderBottomWidth: 3,
         justifyContent: 'center',
         padding: 25
@@ -486,7 +485,6 @@ const styles = StyleSheet.create({
         marginRight: 15,
         height: '30%',
         borderRadius: 15,
-        backgroundColor: swatch.s2,
         flexDirection: 'row',
         padding: 5,
     },
@@ -501,10 +499,8 @@ const styles = StyleSheet.create({
         fontSize: 25,
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'bold',
-        color: swatch.s1,
     },
     planner_event_charCount: {
-        color: swatch.s4,
         position: 'absolute',
         right: 13
     },
@@ -519,7 +515,6 @@ const styles = StyleSheet.create({
         fontSize: 15,   
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
-        color: swatch.s6,
     },
     planner_add_menu: {
         width: '100%',
@@ -534,7 +529,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 50,
-        backgroundColor: swatch.s5,
         position: 'absolute',
         right: -5,
     },
@@ -547,13 +541,11 @@ const styles = StyleSheet.create({
     planner_dropdown_text: {
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
-        color: swatch.s4,
         textAlign: 'left'
     },
     planner_helper_text: {
         fontFamily: 'ProximaNova-Regular',
         textAlign: 'center',
-        color: swatch.s6,
         opacity: 0.5,
     },  
     options_bar: {
@@ -573,7 +565,6 @@ const styles = StyleSheet.create({
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
-        borderColor: toRGBA(swatchDark.s4, 0.5),
     },
 });
 
