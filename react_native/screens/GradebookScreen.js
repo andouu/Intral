@@ -5,6 +5,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
 import { ThemeContext } from '../components/themeContext';
+import { toRGBA } from '../components/utils';
+import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
     ScrollView,
     View,
@@ -29,17 +31,6 @@ const dummyAdd = require('../dummy data/add');
 const dummyRemove = require('../dummy data/remove');
 const dummyAddRemove = require('../dummy data/addRemove');
 
-const chartConfig = {
-    backgroundGradientFrom: "#1E2923",
-    backgroundGradientFromOpacity: 0,
-    backgroundGradientTo: "#08130D",
-    backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    strokeWidth: 2, 
-    barPercentage: 0.75,
-    useShadowColorFromDataset: false // optional
-};
-
 const credentials = require('../credentials.json'); // WARNING: temporary solution
 const username = credentials.username // should import username and password from a central location after authentication
 const password = credentials.password
@@ -55,6 +46,35 @@ const validChanges = {        // to check for valid changes; we don't really car
     DueDate: 'Due Date',
     Points: 'Points',         // points over score because idk
     Notes: 'Teacher Notes',
+}
+
+function* percentageLabel() {
+    yield* ['10', '20', '30', '40', '50', '60', '70', '80', '90', '100'];
+}
+
+const Header = ({ theme, type }) => {
+    const navigation = useNavigation();
+
+    return (
+        <View style={styles.optionsBar}>
+            <View style={[styles.menu_button, {borderColor: toRGBA(theme.s4, 0.5)}]}>
+                <MaterialDesignIcon.Button 
+                    underlayColor={toRGBA(theme.s4, 0.5)}
+                    activeOpacity={0.5}
+                    right={type === 'graph' ? -1 : 4}
+                    bottom={type === 'graph' ? 0.5 : 4}
+                    hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
+                    borderRadius = {80}
+                    name={type === 'graph' ? 'chart-line' : 'arrow-left'} // only takes two types for now, 'menu' and 'back' 
+                    color={theme.s4} 
+                    size={type === 'graph' ? 25 : 35}
+                    backgroundColor='transparent'
+                    onPress={() => type === 'graph' ? navigation.openDrawer() : navigation.goBack()} 
+                    style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
+                />
+            </View>
+        </View>
+    );
 }
 
 const GradebookHomeScreen = () => {
@@ -193,7 +213,7 @@ const GradebookHomeScreen = () => {
             ) : (
                 <ScrollView 
                     style={styles.grade_container} 
-                    contentContainerStyle = {{paddingBottom: 10, marginTop: 5}}
+                    contentContainerStyle = {{}}
                     refreshControl = {
                         <RefreshControl
                             refreshing = {refreshing}
@@ -201,7 +221,9 @@ const GradebookHomeScreen = () => {
                         />
                     }
                 >
-                    <View style = {{flexDirection: 'column', justifyContent: 'center', flex: 1}}>
+                    <Header theme={theme} type='graph' />
+                    <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center', paddingLeft: 15, paddingRight: 15}}>
+                        <Text style={[styles.header_text, {color: theme.s6}]}>Your Gradebook:</Text>
                         <GradeBoxes classes={classes} theme={theme} />     
                     </View>
                 </ScrollView>
@@ -249,7 +271,7 @@ const GradeBoxes = ({ classes, theme }) => {
     );
 }
 
-const Assignment = ({ index, name, data, navigation }) => (
+const Assignment = ({ index, name, data, navigation, theme }) => (
     <Pressable
             data = {data}
             onPress={() => {
@@ -261,14 +283,15 @@ const Assignment = ({ index, name, data, navigation }) => (
             }}
             style={({ pressed }) => [
                 {
+                    backgroundColor: theme.s2,
                     opacity: pressed ? 0.5 : 1,
                 },
                 styles.button_wrapper
             ]
         }>
         <View style = {styles.assignmentDescriptionWrapper}>
-            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 15}}>{name}</Text>
-            <Text style = {{fontFamily: 'ProximaNova-Regular', fontSize: 10, alignSelf: 'flex-end', position: 'absolute', right: 0}}>{data.Points}</Text>
+            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 20, color: toRGBA(theme.s6, 0.75), marginLeft: 0}}>{name}</Text>
+            <Text style = {{fontFamily: 'ProximaNova-Regular', fontSize: 10, color: theme.s4, alignSelf: 'flex-end', position: 'absolute', right: 0}}>{data.Points}</Text>
         </View>
     </Pressable>   
 );
@@ -292,28 +315,80 @@ const ClassDetailsScreen = ({ route, navigation }) => {
         labels = categoryData.map(data => {
             let words = data.Type.split(' ');
             let capitalized = '';
+
+            // results in x axis labels that are too long
+            
+            // if(words.length > 1) { 
+            //     for(let i=0; i<words.length-1; i++) {
+            //         //capitalized += words[i][0].toUpperCase() + words[i].substring(1).toLowerCase() + ' ';   
+            //     }
+            // }
+            // let lastWord = words[words.length - 1];
+            // capitalized += lastWord[0].toUpperCase() + lastWord.substring(1).toLowerCase();
             if(words.length > 1) {
-                for(let i=0; i<words.length-1; i++) {
-                    capitalized += words[i][0].toUpperCase() + words[i].substring(1).toLowerCase() + ' '; 
-                }
+                let trim = words[0][0].toUpperCase() + words[0].substr(1) + ' ' + words[1][0].toUpperCase() + words[1].substr(1).trim() + '...';
+                if(trim.length - 4 > 10)
+                {
+                    trim = trim.substr(0, 10).trim() + "...";
+                }     
+                return trim;
+            } else if(words[0].length > 10) {
+                return words[0].substr(0, 10).trim() + '...';
             }
-            let lastWord = words[words.length - 1];
-            capitalized += lastWord[0].toUpperCase() + lastWord.substring(1).toLowerCase();
+            capitalized = words[0][0].toUpperCase() + words[0].substr(1);
             return capitalized;
         });
 
-        
         classValues = categoryData.map(data => {
-            return parseFloat(data.WeightedPct.substring(0, data.WeightedPct.length - 1));
+            return parseFloat(data.WeightedPct.substring(0, data.WeightedPct.length - 1)).toFixed(2);
         });
     } else {
         labels = ['Total'];
         classValues = [totalPct];
     } 
 
-    const [graphData, setGraphData] = useState({ labels: labels, datasets: [{ data: classValues }, { data: [40, 40, 20, 100]}] });
+    const [graphData, setGraphData] = useState({ 
+        labels: labels, 
+        datasets: [{ 
+            data: classValues, 
+            labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+            colors: [
+                () => toRGBA(theme.s4, 0.5),
+                () => toRGBA(theme.s3, 0.5),
+                () => toRGBA(theme.s3, 0.5),
+                () => toRGBA(theme.s3, 0.5),
+            ]
+            }, 
+        ]
+    });
     
     const assignments = classInfo.Marks.Mark.Assignments.Assignment;
+
+    const chartConfig = {
+        backgroundGradientFrom: "#1E2923",
+        backgroundGradientFromOpacity: 0,
+        backgroundGradientTo: "#08130D",
+        backgroundGradientToOpacity: 0,
+        color: (/* opacity = 1 */) => toRGBA(theme.s4, 1),
+        fillShadowGradient: theme.s3,
+        fillShadowGradientOpacity: 0.75,
+        strokeWidth: 2, 
+        barPercentage: 0.75,
+        decimalPlaces: 2,
+        propsForBackgroundLines: {
+            stroke: toRGBA(theme.s6, 0.25),
+            strokeWidth: 1,
+            strokeDasharray: '0',
+            strokeDashoffset: null,
+        },
+        propsForLabels: {
+            fontFamily: 'Proxima Nova Bold',
+            fill: 'none',
+            //stroke: theme.s4,
+            fontSize: '10',
+        },
+        useShadowColorFromDataset: false, // optional
+    };
 
     const renderItem = ({ item, index }) => {
         let name = item.Measure;
@@ -323,30 +398,41 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                 name = {name}
                 data = {item}
                 navigation = {navigation}
+                theme={theme}
             />
         );
     }
 
+    const percentageLabelIterator = percentageLabel();
+
     return (
         <SafeAreaView style={[styles.container, {backgroundColor: theme.s1}]}>
-            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: 0, padding: 15}}>
+            <Header theme={theme} type='back' />
+            <View style={{flex: 1, flexDirection: "column", alignItems: "flex-start", marginTop: -10, paddingLeft: 15, paddingRight: 15}}>
                 <Text style={[{marginBottom: 10, color: theme.s6}, styles.info_header]}>
                     Period {parseInt(periodNumber)+1}: {classInfo.Title}
                 </Text>
                 <Text style={[styles.info_subheader, {marginBottom: 5, color: theme.s4}]}>
                     {totalPct}% {isDropped ? '\n' : null}
                 </Text>
-                <View style = {{width: '100%', height: isDropped ? 220 : 20}}>
-                    <View style = {{flex: isDropped ? 1 : 0}}>
+                <View style = {{width: '100%', minHeight: isDropped ? 220 : 20, padding: 0}}>
+                    <View style = {{flex: isDropped ? 1 : 0, alignItems: 'center'}}>
                         {/*bar graphs for weights in here*/}
                         {isDropped  
                             ? (
                                 <BarChart
                                     data={graphData}
-                                    width = {screenWidth - 30}
-                                    height = {200}
-                                    yAxisLabel = '%'
-                                    chartConfig = {chartConfig}
+                                    width={screenWidth+10}
+                                    height={220}
+                                    fromZero={true}
+                                    yAxisSuffix=''
+                                    chartConfig={chartConfig}
+                                    // withCustomBarColorFromData={true}
+                                    showValuesOnTopOfBars={true}
+                                    //segments={10}
+                                    withInnerLines={false}
+                                    flatColor={false}
+                                    verticalLabelRotation={0}
                                 />
                             ) 
                             : null
@@ -358,10 +444,11 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                             setIsDropped(!isDropped); 
                         }}
                     >
-                        <Image style = {[styles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg} />
+                        {/* <Image style = {[styles.image, {transform: [{rotate: isDropped ? '180deg' : '0deg'}]}]} source = {dropDownImg} /> */}
+                        <MaterialDesignIcon name={isDropped ? 'menu-up' : 'menu-down'} size={40} style={{bottom: isDropped ? -10 : 5}} color={theme.s4} />
                     </Pressable>
                 </View>
-                <View style={[styles.horizontalDivider, {borderBottomColor: theme.s6}]} />
+                <View style={[styles.horizontalDivider, {borderBottomColor: theme.s4}]} />
                 <View style = {{flex: 1, justifyContent: "center", width: "100%"}}>
                     <FlatList
                         data = {assignments}
@@ -383,31 +470,57 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
     const theme = themeContext.themeData.swatch;
 
     return (
-        <View style={{ flex: 1, alignItems: "flex-start", justifyContent: "flex-start", marginLeft: 15, marginRight: 15, marginTop: 5 }}>
-            <Text style = {[{marginBottom: 0, color: theme.s6}, styles.info_header]}>{name}:</Text>
-            <Text style = {[styles.info_subheader, {fontSize: 15, marginTop: -2, marginBottom: 10, color: theme.s4}]}>{details.Type}</Text>
-            <Text style = {[styles.info_subheader, {color: theme.s4}]}>Score: {details.Points}</Text>
-            <View style = {styles.horizontalDivider} />
-            <AssignmentDetail detail = 'Description' data = {details.MeasureDescription === '' ? 'N/A' : details.MeasureDescription}></AssignmentDetail>
-            <AssignmentDetail detail = 'Assign Date' data = {details.Date}></AssignmentDetail>
-            <AssignmentDetail detail = 'Due Date' data = {details.DueDate}></AssignmentDetail>
-            <AssignmentDetail detail = 'Notes' data = {details.Notes === '' ? 'N/A' : details.Notes}></AssignmentDetail>
+        <View style={styles.container}>
+            <Header theme={theme} type='back' />
+            <View style={{paddingLeft: 15, paddingRight: 15, marginTop: -10, height: '100%'}}>
+                <Text style = {[{marginBottom: 0, color: theme.s6}, styles.info_header]}>{name}:</Text>
+                <Text style = {[styles.info_subheader, {fontSize: 15, marginTop: -2, marginBottom: 10, color: theme.s8}]}>{details.Type}</Text>
+                <Text style = {[styles.info_subheader, {color: theme.s4}]}>Score: {details.Points}</Text>
+                <View style = {[styles.horizontalDivider, {borderBottomColor: theme.s4}]} />
+                <AssignmentDetail 
+                    detail='Description' 
+                    data={
+                        details.MeasureDescription === '' 
+                            ? 'N/A' 
+                            : details.MeasureDescription
+                    }
+                />
+                <AssignmentDetail 
+                    detail='Assign Date' 
+                    data={details.Date} 
+                />
+                <AssignmentDetail 
+                    detail='Due Date' 
+                    data={details.DueDate} 
+                />
+                <AssignmentDetail 
+                    detail='Notes' 
+                    data={
+                        details.Notes === '' 
+                        ? 'N/A' 
+                        : details.Notes
+                    }
+                />
+            </View>
         </View>
     )
 }
 
 const AssignmentDetail = ({detail, data}) => {
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
+
     return (
-        <View style = {{width: '100%', minHeight: 30, marginTop: -10, marginBottom: 25}}>
-            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 18}}>{detail}: </Text>
-            <Text style = {{fontSize: 15, fontFamily: "ProximaNova-Regular"}}>{data}</Text>
+        <View style = {{width: '100%', minHeight: 30, marginBottom: 25}}>
+            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 25, color: theme.s6}}>{detail}: </Text>
+            <Text style = {{fontSize: 20, fontFamily: "ProximaNova-Regular", color: theme.s4}}>{data}</Text>
         </View>
     ); 
 }
 
 const Stack = createStackNavigator();
 
-function GradebookScreen(){
+const GradebookScreen = () => {
     return (
         <Stack.Navigator initialRouteName="GradeBook">
             <Stack.Screen 
@@ -434,9 +547,6 @@ const styles = StyleSheet.create({
         flex: 1,
         height: "100%",
         width: "100%",
-        padding: 15,
-        paddingTop: 0,
-        paddingBottom: 0,
     },
     image: {
         flex: 1,
@@ -448,7 +558,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         width: "100%",
         marginTop: 15,
-        marginBottom: 25,
+        marginBottom: 15,
     },
     vertical_line: {
         height: "70%",
@@ -464,8 +574,7 @@ const styles = StyleSheet.create({
         width: "100%",
         flexDirection: "column",
         justifyContent: "center",
-        borderRadius: 5,
-        backgroundColor: "#EAEAEA",
+        borderRadius: 15,
     },
     grade_container: {
         height: "100%",
@@ -479,6 +588,14 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
+    },
+    header_text: {
+        fontSize: 40,
+        fontFamily: 'Proxima Nova Bold',
+        opacity: 1,
+        left: 2,
+        marginTop: -10,
+        marginBottom: 20,
     },
     grade_letter: {
         flex: 1,
@@ -513,13 +630,34 @@ const styles = StyleSheet.create({
         width: "100%",
         flexDirection: "row",
         alignItems: "center",
+        padding: 10,
     },
     dropdown_button: {
         flex: 1,
         width: "100%",
-        maxHeight: 20,
+        maxHeight: 40,
         marginBottom: -5,
         alignItems: "center",
+        justifyContent: "center",
+    },
+    optionsBar: {
+        height: 100,
+        top: 0,
+        paddingLeft: 15,
+        paddingRight: 15,
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },  
+    menu_button: {
+        alignSelf: 'center',
+        padding: 0,
+        marginRight: 'auto',
+        width: 45,
+        maxHeight: 45,
+        borderRadius: 40,
+        borderWidth: 1,
     },
 });
 
