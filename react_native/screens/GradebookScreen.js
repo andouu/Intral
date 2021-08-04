@@ -61,15 +61,15 @@ const Header = ({ theme, type }) => {
                 <MaterialDesignIcon.Button 
                     underlayColor={toRGBA(theme.s4, 0.5)}
                     activeOpacity={0.5}
-                    right={type === 'graph' ? -1 : 4}
-                    bottom={type === 'graph' ? 0.5 : 4}
+                    right={type === 'graph' ? 0 : 4}
+                    bottom={type === 'graph' ? 0 : 4}
                     hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                     borderRadius = {80}
                     name={type === 'graph' ? 'chart-line' : 'arrow-left'} // only takes two types for now, 'menu' and 'back' 
                     color={theme.s4} 
-                    size={type === 'graph' ? 25 : 35}
+                    size={type === 'graph' ? 26 : 35}
                     backgroundColor='transparent'
-                    onPress={() => type === 'graph' ? navigation.openDrawer() : navigation.goBack()} 
+                    onPress={() => type === 'graph' ? navigation.navigate('Class Analyses') : navigation.goBack()} 
                     style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
                 />
             </View>
@@ -222,7 +222,7 @@ const GradebookHomeScreen = () => {
                     }
                 >
                     <Header theme={theme} type='graph' />
-                    <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center', paddingLeft: 15, paddingRight: 15}}>
+                    <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center', paddingTop: 10, paddingLeft: 15, paddingRight: 15}}>
                         <Text style={[styles.header_text, {color: theme.s6}]}>Your Gradebook:</Text>
                         <GradeBoxes classes={classes} theme={theme} />     
                     </View>
@@ -513,29 +513,79 @@ const AssignmentDetail = ({detail, data}) => {
     return (
         <View style = {{width: '100%', minHeight: 30, marginBottom: 25}}>
             <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 25, color: theme.s6}}>{detail}: </Text>
-            <Text style = {{fontSize: 20, fontFamily: "ProximaNova-Regular", color: theme.s4}}>{data}</Text>
+            <Text style = {{fontSize: 20, fontFamily: 'ProximaNova-Regular', color: theme.s4}}>{data}</Text>
         </View>
     ); 
+}
+
+const ClassAnalysesScreen = ({ route, navigation }) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [classData, setClassData] = useState(null); 
+
+    const themeContext = useContext(ThemeContext);
+    const theme = themeContext.themeData.swatch;
+
+    const onRefresh = () => {
+        console.log('refreshing'); // TODO: get class data locally or from server
+    }
+
+    useEffect(() => {
+        setTimeout(() => {
+            setIsLoading(false);
+        }, 500);
+    }, [isLoading])
+
+    return (
+        <SafeAreaView style = {[styles.container, {backgroundColor: theme.s1}]}>
+            {isLoading ? (
+                <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}}>
+                    <ActivityIndicator size = 'large' color = {theme.s4} />
+                </View>
+            ) : (
+                <ScrollView 
+                    style={styles.grade_container} 
+                    contentContainerStyle = {{}}
+                    refreshControl = {
+                        <RefreshControl
+                            refreshing = {isRefreshing}
+                            onRefresh = {onRefresh}
+                        />
+                    }
+                >
+                    <Header theme={theme} type='back' />
+                    <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center', paddingTop: 10, paddingLeft: 15, paddingRight: 15}}>
+                        <Text style={[styles.header_text, {color: theme.s6}]}>Your Class Analyses:</Text>
+                    </View>
+                </ScrollView>
+            )}   
+        </SafeAreaView>
+    )
 }
 
 const Stack = createStackNavigator();
 
 const GradebookScreen = () => {
     return (
-        <Stack.Navigator initialRouteName="GradeBook">
+        <Stack.Navigator initialRouteName='GradeBook'>
             <Stack.Screen 
-                name="Gradebook" 
+                name='Gradebook' 
                 component={GradebookHomeScreen} 
                 options={{headerShown: false}}
             />
             <Stack.Screen 
-                name="Class Details" 
+                name='Class Details' 
                 component={ClassDetailsScreen} 
                 options={{headerShown: false}}
             />
             <Stack.Screen 
-                name="Assignment Details" 
+                name='Assignment Details' 
                 component={AssignmentDetailsScreen} 
+                options={{headerShown: false}}
+            />
+            <Stack.Screen
+                name='Class Analyses'
+                component={ClassAnalysesScreen}
                 options={{headerShown: false}}
             />
         </Stack.Navigator>
