@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef, forwardRef } from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
 import {
     FlatList,
@@ -21,37 +21,40 @@ import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, ThemeProvider } from '@react-navigation/native';
 import Accordion from 'react-native-collapsible/Accordion';
-import Animated from 'react-native-reanimated';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withTiming,
+    Easing
+} from 'react-native-reanimated';
 import SwipeableItem from 'react-native-swipeable-item/src';
 
 const maxChars = 40;
 
-const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange, theme }) => {
+const PlannerBox = forwardRef(({ sectionIdx, eventIdx, data, handleDelete, handleTextChange, resetAddButton, theme }, ref) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(data.text === '' ? true : false);
 
     const [text, setText] = useState(data.text);
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
-    const renderUnderlayLeft = ({item, percentOpen, open, close}) => (
-        <Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s5}]}>
-            <TouchableOpacity style={{right: 16}}>
-                <Icon
-                    name='edit'
-                    type='feather'
-                    size={35}
-                    color={theme.s2}
-                    onPress={() => setModalVisible(true)}
-                    onPressOut={close}
-                />
-            </TouchableOpacity>
-        </Animated.View>
-    );
-
-    return(
+    return (
         <SwipeableItem
-            renderUnderlayLeft={renderUnderlayLeft}
+            renderUnderlayLeft={({item, percentOpen, open, close}) =>
+                <Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s5}]}>
+                    <TouchableOpacity style={{right: 16}}>
+                        <Icon
+                            name='edit'
+                            type='feather'
+                            size={35}
+                            color={theme.s2}
+                            onPress={() => setModalVisible(true)}
+                            onPressOut={close}
+                        />
+                    </TouchableOpacity>
+                </Animated.View>}
             snapPointsLeft={[70]}
+            ref={ref}
         >
             <View style = {styles.event_container}>
                 <View style={[styles.event_box, {backgroundColor: theme.s1, borderColor: theme.s2}]}>
@@ -95,22 +98,22 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                             placeholder='Enter Event (e.g. Study for 20 min Today)'
                             placeholderTextColor={toRGBA(theme.s6, 0.5)}
                             textBreakStrategy='highQuality'
-                            numberOfLines={2}
+                            multiline={true}
                             maxLength={maxChars}
-                            multiline={true} 
                             textAlignVertical='center'
-                            scrollEnabled={true}
                             value={text}
                             editable={isEditing}
+                            autoFocus={true}
                             onChangeText={text => {
-                                setText(text);
-                                setCharsLeft(maxChars - text.length);
+                                if (text.slice(-1) !== '\n') {
+                                    setText(text);
+                                    setCharsLeft(maxChars - text.length);
+                                }
                             }}
                             onEndEditing={ () => {
-                                if (text !== "") {
-                                    handleTextChange(sectionIdx, eventIdx, text, charsLeft);
-                                    setIsEditing(false);
-                                }
+                                handleTextChange(sectionIdx, eventIdx, text, charsLeft);
+                                resetAddButton();
+                                setIsEditing(false);
                             }}
                             style={[styles.event_text, {color: theme.s6}]}
                             textAlign='center'
@@ -119,7 +122,175 @@ const PlannerBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange
                 </View>
             </View>
         </SwipeableItem>
-    )
+    );
+})
+
+const CollapsibleSectionList = ({ events, activeSections, setActiveSections, handleDelete, handleTextChange, resetAddButton, theme }) => {
+    const itemsRef = useRef([]);
+
+    useEffect(() => {
+        //set itemsRef's length to be the appropriate length of a 1D list representing the 2D list of section items' refs
+        let length = 0;
+        for (let i = 0; i < events.length; i ++) {
+            length += events[i].data.length;
+        }
+        itemsRef.current = itemsRef.current.slice(0, length);
+    }, [events]);
+
+    const getRefIdx = (sectionIdx, eventIdx) => {
+        let idx = 0;
+        for (let i = 0; i < sectionIdx; i ++) {
+            idx += events[i].data.length;
+        }
+        return idx + eventIdx;
+    };
+
+    const closeSection = (sectionIdx) => { //closes all SwipeableItems in a section
+        let idx = 0;
+        for (let i = 0; i < sectionIdx; i ++) {
+            idx += events[i].data.length;
+        }
+        for (let i = idx; i < idx + events[sectionIdx].data.length; i ++) {
+            itemsRef.current[i].close();
+        }
+    };
+
+    const accordionSection = (section) =>
+        <FlatList
+            scrollEnabled={false}
+            data={section.data}
+            renderItem={({item, index}) =>
+                <PlannerBox
+                    key={item.key}
+                    sectionIdx={section.index}
+                    eventIdx={index}
+                    data={item.data}
+                    handleDelete={handleDelete}
+                    handleTextChange={handleTextChange}
+                    resetAddButton={resetAddButton}
+                    theme={theme}
+                    ref={el => itemsRef.current[getRefIdx(section.index, index)] = el}
+                />
+            }
+            keyExtractor={item => item.key}
+        />;
+
+    return (
+        <ScrollView showsVerticalScrollIndicator={false}>
+            <Accordion
+                sections={events}
+                activeSections={activeSections}
+                expandFromBottom={false}
+                expandMultiple={true}
+                containerStyle={styles.accordion_container}
+                //NOTE: THE BEST WAY is: renderAsFlatList={true} and no ScrollView, but it did not render my planner boxes correctly. TODO: fix this and implement renderAsFlatlist={true}
+                renderSectionTitle={(section) =>
+                    <View></View> //must have to avoid errors
+                }
+                renderHeader={(section) =>
+                    <View style={[styles.section_button, {backgroundColor: theme.s3}]}>
+                        <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
+                    </View>
+                }
+                renderContent={accordionSection}
+                onChange={(newActiveSections) => {
+                    //only activates sections that have events stored inside to avoid bugs
+                    let finalActiveSections = newActiveSections.filter(section => events.find(event => event.key === section).data.length !== 0);
+                    if (activeSections.length > finalActiveSections.length) { //meaning user closed a section
+                        const sortedPrev = [...activeSections].sort();
+                        finalActiveSections.sort();
+                        for (let i = 0; i < sortedPrev.length; i ++) {
+                            if (i >= finalActiveSections.length || sortedPrev[i] !== finalActiveSections[i]) {
+                                let closedSectionKey = sortedPrev[i];
+                                for (let j = 0; j < events.length; j ++) {
+                                    if (events[j].key === closedSectionKey) {
+                                        closeSection(j);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    setActiveSections(finalActiveSections);
+                }}
+                keyExtractor={item => item.key}
+            />
+        </ScrollView>
+    );
+}
+
+const AddMenu = ({ addButtonXOffset, events, handleAdd, isLoading, theme }) => {
+    const addButtonAnimatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{translateX: withTiming(addButtonXOffset.value, {
+                duration: 300,
+                easing: Easing.in(Easing.exp)
+            })}]
+        };
+    });
+
+    const [addModalVisible, setAddModalVisible] = useState(false);
+
+    const closeModal = () => {
+        setAddModalVisible(false);
+        addButtonXOffset.value = 0;
+    };
+
+    return (
+        <View style={{position: 'absolute', bottom: 0, right: 0, width: '100%', height: '100%'}}>
+            <Modal
+                animationType='fade'
+                transparent={true}
+                visible={addModalVisible}
+                onRequestClose={closeModal}
+            >
+                <View style={[styles.add_modal, {borderColor: theme.s4, backgroundColor: theme.s13}]}>
+                    <FlatList
+                        showsVerticalScrollIndicator={false}
+                        ListHeaderComponent={() => 
+                            <Pressable
+                                style={[styles.add_modal_back_button, {backgroundColor: theme.s9}]}
+                                onPress={closeModal}
+                            >
+                                <Text style={[styles.add_modal_button_text, {color: theme.s3}]}>Back</Text>
+                            </Pressable>
+                        }
+                        ListHeaderComponentStyle={{alignItems: 'center'}}
+                        ItemSeparatorComponent={() => 
+                            <View style={{marginLeft: 15, marginRight: 15, borderBottomWidth: 3, borderColor: theme.s2}}></View>
+                        }
+                        data={events}
+                        renderItem={({item, index}) =>
+                            <Pressable
+                                style={({pressed}) => [styles.add_modal_button, {opacity: pressed ? 0.6 : 1}]}
+                                onPress={() => {
+                                    setAddModalVisible(false);
+                                    handleAdd(index);
+                                }}
+                            >
+                                <Text style={[styles.add_modal_button_text, {color: theme.s4}]}>{item.name}</Text>
+                            </Pressable>
+                        }
+                        keyExtractor={item => item.key}
+                    />
+                </View>
+            </Modal>
+            {!isLoading && <Animated.View style={[styles.add_button, addButtonAnimatedStyle, {backgroundColor: theme.s5}]}>
+                <Icon
+                    name='plus'
+                    type='feather'
+                    size={35}
+                    color={theme.s7}
+                    onPress={() => {
+                        addButtonXOffset.value = 100;
+                        setAddModalVisible(true);
+                    }}
+                    disabled={isLoading}
+                />
+            </Animated.View>}
+        </View>
+    );
 }
 
 const PlannerPage = ({ navigation }) => {
@@ -133,10 +304,10 @@ const PlannerPage = ({ navigation }) => {
     const [isLoading, setIsLoading] = useState(true);
     const isFocused = useIsFocused();
 
+    const addButtonXOffset = useSharedValue(0);
+
     const [events, setEvents] = useState([]);
     const [activeSections, setActiveSections] = useState([]);
-
-    const [addModalVisible, setAddModalVisible] = useState(false);
     
     const refreshClasses = async() => {
         try {
@@ -192,7 +363,13 @@ const PlannerPage = ({ navigation }) => {
         try {
             let newEvents = events.slice();
             let randomKey = getRandomKey(10);
-            newEvents[sectionIdx].data.push({ key: randomKey, data: { text: '', charsLeft: maxChars } });
+            newEvents[sectionIdx].data.push({
+                key: randomKey,
+                data: {
+                    text: '',
+                    charsLeft: maxChars
+                }
+            });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             setEvents(newEvents);
 
@@ -261,24 +438,6 @@ const PlannerPage = ({ navigation }) => {
         return true;
     };
 
-    const accordionSection = (section) =>
-        <FlatList
-            scrollEnabled={false}
-            data={section.data}
-            renderItem={({item, index}) =>
-                <PlannerBox
-                    key={item.key}
-                    sectionIdx={section.index}
-                    eventIdx={index}
-                    data={item.data}
-                    handleDelete={handleDelete}
-                    handleTextChange={handleTextChange}
-                    theme={theme}
-                />
-            }
-            keyExtractor={item => item.key}
-        />;
-
     return ( 
         <View style = {[styles.container, {backgroundColor: theme.s1}]}>
             <View style={styles.options_bar}>
@@ -312,81 +471,24 @@ const PlannerPage = ({ navigation }) => {
                         </Text>
                     </View>
                 ) : (
-                    <ScrollView showsVerticalScrollIndicator={false}>
-                        <Accordion
-                            sections={events}
-                            activeSections={activeSections}
-                            expandFromBottom={false}
-                            expandMultiple={true}
-                            containerStyle={styles.accordion_container}
-                            //NOTE: THE BEST WAY is: renderAsFlatList={true} and no ScrollView, but it did not render my planner boxes correctly. TODO: fix this and implement renderAsFlatlist={true}
-                            renderSectionTitle={(section) =>
-                                <View></View> //must have to avoid errors
-                            }
-                            renderHeader={(section) =>
-                                <View style={[styles.section_button, {backgroundColor: theme.s3}]}>
-                                    <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
-                                </View>
-                            }
-                            renderContent={accordionSection}
-                            onChange={(activeSections) => {
-                                //only activates sections that have events stored inside to avoid bugs
-                                setActiveSections(activeSections.filter(section => events.find(event => event.key === section).data.length !== 0));
-                            }}
-                            keyExtractor={item => item.key}
-                        />
-                    </ScrollView>
+                    <CollapsibleSectionList
+                        events={events}
+                        activeSections={activeSections}
+                        setActiveSections={setActiveSections}
+                        handleDelete={handleDelete}
+                        handleTextChange={handleTextChange}
+                        resetAddButton={() => {addButtonXOffset.value = 0;}}
+                        theme={theme}
+                    />
                 )
             )}
-            <Modal
-                animationType='fade'
-                transparent={true}
-                visible={addModalVisible}
-                onRequestClose={() => setAddModalVisible(false)}
-            >
-                <View style={[styles.add_modal, {borderColor: theme.s4, backgroundColor: theme.s13}]}>
-                    <FlatList
-                        showsVerticalScrollIndicator={false}
-                        ListHeaderComponent={() => 
-                            <Pressable
-                                style={[styles.add_modal_back_button, {backgroundColor: theme.s9}]}
-                                onPress={() => setAddModalVisible(false)}
-                            >
-                                <Text style={[styles.add_modal_button_text, {color: theme.s3}]}>Back</Text>
-                            </Pressable>
-                        }
-                        ListHeaderComponentStyle={{alignItems: 'center'}}
-                        ItemSeparatorComponent={() => 
-                            <View style={{borderBottomWidth: 3, borderColor: theme.s2}}></View>
-                        }
-                        data={events}
-                        renderItem={({item, index}) =>
-                            <Pressable
-                                style={({pressed}) => [styles.add_modal_button, {opacity: pressed ? 0.6 : 1}]}
-                                onPress={() => {
-                                    setAddModalVisible(false);
-                                    handleAdd(index);
-                                }}
-                            >
-                                <Text style={[styles.add_modal_button_text, {color: theme.s4}]}>{item.name}</Text>
-                            </Pressable>
-                        }
-                        keyExtractor={item => item.key}
-                    />
-                </View>
-            </Modal>
-            {!isLoading && <View style={styles.add_menu}>
-                <View style={[styles.add_button, {backgroundColor: theme.s5}]}>
-                    <Icon
-                        name='plus'
-                        type='feather'
-                        size={35}
-                        color={theme.s7}
-                        onPress={() => setAddModalVisible(true)}
-                        disabled={isLoading}
-                    />
-                </View>
-            </View>}
+            <AddMenu
+                addButtonXOffset={addButtonXOffset}
+                events={events}
+                handleAdd={handleAdd}
+                isLoading={isLoading}
+                theme={theme}
+            />
         </View>
     );
 }
@@ -491,13 +593,6 @@ const styles = StyleSheet.create({
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
     },
-    add_menu: {
-        width: '100%',
-        height: 60,
-        position: 'absolute',
-        bottom: 20,
-        justifyContent: 'center'
-    },
     add_button: {
         width: 60,
         height: 60,
@@ -505,7 +600,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 50,
         position: 'absolute',
-        right: -5,
+        bottom: 20,
+        right: 20,
     },
     add_modal: {
         marginTop: '60%',
