@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
 import { ThemeContext } from '../components/themeContext';
-import { toRGBA } from '../components/utils';
+import { toRGBA, widthPctToDP } from '../components/utils';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
     ScrollView,
@@ -26,6 +26,12 @@ import {
     BarChart,
     LineChart,
 } from 'react-native-chart-kit';
+import Animated, {
+    useSharedValue,
+    withTiming,
+    useAnimatedStyle,
+    Easing,
+} from 'react-native-reanimated';
 
 const dummyAdd = require('../dummy data/add');
 const dummyRemove = require('../dummy data/remove');
@@ -52,7 +58,7 @@ function* percentageLabel() {
     yield* ['10', '20', '30', '40', '50', '60', '70', '80', '90', '100'];
 }
 
-const Header = ({ theme, type }) => {
+const Header = ({ theme, type, data=null }) => {
     const navigation = useNavigation();
 
     return (
@@ -69,7 +75,7 @@ const Header = ({ theme, type }) => {
                     color={theme.s4} 
                     size={type === 'graph' ? 26 : 35}
                     backgroundColor='transparent'
-                    onPress={() => type === 'graph' ? navigation.navigate('Class Analyses') : navigation.goBack()} 
+                    onPress={() => type === 'graph' ? navigation.navigate('Class Analyses', {data: data}) : navigation.goBack()} 
                     style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
                 />
             </View>
@@ -221,7 +227,7 @@ const GradebookHomeScreen = () => {
                         />
                     }
                 >
-                    <Header theme={theme} type='graph' />
+                    <Header theme={theme} type='graph' data={{classInfo: classes}} />
                     <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center', paddingTop: 10, paddingLeft: 15, paddingRight: 15}}>
                         <Text style={[styles.header_text, {color: theme.s6}]}>Your Gradebook:</Text>
                         <GradeBoxes classes={classes} theme={theme} />     
@@ -419,7 +425,7 @@ const ClassDetailsScreen = ({ route, navigation }) => {
                     <View style = {{flex: isDropped ? 1 : 0, alignItems: 'center'}}>
                         {/*bar graphs for weights in here*/}
                         {isDropped  
-                            ? (
+                            ? ( // TODO: change to stacked bar chart in order to show differences between student weights and totals
                                 <BarChart
                                     data={graphData}
                                     width={screenWidth+10}
@@ -518,10 +524,82 @@ const AssignmentDetail = ({detail, data}) => {
     ); 
 }
 
+const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) => {
+    const getStyle = () => {
+        return StyleSheet.create({
+            card: {
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: outlined ? 'transparent' : theme.s2,
+                borderRadius: 30,
+                borderWidth: outlined ? 1.5 : 0,
+                borderColor: outlined ? theme.s2 : 'transparent',
+                padding: 10,
+                marginBottom: 20,
+            },
+        });
+    }
+    const cardStyle = getStyle();
+    const widthDP = widthPctToDP('100%', 0);
+
+    return (
+        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
+            {children}
+        </Animated.View>
+    );
+}
+
+const DropdownCard = ({theme, outlined, header=''}) => {
+    const [isHidden, setIsHidden] = useState(false);
+    const height = useSharedValue(250);
+
+    const animatedCardStyle = useAnimatedStyle(() => {
+        return {
+            height: withTiming(height.value, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    useEffect(() => {
+        height.value = isHidden ? 55 : 250;
+    }, [isHidden])
+
+    return (
+        <Card theme={theme} outlined={outlined} customStyle={{borderColor: theme.s2, justifyContent: 'flex-start'}} animatedStyle={animatedCardStyle}>
+            {/* <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 20, textAlign: 'center', textAlignVertical: 'center', color: theme.s4}}>
+                Period {index+1}: {shortenedName}
+            </Text> */}
+            <View style={{width: '95%', height: 30, justifyContent: 'center', backgroundColor: 'transparent'}}>
+                <Text style={[styles.info_subheader, {color: theme.s4, width: '87%', backgroundColor: 'transparent'}]}>{header}:</Text>
+                <Pressable 
+                    style={({pressed}) => [{
+                        backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
+                        alignSelf: 'flex-end', 
+                        position: 'absolute', 
+                        height: 40, 
+                        width: 40,
+                        top: -3,
+                        borderRadius: 30,
+                    }]}
+                    onPress={() => {
+                        setIsHidden(!isHidden);
+                    }}
+                >
+                    <MaterialDesignIcon name={isHidden ? 'menu-down' : 'menu-up'} size={43} color={theme.s4} style={{right: 2, bottom: isHidden ? 3 : 5}} />
+                </Pressable>
+            </View>
+            <View style={{width: '100%', height: '85%'}}>
+                {/* Add charts here */}
+            </View>
+        </Card>
+    );
+}
+
 const ClassAnalysesScreen = ({ route, navigation }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [classData, setClassData] = useState(null); 
+    const classInfo = route.params.data.classInfo;
+    //console.log(classInfo);
 
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
@@ -535,6 +613,17 @@ const ClassAnalysesScreen = ({ route, navigation }) => {
             setIsLoading(false);
         }, 500);
     }, [isLoading])
+
+
+    let classCards = classInfo.map((period, index) => {
+        let shortenedName = period.Title.substr(0, period.Title.indexOf('(')).trim();
+        if(shortenedName.length >= 19) {
+            shortenedName = shortenedName.substring(0, 19) + '...';
+        }
+        return(
+            <DropdownCard theme={theme} header={shortenedName} outlined />
+        );
+    });
 
     return (
         <SafeAreaView style = {[styles.container, {backgroundColor: theme.s1}]}>
@@ -556,6 +645,9 @@ const ClassAnalysesScreen = ({ route, navigation }) => {
                     <Header theme={theme} type='back' />
                     <View style = {{flex: 1, flexDirection: 'column', justifyContent: 'center', paddingTop: 10, paddingLeft: 15, paddingRight: 15}}>
                         <Text style={[styles.header_text, {color: theme.s6}]}>Your Class Analyses:</Text>
+                        {classCards.map(card => {
+                            return card;
+                        })}
                     </View>
                 </ScrollView>
             )}   
