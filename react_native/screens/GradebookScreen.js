@@ -247,25 +247,24 @@ const GradeBoxes = ({ classes, theme }) => {
             period: period.Period, 
             teacher: period.Staff
         };
-        return(
-            <TouchableOpacity 
-                style = {[styles.grade_display, {backgroundColor: theme.s2}]}
-                activeOpacity = {0.5} 
-                key = {i} 
-                onPress={
-                    () => { 
-                        navigation.navigate('Class Details', {
-                            periodNumber: i,
-                            classInfo: classes[i],
+        return (
+            <PressableCard 
+                theme={theme} 
+                customStyle={{ height: 100, padding: 0}} 
+                onPress={() => {
+                    navigation.navigate('Class Details', {
+                        periodNumber: i,
+                        classInfo: classes[i],
                     });
-                }
-            }>
+                }} 
+                outlined
+            >
                 <View style = {{flex: 1, flexDirection: 'row', justifyContent: 'center', paddingLeft: 15, paddingRight: 15}}>
                     <Text style = {[styles.grade_letter, {color: theme.s6}]}>{classSummary.gradeLtr}</Text> 
-                    <View style = {[styles.vertical_line, {backgroundColor: theme.s4}]}></View>
+                    <View style = {[styles.vertical_line, {backgroundColor: toRGBA(theme.s6, 0.5)}]}></View>
                     <Text style = {[styles.grade_info, {color: theme.s6}]}>{`Period ${classSummary.period}: ${classSummary.teacher}`}</Text>
                 </View>
-            </TouchableOpacity> 
+            </PressableCard>
         );
     });
 
@@ -276,29 +275,24 @@ const GradeBoxes = ({ classes, theme }) => {
     );
 }
 
-const Assignment = ({ index, name, data, navigation, theme }) => (
-    <Pressable
-            data = {data}
-            onPress={() => {
-                navigation.navigate('Assignment Details', {
-                    index: index,
-                    details: data,
-                    name: name
-                })
-            }}
-            style={({ pressed }) => [
-                {
-                    backgroundColor: theme.s2,
-                    opacity: pressed ? 0.5 : 1,
-                },
-                styles.button_wrapper
-            ]
-        }>
+const Assignment = ({ index, name, data, navigation, theme }) => ( 
+    <PressableCard
+        theme={theme} 
+        customStyle={{ height: 85, padding: 0}} 
+        onPress={() => {
+            navigation.navigate('Assignment Details', {
+                index: index,
+                details: data,
+                name: name
+            });
+        }} 
+        outlined
+    >
         <View style = {styles.assignmentDescriptionWrapper}>
-            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 20, color: toRGBA(theme.s6, 0.75), marginLeft: 0}}>{name}</Text>
-            <Text style = {{fontFamily: 'ProximaNova-Regular', fontSize: 10, color: theme.s4, alignSelf: 'flex-end', position: 'absolute', right: 0}}>{data.Points}</Text>
+            <Text style = {{fontFamily: 'Proxima Nova Bold', fontSize: 20, color: toRGBA(theme.s6, 0.75), marginLeft: 5}}>{name}</Text>
+            <Text style = {{fontFamily: 'ProximaNova-Regular', fontSize: 10, color: theme.s4, alignSelf: 'flex-end', position: 'absolute', right: 15, bottom: 10}}>{data.Points}</Text>
         </View>
-    </Pressable>   
+    </PressableCard>
 );
 
 const ClassDetailsScreen = ({ route, navigation }) => {
@@ -528,6 +522,7 @@ const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) =
         return StyleSheet.create({
             card: {
                 width: '100%',
+                height: 150,
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: outlined ? 'transparent' : theme.s2,
@@ -536,7 +531,6 @@ const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) =
                 borderColor: outlined ? theme.s2 : 'transparent',
                 padding: 10,
                 marginBottom: 20,
-                zIndex: 1,
             },
         });
     }
@@ -550,12 +544,46 @@ const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) =
     );
 }
 
+const PressableCard = ({ customStyle, outlined=false, children, onPress, animatedStyle, theme }) => {
+    const getStyle = () => {
+        return StyleSheet.create({
+            card: {
+                width: '100%',
+                height: 150,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: outlined ? 'transparent' : theme.s2,
+                borderRadius: 30,
+                borderWidth: outlined ? 1.5 : 0,
+                borderColor: outlined ? theme.s2 : 'transparent',
+                padding: 10,
+                marginBottom: 20,
+            },
+        });
+    }
+    const cardStyle = getStyle();
+    const widthDP = widthPctToDP('100%', 0);
+
+    return (
+        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
+            <Pressable
+                style={({pressed}) => [
+                    styles.pressableCard_btn, {backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent'}
+                ]}
+                onPress={onPress}
+            >
+                {children}
+            </Pressable>
+        </Animated.View>
+    );
+}
+
 const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden }) => {
     useEffect(() => {
         chartOpacity.value = isHidden ? 0 : 1;
     }, [isHidden]);
 
-    const chartOpacity = useSharedValue(1);
+    const chartOpacity = useSharedValue(0);
 
     const animatedChartStyle = useAnimatedStyle(() => {
         return {
@@ -645,9 +673,9 @@ const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden 
 }
 
 const DropdownCard = ({theme, outlined, header='', periodNum=null}) => {
-    const [isHidden, setIsHidden] = useState(false);
-    const cardHeight = useSharedValue(250);
-    const headerTopMargin = useSharedValue(10);
+    const [isHidden, setIsHidden] = useState(true);
+    const cardHeight = useSharedValue(55);
+    const headerTopMargin = useSharedValue(0);
 
     const animatedCardStyle = useAnimatedStyle(() => {
         return {
@@ -876,7 +904,7 @@ const styles = StyleSheet.create({
         flex: 4,
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
-        paddingLeft: 45,
+        left: 50,
         flexWrap: "wrap",
         justifyContent: "center",
         textAlign: "left",
@@ -924,6 +952,11 @@ const styles = StyleSheet.create({
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
+    },
+    pressableCard_btn: {
+        width: '100%', 
+        height: '100%', 
+        borderRadius: 28,
     },
 });
 
