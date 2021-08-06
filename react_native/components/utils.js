@@ -9,3 +9,9 @@ export const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.co
     const elemWidth = parseFloat(widthPct);
     return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
 }
+
+export const heightPctToDP = (heightPct, padding=0) => {
+    const screenHeight = Dimensions.get('window').height - 2 * padding;
+    const elemHeight = parseFloat(heightPct);
+    return PixelRatio.roundToNearestPixel(screenHeight * elemHeight / 100);
+}

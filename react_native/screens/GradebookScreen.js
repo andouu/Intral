@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
 import { ThemeContext } from '../components/themeContext';
-import { toRGBA, widthPctToDP } from '../components/utils';
+import { toRGBA, widthPctToDP, heightPctToDP } from '../components/utils';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
     ScrollView,
@@ -537,6 +537,7 @@ const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) =
                 borderColor: outlined ? theme.s2 : 'transparent',
                 padding: 10,
                 marginBottom: 20,
+                zIndex: 1,
             },
         });
     }
@@ -550,18 +551,113 @@ const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) =
     );
 }
 
-const DropdownCard = ({theme, outlined, header=''}) => {
-    const [isHidden, setIsHidden] = useState(false);
-    const height = useSharedValue(250);
+const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden }) => {
+    useEffect(() => {
+        chartOpacity.value = isHidden ? 0 : 1;
+    }, [isHidden]);
 
-    const animatedCardStyle = useAnimatedStyle(() => {
+    const chartOpacity = useSharedValue(1);
+
+    const animatedChartStyle = useAnimatedStyle(() => {
         return {
-            height: withTiming(height.value, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            opacity: withTiming(chartOpacity.value, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
         }
     });
 
-    useEffect(() => {
-        height.value = isHidden ? 55 : 250;
+    const chartConfig = {
+        backgroundGradientFrom: theme.s1,
+        backgroundGradientTo: theme.s1,
+        backgroundGradientFromOpacity: 0,
+        backgroundGradientToOpacity: 0,
+        fillShadowGradient: theme.s3,
+        fillShadowGradientOpacity: 0.5,
+        color: () => theme.s4,
+        propsForBackgroundLines: {
+            stroke: toRGBA(theme.s6, 0.25),
+            strokeWidth: 1.5,
+            strokeDasharray: '0',
+            strokeDashoffset: null,
+        },
+        propsForLabels: {
+            fontFamily: 'ProximaNova-Regular',
+            fill: theme.s5,
+            fontSize: '10',
+        },
+        useShadowColorFromDataset: false // optional
+    };
+
+    let hiddenPoints = [];
+    for(let i=0; i<data.datasets[0].data.length-1; i++) {
+        hiddenPoints.push(i);
+    }
+
+    return (
+        <Animated.View style={[{left: -20, width: '100%', alignItems: 'center', justifyContent: 'center'}, animatedChartStyle]}>
+            <LineChart
+                data={data}
+                fromZero={true}
+                formatXLabel={(month) => month.substr(0, 3)}
+                formatYLabel={() => yLabelIterator.next().value}
+                withDots={true}
+                getDotColor={(dataPoint, dataPointIndex) => dataPointIndex === data.datasets[0].data.length-1 ? theme.s3 : 'transparent'}
+                width={width}
+                height={height}
+                chartConfig={chartConfig}
+                withInnerLines={false}
+                withOuterLines={true}
+                yAxisInterval={1.0}
+                segments={10}
+                style={{borderRadius: 40}}
+                bezier // optional, but sexy 😎
+            />
+        </Animated.View>
+    )
+}
+
+const DropdownCard = ({theme, outlined, header=''}) => {
+    const [isHidden, setIsHidden] = useState(false);
+    const cardHeight = useSharedValue(250);
+    const headerTopMargin = useSharedValue(10);
+
+    const animatedCardStyle = useAnimatedStyle(() => {
+        return {
+            height: withTiming(cardHeight.value, {duration: 350, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    const animatedHeaderStyle = useAnimatedStyle(() => {
+        return {
+            marginTop: withTiming(headerTopMargin.value, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    function randomFloat(min, max) { // https://stackoverflow.com/questions/17726753/get-a-random-number-between-0-0200-and-0-120-float-numbers
+        return Math.random() * (max - min) + min;
+    }
+
+    const randomData = [];
+    for(let i=0; i<12; i++) { 
+        randomData.push(randomFloat(83.25, 100.00));
+    }
+
+    const data = { // TODO: get actual GPAs per month/day
+        labels: ['', '', '', '', '', '', '', ''],
+        datasets: [{
+            data: randomData, 
+            color: (/* opacity = 1 */) => toRGBA(theme.s3, 1),
+            strokeWidth: 3 // optional
+        }],
+    };
+
+    function* pcts() {
+        yield* [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    }
+
+    const yIt = pcts();
+
+    useEffect(() => { // TODO: get grade data from storage for charts (in parent)
+        cardHeight.value = isHidden ? 55 : 250;
+        headerTopMargin.value = isHidden ? 0 : 10;
     }, [isHidden])
 
     return (
@@ -569,7 +665,7 @@ const DropdownCard = ({theme, outlined, header=''}) => {
             {/* <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 20, textAlign: 'center', textAlignVertical: 'center', color: theme.s4}}>
                 Period {index+1}: {shortenedName}
             </Text> */}
-            <View style={{width: '95%', height: 30, justifyContent: 'center', backgroundColor: 'transparent'}}>
+            <Animated.View style={[{width: '95%', height: 30, marginBottom: 10, justifyContent: 'center', backgroundColor: 'transparent'}, animatedHeaderStyle]}>
                 <Text style={[styles.info_subheader, {color: theme.s4, width: '87%', backgroundColor: 'transparent'}]}>{header}:</Text>
                 <Pressable 
                     style={({pressed}) => [{
@@ -585,11 +681,12 @@ const DropdownCard = ({theme, outlined, header=''}) => {
                         setIsHidden(!isHidden);
                     }}
                 >
-                    <MaterialDesignIcon name={isHidden ? 'menu-down' : 'menu-up'} size={43} color={theme.s4} style={{right: 2, bottom: isHidden ? 3 : 5}} />
+                    <MaterialDesignIcon name={isHidden ? 'menu-down' : 'menu-up'} size={43} color={theme.s4} style={{right: 2, bottom: isHidden ? 2 : 5}} />
                 </Pressable>
-            </View>
-            <View style={{width: '100%', height: '85%'}}>
+            </Animated.View>
+            <View style={{width: '100%', height: 195, padding: 15, alignItems: 'center', justifyContent: 'center'}}>
                 {/* Add charts here */}
+                <CustomLineChart width={310} height={180} theme={theme} data={data} yLabelIterator={yIt} isHidden={isHidden} />
             </View>
         </Card>
     );
