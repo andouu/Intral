@@ -17,7 +17,7 @@ import {
     StatusBar,
     StyleSheet,
 } from 'react-native';
-import { swatchDark } from './components/themes';
+import { getTheme } from './components/themes';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
@@ -33,12 +33,12 @@ const App = () => {
     // const [userToken, setUserToken] = useState(null);
     const [themeData, setThemeData] = useState({
         theme: 'dark',
-        swatch: swatchDark, // TODO: add lightmode
+        swatch: getTheme('dark'), // TODO: add lightmode
     });
 
     const themeValue = {
         themeData,
-        setTheme: (newTheme) => {setThemeData({ theme: newTheme, swatch: swatchDark })}
+        setTheme: (newTheme) => {setThemeData({ theme: newTheme, swatch: getTheme(newTheme) })}
     }
 
     const initialLoginState = {

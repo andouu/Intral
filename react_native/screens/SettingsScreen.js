@@ -103,6 +103,8 @@ const Header = ({ navigation, theme, type }) => {
     );
 }
 
+const settingCardHeight = 50;
+
 const HomeScreen = ({ navigation }) => {
     const [isEnabled, setIsEnabled] = useState(false);
     const { signOut } = useContext(AuthContext); // TODO: move signout button to drawer
@@ -137,7 +139,7 @@ const HomeScreen = ({ navigation }) => {
                     theme={theme} 
                     customStyle={{
                         width: '100%', 
-                        height: 50, 
+                        height: settingCardHeight, 
                         alignItems: 'center', 
                         justifyContent: 'center', 
                         padding: 0,
@@ -163,8 +165,11 @@ const FunctionsScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
-            <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-                <Text style={{color: theme.s4, bottom: 70}}>This is the functions settings page!</Text>
+            <View style={styles.main_container}>
+                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Grade Refresh Rate:</Text>
+                    {/* TODO: dropdown for themes here */}
+                </Card>
             </View>
         </View>
     );
@@ -178,15 +183,15 @@ const CosmeticsScreen = ({ navigation }) => {
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
-                <Card theme={theme} customStyle={{height: 65, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Theme: </Text>
                     {/* TODO: dropdown for themes here */}
                 </Card>
-                <Card theme={theme} customStyle={{height: 65, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Outlined cards: </Text>
                     {/* TODO: incorporate this setting to themeContext so all components that use Card are synced */}
                 </Card>
-                <Card theme={theme} customStyle={{height: 65, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Transparent NavBar: </Text>
                 </Card>
             </View>
