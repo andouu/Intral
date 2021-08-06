@@ -22,10 +22,8 @@ import {
     ActivityIndicator,
     StatusBar,
 } from 'react-native';
-import {
-    BarChart,
-    LineChart,
-} from 'react-native-chart-kit';
+import { BarChart, LineChart } from 'react-native-chart-kit';
+import { Rect, Text as TextSVG, Svg } from "react-native-svg";
 import Animated, {
     useSharedValue,
     withTiming,
@@ -33,6 +31,7 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 
+const dummyGradeChanges  = require('../dummy data/gradeData') // dummy data for grade changes (class analysis)
 const dummyAdd = require('../dummy data/add');
 const dummyRemove = require('../dummy data/remove');
 const dummyAddRemove = require('../dummy data/addRemove');
@@ -600,21 +599,52 @@ const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden 
                 formatYLabel={() => yLabelIterator.next().value}
                 withDots={true}
                 getDotColor={(dataPoint, dataPointIndex) => dataPointIndex === data.datasets[0].data.length-1 ? theme.s3 : 'transparent'}
+                onDataPointClick={(value) => console.log(value.x)}
                 width={width}
                 height={height}
+                renderDotContent={({x, y, index}) => {
+                    const tmpData = data.datasets[0].data;
+                    if(index !== tmpData.length - 1) 
+                        return null;
+                    
+                    let difference = tmpData[tmpData.length-1] / tmpData[tmpData.length-2];
+                    let sign = difference > 1 ? 1 : difference == 1 ? 0 : -1;
+                    difference = (Math.abs(difference - 1) * 100).toFixed(2);
+                    
+                    return (
+                        <View>
+                            <Svg>
+                                <TextSVG
+                                    x={x}
+                                    y={y+16}
+                                    fill={sign === 1 ? theme.s10 : sign === 0 ? theme.s5 : theme.s11}
+                                    fontSize='10'
+                                    fontFamily='Proxima Nova Bold'
+                                    textAnchor="middle"
+                                >
+                                    {sign >= 0 ? '+' + difference + '%': '-' + difference + '%'}
+                                </TextSVG>
+                                </Svg>
+                        </View>
+                    );
+                }}
                 chartConfig={chartConfig}
                 withInnerLines={false}
                 withOuterLines={true}
                 yAxisInterval={1.0}
                 segments={10}
                 style={{borderRadius: 40}}
+                decorator={() => {
+                    
+                    
+                }}
                 bezier // optional, but sexy 😎
             />
         </Animated.View>
     )
 }
 
-const DropdownCard = ({theme, outlined, header=''}) => {
+const DropdownCard = ({theme, outlined, header='', periodNum=null}) => {
     const [isHidden, setIsHidden] = useState(false);
     const cardHeight = useSharedValue(250);
     const headerTopMargin = useSharedValue(10);
@@ -635,15 +665,12 @@ const DropdownCard = ({theme, outlined, header=''}) => {
         return Math.random() * (max - min) + min;
     }
 
-    const randomData = [];
-    for(let i=0; i<12; i++) { 
-        randomData.push(randomFloat(83.25, 100.00));
-    }
+    let periodData = dummyGradeChanges[periodNum].gradeChanges;
 
     const data = { // TODO: get actual GPAs per month/day
         labels: ['', '', '', '', '', '', '', ''],
         datasets: [{
-            data: randomData, 
+            data: periodData, 
             color: (/* opacity = 1 */) => toRGBA(theme.s3, 1),
             strokeWidth: 3 // optional
         }],
@@ -655,7 +682,7 @@ const DropdownCard = ({theme, outlined, header=''}) => {
 
     const yIt = pcts();
 
-    useEffect(() => { // TODO: get grade data from storage for charts (in parent)
+    useEffect(() => { // TODO: get and store grade data from storage for charts (in parent)
         cardHeight.value = isHidden ? 55 : 250;
         headerTopMargin.value = isHidden ? 0 : 10;
     }, [isHidden])
@@ -708,17 +735,17 @@ const ClassAnalysesScreen = ({ route, navigation }) => {
     useEffect(() => {
         setTimeout(() => {
             setIsLoading(false);
-        }, 500);
+        }, 100);
     }, [isLoading])
 
 
     let classCards = classInfo.map((period, index) => {
         let shortenedName = period.Title.substr(0, period.Title.indexOf('(')).trim();
         if(shortenedName.length >= 19) {
-            shortenedName = shortenedName.substring(0, 19) + '...';
+            shortenedName = shortenedName.substring(0, 19).trim() + '...';
         }
         return(
-            <DropdownCard theme={theme} header={shortenedName} outlined />
+            <DropdownCard theme={theme} header={shortenedName} periodNum={index} outlined />
         );
     });
 
