@@ -32,13 +32,15 @@ const App = () => {
     // const [isLoading, setIsLoading] = useState(true);
     // const [userToken, setUserToken] = useState(null);
     const [themeData, setThemeData] = useState({
-        theme: 'dark',
-        swatch: getTheme('dark'), // TODO: add lightmode
+        theme: 'Dark',
+        cardOutlined: true,
+        navBarTransparent: false,
+        swatch: getTheme('Dark'), // TODO: add more themes
     });
 
     const themeValue = {
         themeData,
-        setTheme: (newTheme) => {setThemeData({ theme: newTheme, swatch: getTheme(newTheme) })}
+        setTheme: (newData) => {setThemeData(newData); console.log(themeData.navBarTransparent)}
     }
 
     const initialLoginState = {
@@ -140,8 +142,8 @@ const App = () => {
                             card: themeData.swatch.s1,
                             background: themeData.swatch.s1,
                         }
-                    }
-                }>
+                    }}
+                >
                     {loginState.userToken !== null ? (
                         <Drawer.Navigator 
                             initialRouteName='Home'

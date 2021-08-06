@@ -32,9 +32,9 @@ const swatchLight = {
 
 export const getTheme = (name) => {
     switch(name) {
-        case 'dark':
+        case 'Dark':
             return swatchDark;      
-        case 'light':
+        case 'Light':
             return swatchLight;
         default:
             return swatchDark;

@@ -3,6 +3,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { ThemeContext } from '../components/themeContext';
 import { AuthContext } from '../components/authContext';
 import { toRGBA, widthPctToDP } from '../components/utils';
+import { getTheme } from '../components/themes';
+import { Card, PressableCard } from '../components/card';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 //import DropDownPicker from 'react-native-dropdown-picker'; for picking themes
 import {
@@ -10,6 +12,7 @@ import {
     View,
     Text,
     Pressable,
+    Switch,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -17,67 +20,6 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
-
-const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) => {
-    const getStyle = () => {
-        return StyleSheet.create({
-            card: {
-                width: '100%',
-                height: 150,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: outlined ? 'transparent' : theme.s2,
-                borderRadius: 30,
-                borderWidth: outlined ? 1.5 : 0,
-                borderColor: outlined ? theme.s2 : 'transparent',
-                padding: 15,
-                marginBottom: 20,
-            },
-        });
-    }
-    const cardStyle = getStyle();
-    const widthDP = widthPctToDP('100%', 0);
-
-    return (
-        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
-            {children}
-        </Animated.View>
-    );
-}
-
-const PressableCard = ({ customStyle, outlined=false, children, onPress, animatedStyle, theme }) => {
-    const getStyle = () => {
-        return StyleSheet.create({
-            card: {
-                width: '100%',
-                height: 150,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: outlined ? 'transparent' : theme.s2,
-                borderRadius: 30,
-                borderWidth: outlined ? 1.5 : 0,
-                borderColor: outlined ? theme.s2 : 'transparent',
-                padding: 10,
-                marginBottom: 20,
-            },
-        });
-    }
-    const cardStyle = getStyle();
-    const widthDP = widthPctToDP('100%', 0);
-
-    return (
-        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
-            <Pressable
-                style={({pressed}) => [
-                    styles.pressableCard_btn, {backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent'}
-                ]}
-                onPress={onPress}
-            >
-                {children}
-            </Pressable>
-        </Animated.View>
-    );
-}
 
 const Header = ({ navigation, theme, type }) => {
 
@@ -109,9 +51,9 @@ const HomeScreen = ({ navigation }) => {
     const [isEnabled, setIsEnabled] = useState(false);
     const { signOut } = useContext(AuthContext); // TODO: move signout button to drawer
     const themeContext = useContext(ThemeContext);
-    const theme = themeContext.themeData.swatch;
+    const themeData = themeContext.themeData;
+    const theme = themeData.swatch;
     const toggleSwitch = () => setIsEnabled(!isEnabled);
-
     return (
         <View style = {[styles.container]}>
             <Header theme={theme} navigation={navigation} type='menu' />
@@ -128,7 +70,7 @@ const HomeScreen = ({ navigation }) => {
                         marginBottom: 10
                     }} 
                     onPress={() => navigation.navigate('Functions')}
-                    outlined
+                    outlined={themeData.cardOutlined}
                 >
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Functions Settings</Text>
                     <View style={styles.settings_icon}>
@@ -146,7 +88,7 @@ const HomeScreen = ({ navigation }) => {
                         marginBottom: 10
                     }} 
                     onPress={() => navigation.navigate('Cosmetics')}
-                    outlined
+                    outlined={themeData.cardOutlined}
                 >
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Cosmetic Settings</Text>
                     <View style={styles.settings_icon}>
@@ -160,13 +102,14 @@ const HomeScreen = ({ navigation }) => {
 
 const FunctionsScreen = ({ navigation }) => {
     const themeContext = useContext(ThemeContext);
-    const theme = themeContext.themeData.swatch;
+    const themeData = themeContext.themeData;
+    const theme = themeData.swatch;
 
     return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
-                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Grade Refresh Rate:</Text>
                     {/* TODO: dropdown for themes here */}
                 </Card>
@@ -177,22 +120,39 @@ const FunctionsScreen = ({ navigation }) => {
 
 const CosmeticsScreen = ({ navigation }) => {
     const themeContext = useContext(ThemeContext);
-    const theme = themeContext.themeData.swatch;
+    const themeData = themeContext.themeData;
+    const theme = themeData.swatch;
+    const setTheme = themeContext.setTheme;
 
     return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
-                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Theme: </Text>
+                <PressableCard theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10, padding: 0}} outlined={themeData.cardOutlined}>
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Theme: <Text style={{color: theme.s3}}>{themeContext.themeData.theme}</Text></Text>
                     {/* TODO: dropdown for themes here */}
-                </Card>
-                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                </PressableCard>
+                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Outlined cards: </Text>
-                    {/* TODO: incorporate this setting to themeContext so all components that use Card are synced */}
+                    <View style={[styles.settings_icon, {width: 50, top: '60%', right: 12}]}>
+                        <Switch 
+                            trackColor={{false: theme.s11, true: theme.s10}}
+                            thumbColor={theme.s6}
+                            onValueChange={() => setTheme({...themeData, cardOutlined: !themeData.cardOutlined})}
+                            value={themeData.cardOutlined}
+                        />
+                    </View>
                 </Card>
-                <Card theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10}} outlined>
+                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Transparent NavBar: </Text>
+                    <View style={[styles.settings_icon, {width: 50, top: '60%', right: 12}]}>
+                        <Switch 
+                            trackColor={{false: theme.s11, true: theme.s10}}
+                            thumbColor={theme.s6}
+                            onValueChange={() => setTheme({...themeData, navBarTransparent: !themeData.navBarTransparent})}
+                            value={!themeData.navBarTransparent}
+                        />
+                    </View>
                 </Card>
             </View>
         </View>
@@ -303,15 +263,6 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'flex-end',
     },
-    pressableCard_btn: {
-        width: '100%', 
-        height: '100%', 
-        borderRadius: 28,
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        paddingLeft: 15,
-        paddingRight: 15,
-    },
     header_text: {
         fontSize: 40,
         fontFamily: 'Proxima Nova Bold',
@@ -324,6 +275,13 @@ const styles = StyleSheet.create({
         fontSize: 20,
         marginBottom: 15,
         left: 2,
+    },
+    settings_card_switch: {
+        height: settingCardHeight, 
+        alignItems: 'flex-start', 
+        justifyContent: 'flex-start', 
+        marginBottom: 10, 
+        flexDirection: 'row'
     },
 });
 
