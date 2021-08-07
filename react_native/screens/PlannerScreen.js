@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext, useRef, forwardRef } from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
 import {
+    SectionList,
     FlatList,
-    ScrollView,
     View,
     Text,
     TouchableOpacity,
@@ -11,16 +11,14 @@ import {
     Dimensions,
     Modal,
     Pressable,
-    ActivityIndicator,
-    LogBox
+    ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
 import { ThemeContext } from '../components/themeContext';
 import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useIsFocused, ThemeProvider } from '@react-navigation/native';
-import Accordion from 'react-native-collapsible/Accordion';
+import { useIsFocused } from '@react-navigation/native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -29,196 +27,195 @@ import Animated, {
 } from 'react-native-reanimated';
 import SwipeableItem from 'react-native-swipeable-item/src';
 
-const maxChars = 40;
+const maxEventChars = 80;
 
-const PlannerBox = forwardRef(({ sectionIdx, eventIdx, data, handleDelete, handleTextChange, resetAddButton, theme }, ref) => {
+const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEventText, deleteEvent, theme }) => {
+    return (
+        <Modal
+            animationType='fade'
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => {
+                setModalVisible(false);
+            }}
+        >
+            <View style={[styles.event_modal, {backgroundColor: theme.s13, borderColor: theme.s4}]}>
+                <Pressable
+                    onPress={() => setModalVisible(false)}
+                    style={[{backgroundColor: theme.s6}, styles.event_modal_button]}
+                >
+                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Hide</Text>
+                </Pressable>
+                <Pressable
+                    onPress={deleteEvent}
+                    style={[{backgroundColor: theme.s2}, styles.event_modal_button]}
+                >
+                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Delete</Text>
+                </Pressable>
+            </View>
+        </Modal>
+    );
+}
+
+const EventBox = ({ sectionIdx, eventIdx, isLast, data, handleDelete, handleTextChange, resetAddButton, theme }) => {
     const [modalVisible, setModalVisible] = useState(false);
-    const [isEditing, setIsEditing] = useState(data.text === '' ? true : false);
+    const [isEditingBox, setIsEditingBox] = useState(data.text === '' ? true : false);
 
     const [text, setText] = useState(data.text);
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
+    const underlayLeft = ({ item, percentOpen, open, close }) => //TODO: change to archive, have archived section
+        <Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s11}]}>
+            <TouchableOpacity style={{right: 17}}>
+                <Icon
+                    name='trash-2'
+                    type='feather'
+                    size={35}
+                    color={theme.s9}
+                    onPress={() => handleDelete(sectionIdx, eventIdx)}
+                    onPressOut={close}
+                />
+            </TouchableOpacity>
+        </Animated.View>;
+    
     return (
-        <SwipeableItem
-            renderUnderlayLeft={({item, percentOpen, open, close}) =>
-                <Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s5}]}>
-                    <TouchableOpacity style={{right: 16}}>
-                        <Icon
-                            name='edit'
-                            type='feather'
-                            size={35}
-                            color={theme.s2}
-                            onPress={() => setModalVisible(true)}
-                            onPressOut={close}
-                        />
-                    </TouchableOpacity>
-                </Animated.View>}
-            snapPointsLeft={[70]}
-            ref={ref}
-        >
-            <View style = {styles.event_container}>
-                <View style={[styles.event_box, {backgroundColor: theme.s1, borderColor: theme.s2}]}>
-                    <Modal
-                        animationType='fade'
-                        transparent={true}
-                        visible={modalVisible}
-                        onRequestClose={() => {
-                            setModalVisible(false);
-                        }}
-                    >
-                        <View style={styles.event_container}>
-                            <View style={[styles.event_modal, {backgroundColor: theme.s2}]}>
-                                <Pressable
-                                    onPress={() => setModalVisible(false)}
-                                    style={[{backgroundColor: theme.s6}, styles.event_modal_button]}
-                                >
-                                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Hide</Text>
-                                </Pressable>
-                                <Pressable
-                                    onPress={() => {
-                                        setIsEditing(true);
-                                        setModalVisible(false);
+        <View style={[styles.event_container, {borderColor: theme.s3}, isLast && {
+            borderBottomWidth: 3,
+            borderBottomLeftRadius: 15,
+            borderBottomRightRadius: 15
+        }]}>
+            <SwipeableItem
+                renderUnderlayLeft={underlayLeft}
+                snapPointsLeft={[70]}
+            >
+                <Pressable style={[styles.event_box, {backgroundColor: theme.s1, borderColor: theme.s3}]} onPress={() => setModalVisible(true)}>
+                    <EventModal
+                        modalVisible={modalVisible}
+                        setModalVisible={setModalVisible}
+                        text={text}
+                        charsLeft={charsLeft}
+                        changeEventText={(newText, newCharsLeft) => handleTextChange(sectionIdx, eventIdx, newText, newCharsLeft)}
+                        deleteEvent={() => handleDelete(sectionIdx, eventIdx)}
+                        theme={theme}
+                    />
+                    {isEditingBox ? (
+                        <View style={styles.event_text_box}>
+                            <Text style={[styles.event_character_count, {color: theme.s4}]}>{ charsLeft }</Text>
+                            <View style={{minWidth: '100%', marginLeft: -4, marginRight: -4}}>
+                                <TextInput
+                                    scrollEnabled={false}
+                                    multiline={true}
+                                    autoFocus={true}
+                                    maxLength={maxEventChars}
+                                    textBreakStrategy='simple'
+                                    placeholder='Enter an event'
+                                    placeholderTextColor={toRGBA(theme.s6, 0.5)}
+                                    value={text}
+                                    onChangeText={text => {
+                                        if (text.slice(-1) !== '\n') {
+                                            setText(text);
+                                            setCharsLeft(maxEventChars - text.length);
+                                        }
                                     }}
-                                    style={[{backgroundColor: theme.s4}, styles.event_modal_button]}
-                                >
-                                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Edit</Text>
-                                </Pressable>
-                                <Pressable
-                                    onPress={() => handleDelete(sectionIdx, eventIdx)}
-                                    style={[{backgroundColor: theme.s2}, styles.event_modal_button]}
-                                >
-                                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Delete</Text>
-                                </Pressable>
+                                    onEndEditing={ () => {
+                                        if (isEditingBox === true) {
+                                            handleTextChange(sectionIdx, eventIdx, text, charsLeft);
+                                            resetAddButton();
+                                            setIsEditingBox(false);
+                                        }
+                                    }}
+                                    style={[styles.event_text, {color: theme.s6}]}
+                                />
                             </View>
                         </View>
-                    </Modal>
-                    {isEditing && <Text style={[styles.event_charCount, {color: theme.s4,}]}>{ charsLeft }</Text>}
-                    <View style = {styles.text_box}>
-                        <TextInput
-                            placeholder='Enter Event (e.g. Study for 20 min Today)'
-                            placeholderTextColor={toRGBA(theme.s6, 0.5)}
-                            textBreakStrategy='highQuality'
-                            multiline={true}
-                            maxLength={maxChars}
-                            textAlignVertical='center'
-                            value={text}
-                            editable={isEditing}
-                            autoFocus={true}
-                            onChangeText={text => {
-                                if (text.slice(-1) !== '\n') {
-                                    setText(text);
-                                    setCharsLeft(maxChars - text.length);
-                                }
-                            }}
-                            onEndEditing={ () => {
-                                handleTextChange(sectionIdx, eventIdx, text, charsLeft);
-                                resetAddButton();
-                                setIsEditing(false);
-                            }}
-                            style={[styles.event_text, {color: theme.s6}]}
-                            textAlign='center'
-                        />
-                    </View>
-                </View>
-            </View>
-        </SwipeableItem>
-    );
-})
-
-const CollapsibleSectionList = ({ events, activeSections, setActiveSections, handleDelete, handleTextChange, resetAddButton, theme }) => {
-    const itemsRef = useRef([]);
-
-    useEffect(() => {
-        //set itemsRef's length to be the appropriate length of a 1D list representing the 2D list of section items' refs
-        let length = 0;
-        for (let i = 0; i < events.length; i ++) {
-            length += events[i].data.length;
-        }
-        itemsRef.current = itemsRef.current.slice(0, length);
-    }, [events]);
-
-    const getRefIdx = (sectionIdx, eventIdx) => {
-        let idx = 0;
-        for (let i = 0; i < sectionIdx; i ++) {
-            idx += events[i].data.length;
-        }
-        return idx + eventIdx;
-    };
-
-    const closeSection = (sectionIdx) => { //closes all SwipeableItems in a section
-        let idx = 0;
-        for (let i = 0; i < sectionIdx; i ++) {
-            idx += events[i].data.length;
-        }
-        for (let i = idx; i < idx + events[sectionIdx].data.length; i ++) {
-            itemsRef.current[i].close();
-        }
-    };
-
-    const accordionSection = (section) =>
-        <FlatList
-            scrollEnabled={false}
-            data={section.data}
-            renderItem={({item, index}) =>
-                <PlannerBox
-                    key={item.key}
-                    sectionIdx={section.index}
-                    eventIdx={index}
-                    data={item.data}
-                    handleDelete={handleDelete}
-                    handleTextChange={handleTextChange}
-                    resetAddButton={resetAddButton}
-                    theme={theme}
-                    ref={el => itemsRef.current[getRefIdx(section.index, index)] = el}
-                />
-            }
-            keyExtractor={item => item.key}
-        />;
-
-    return (
-        <ScrollView showsVerticalScrollIndicator={false}>
-            <Accordion
-                sections={events}
-                activeSections={activeSections}
-                expandFromBottom={false}
-                expandMultiple={true}
-                containerStyle={styles.accordion_container}
-                //NOTE: THE BEST WAY is: renderAsFlatList={true} and no ScrollView, but it did not render my planner boxes correctly. TODO: fix this and implement renderAsFlatlist={true}
-                renderSectionTitle={(section) =>
-                    <View></View> //must have to avoid errors
-                }
-                renderHeader={(section) =>
-                    <View style={[styles.section_button, {backgroundColor: theme.s3}]}>
-                        <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
-                    </View>
-                }
-                renderContent={accordionSection}
-                onChange={(newActiveSections) => {
-                    //only activates sections that have events stored inside to avoid bugs
-                    let finalActiveSections = newActiveSections.filter(section => events.find(event => event.key === section).data.length !== 0);
-                    if (activeSections.length > finalActiveSections.length) { //meaning user closed a section
-                        const sortedPrev = [...activeSections].sort();
-                        finalActiveSections.sort();
-                        for (let i = 0; i < sortedPrev.length; i ++) {
-                            if (i >= finalActiveSections.length || sortedPrev[i] !== finalActiveSections[i]) {
-                                let closedSectionKey = sortedPrev[i];
-                                for (let j = 0; j < events.length; j ++) {
-                                    if (events[j].key === closedSectionKey) {
-                                        closeSection(j);
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    setActiveSections(finalActiveSections);
-                }}
-                keyExtractor={item => item.key}
-            />
-        </ScrollView>
+                    ) : (
+                        <View style={styles.event_text_box}>
+                            <Text
+                                style={[styles.event_text, {color: theme.s6}]}
+                                selectable={true}
+                                textBreakStrategy='simple'
+                            >
+                                { text }
+                            </Text>
+                        </View>
+                    )}
+                </Pressable>
+            </SwipeableItem>
+        </View>
     );
 }
+
+const EventList = forwardRef(({ isLoading, sortedEvents, handleDelete, handleTextChange, resetAddButton, refreshClasses, sectionListRef, theme }, ref) => {
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const checkEventsEmpty = () => {
+        for (let i = 0; i < sortedEvents.length; i ++) {
+            if (sortedEvents[i].data.length !== 0) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await refreshClasses();
+        setIsRefreshing(false);
+    };
+
+    const renderSectionHeader = ({ section: { name, data } }) => {
+        return (<View style={[styles.section_button, {backgroundColor: theme.s3}, data.length > 0 && {
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0
+        }]}>
+            <Text style={[styles.section_button_text, {color: theme.s6}]}>{name}</Text>
+        </View>);
+    };
+
+    const renderItem = ({ item, index, section }) => {
+        return (<EventBox
+            key={item.key}
+            sectionIdx={section.index}
+            eventIdx={index}
+            isLast={index === section.data.length - 1}
+            data={item.data}
+            handleDelete={handleDelete}
+            handleTextChange={handleTextChange}
+            resetAddButton={resetAddButton}
+            theme={theme}
+        />);
+    };
+
+    return (
+        isLoading ? (
+            <View style = {[styles.loading_container, {backgroundColor: theme.s1}]}>
+                <ActivityIndicator size = 'large' color = {theme.s4} />
+            </View>
+        ) : ( checkEventsEmpty() ? (  
+            <View style={styles.helper_container}>
+                <Text style={[styles.helper_text, {color: theme.s6}]}>
+                    There are no events in your planner right now...{'\n'}
+                    Click the button on the bottom right to add one!
+                </Text>
+            </View>
+        ) : (
+            <View style={styles.event_list_container}>
+                <SectionList
+                    showsVerticalScrollIndicator={false}
+                    sections={sortedEvents}
+                    keyExtractor={item => item.key}
+                    onRefresh={handleRefresh}
+                    refreshing={isRefreshing}
+                    renderSectionHeader={renderSectionHeader}
+                    renderItem={renderItem}
+                    ItemSeparatorComponent={() => <View style={{borderBottomWidth: 3, borderColor: theme.s2}}/>}
+                    ListFooterComponent={() => <View style={{marginBottom: 90}} />}
+                    ref={ref}
+                />
+            </View>
+        ))
+    );
+})
 
 const AddMenu = ({ addButtonXOffset, events, handleAdd, isLoading, theme }) => {
     const addButtonAnimatedStyle = useAnimatedStyle(() => {
@@ -258,7 +255,7 @@ const AddMenu = ({ addButtonXOffset, events, handleAdd, isLoading, theme }) => {
                         }
                         ListHeaderComponentStyle={{alignItems: 'center'}}
                         ItemSeparatorComponent={() => 
-                            <View style={{marginLeft: 15, marginRight: 15, borderBottomWidth: 3, borderColor: theme.s2}}></View>
+                            <View style={{marginLeft: 15, marginRight: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: theme.s2}} />
                         }
                         data={events}
                         renderItem={({item, index}) =>
@@ -297,19 +294,17 @@ const PlannerPage = ({ navigation }) => {
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
 
-    useEffect(() => {
-        LogBox.ignoreLogs(['VirtualizedLists should never be nested'])
-    }, []);
-
     const [isLoading, setIsLoading] = useState(true);
     const isFocused = useIsFocused();
 
     const addButtonXOffset = useSharedValue(0);
 
     const [events, setEvents] = useState([]);
-    const [activeSections, setActiveSections] = useState([]);
+    const [sortedEvents, setSortedEvents] = useState([]);
+
+    const sectionListRef = useRef(null);
     
-    const refreshClasses = async() => {
+    const refreshClasses = async () => {
         try {
             let storedClasses = await AsyncStorage.getItem('classes');
             let parsed = await JSON.parse(storedClasses);
@@ -340,14 +335,14 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    useEffect(async() => {
+    useEffect(async () => {
         if (isFocused) {
             await refreshClasses();
         }
     }, [isFocused]);
 
 
-    useEffect(async() => {
+    useEffect(async () => {
         try {
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
@@ -367,22 +362,16 @@ const PlannerPage = ({ navigation }) => {
                 key: randomKey,
                 data: {
                     text: '',
-                    charsLeft: maxChars
+                    charsLeft: maxEventChars
                 }
             });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             setEvents(newEvents);
-
-            let newKey = newEvents[sectionIdx].key;
-            let newKeyIsUnique = true;
-            for (let i = 0; i < activeSections.length; i ++) {
-                if (activeSections[i] === newKey) {
-                    newKeyIsUnique = false;
-                }
-            }
-            if (newKeyIsUnique) {
-                setActiveSections([...activeSections, newKey]);
-            }
+            sectionListRef.current.scrollToLocation({
+                itemIndex: newEvents[sectionIdx].data.length - 1,
+                sectionIndex: sectionIdx,
+                viewPosition: 0
+            })
         } catch(err) {
             console.log(err);
         }
@@ -394,13 +383,6 @@ const PlannerPage = ({ navigation }) => {
             newEvents[sectionIdx].data.splice(eventIdx, 1);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             setEvents(newEvents);
-
-            if (newEvents[sectionIdx].data.length === 0)
-            {
-                let newActiveSections = activeSections.slice();
-                newActiveSections.splice(newActiveSections.indexOf(newEvents[sectionIdx].key), 1);
-                setActiveSections(newActiveSections);
-            }
         } catch(err) {
             console.log(err);
         }
@@ -429,15 +411,6 @@ const PlannerPage = ({ navigation }) => {
         return result;
     };
 
-    const checkEventsEmpty = () => {
-        for (let i = 0; i < events.length; i ++) {
-            if (events[i].data.length !== 0) {
-                return false;
-            }
-        }
-        return true;
-    };
-
     return ( 
         <View style = {[styles.container, {backgroundColor: theme.s1}]}>
             <View style={styles.options_bar}>
@@ -449,7 +422,7 @@ const PlannerPage = ({ navigation }) => {
                         bottom={4}
                         hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
                         borderRadius = {80}
-                        name='menu' 
+                        name='menu'
                         color={theme.s4} 
                         size={35}
                         backgroundColor='transparent'
@@ -458,30 +431,17 @@ const PlannerPage = ({ navigation }) => {
                     />
                 </View>
             </View>
-            {isLoading ? (
-                <View style = {[styles.loading_container, {backgroundColor: theme.s1}]}>
-                    <ActivityIndicator size = 'large' color = {theme.s4} />
-                </View>
-            ) : (
-                checkEventsEmpty() ? (  
-                    <View style={styles.helper_container}>
-                        <Text style={[styles.helper_text, {color: theme.s6}]}>
-                            There are no events in your planner right now...{'\n'}
-                            Click the button on the bottom right to add one!
-                        </Text>
-                    </View>
-                ) : (
-                    <CollapsibleSectionList
-                        events={events}
-                        activeSections={activeSections}
-                        setActiveSections={setActiveSections}
-                        handleDelete={handleDelete}
-                        handleTextChange={handleTextChange}
-                        resetAddButton={() => {addButtonXOffset.value = 0;}}
-                        theme={theme}
-                    />
-                )
-            )}
+            <EventList
+                isLoading={isLoading}
+                sortedEvents={events}
+                handleDelete={handleDelete}
+                handleTextChange={handleTextChange}
+                resetAddButton={() => { addButtonXOffset.value = 0; }}
+                refreshClasses={refreshClasses}
+                ref={sectionListRef}
+                sectionListRef={sectionListRef}
+                theme={theme}
+            />
             <AddMenu
                 addButtonXOffset={addButtonXOffset}
                 events={events}
@@ -523,9 +483,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    accordion_container: {
+    event_list_container: {
         marginTop: -15,
-        marginBottom: 90,
         flex: 1,
         width: '100%',
         height: '100%'
@@ -533,7 +492,7 @@ const styles = StyleSheet.create({
     section_button: {
         marginTop: 15,
         minHeight: 50,
-        borderRadius: 15,
+        borderRadius: 25,
         justifyContent: 'center',
         alignItems: 'center'
     },
@@ -541,18 +500,19 @@ const styles = StyleSheet.create({
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15
     },
+    event_container: {
+        borderLeftWidth: 3,
+        borderRightWidth: 3,
+        overflow: 'hidden'
+    },
     event_edit_underlay: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-    },
-    event_container: {
-        flex: 1
+        justifyContent: 'flex-end'
     },
     event_box: {
         width: '100%',
-        borderBottomWidth: 3,
         justifyContent: 'center',
         padding: 25
     },
@@ -561,6 +521,7 @@ const styles = StyleSheet.create({
         marginLeft: 15,
         marginRight: 15,
         height: '30%',
+        borderWidth: 3,
         borderRadius: 15,
         flexDirection: 'row',
         padding: 5,
@@ -577,21 +538,20 @@ const styles = StyleSheet.create({
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'bold',
     },
-    event_charCount: {
-        position: 'absolute',
-        right: 13
-    },
-    text_box: {
-        backgroundColor: 'transparent',
+    event_text_box: {
         minHeight: 30,
-        flexDirection: 'column',
-        marginLeft: 20,
-        marginRight: 20
-    },  
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    event_character_count: {
+        position: 'absolute',
+        top: -10
+    },
     event_text: {
-        fontSize: 15,   
+        fontSize: 15,
         fontFamily: 'ProximaNova-Regular',
         fontWeight: 'normal',
+        textAlign: 'center'
     },
     add_button: {
         width: 60,
