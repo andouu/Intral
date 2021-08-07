@@ -9,7 +9,8 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 
 const Drawer = createDrawerNavigator();
 
-const RemindersDrawer = () => {
+const RemindersDrawer = ({ navigation }) => {
+
     return (
         <Drawer.Navigator 
             initialRouteName='Planner'
@@ -18,7 +19,7 @@ const RemindersDrawer = () => {
             }}
         >
             <Drawer.Screen name='Planner' component={PlannerScreen} />
-            <Drawer.Screen name='Calendar' component={CalendarScreen} />
+            <Drawer.Screen name='Calendar' component={CalendarScreen} options={{}} />
         </Drawer.Navigator>
     );
 }
