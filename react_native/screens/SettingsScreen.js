@@ -3,7 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { ThemeContext } from '../components/themeContext';
 import { AuthContext } from '../components/authContext';
 import { toRGBA, widthPctToDP } from '../components/utils';
-import { getTheme } from '../components/themes';
+import { colorways } from '../components/themes';
 import { Card, PressableCard } from '../components/card';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 //import DropDownPicker from 'react-native-dropdown-picker'; for picking themes
@@ -20,6 +20,7 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
+import { color } from 'react-native-elements/dist/helpers';
 
 const Header = ({ navigation, theme, type }) => {
 
@@ -118,23 +119,137 @@ const FunctionsScreen = ({ navigation }) => {
     );
 }
 
-const CosmeticsScreen = ({ navigation }) => {
+const ThemeBox = ({name}) => {
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
     const setTheme = themeContext.setTheme;
 
     return (
+        <Pressable 
+            style={({pressed}) => [{
+                width: '100%', 
+                height: 55, 
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: theme.s4, 
+                marginBottom: 0, 
+                justifyContent: 'center',
+                backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
+                
+            }]}
+            onPress={() => {
+                if(name !== themeData.theme) {
+                    setTheme({...themeData, theme: name, swatch: colorways[name]});
+                }
+            }}
+        >
+            <Text style={[styles.settings_main_text, {color: theme.s4, fontSize: 17, maxWidth: 250}]}>{name}</Text>
+            <View style={{width: 20, height: 20, position: 'absolute', right: 0, borderRadius: 30, borderWidth: 1.5, borderColor: theme.s4, padding: 2}}>
+                {name === themeData.theme
+                    ? <View style={{flex: 1, borderRadius: 30, backgroundColor: theme.s3}} />
+                    : null
+                }
+            </View>
+        </Pressable>
+    );
+}
+
+const CosmeticsScreen = ({ navigation }) => {
+    const [openedCards, setOpenedCards] = useState({
+        theme: false,
+    })
+
+    const themeContext = useContext(ThemeContext);
+    const themeData = themeContext.themeData;
+    const theme = themeData.swatch;
+    const setTheme = themeContext.setTheme;
+
+    const cardHeight = useSharedValue(settingCardHeight);
+    const animatedCardStyle = useAnimatedStyle(() => {
+        return {
+            height: withTiming(cardHeight.value, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    const themeDpdnOpacity = useSharedValue(0);
+    const themeDpdnHeight = useSharedValue(0);
+    const animatedDropdownContentStyle = useAnimatedStyle(() => {
+        return {
+            opacity: withTiming(themeDpdnOpacity.value, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            height: withTiming(themeDpdnHeight.value, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    useEffect(() => {
+        if(openedCards.theme) {
+            cardHeight.value = Object.keys(colorways).length * 55 + 80;
+            themeDpdnOpacity.value = 1;
+            themeDpdnHeight.value = Object.keys(colorways).length * 55;
+        } else {
+            cardHeight.value = settingCardHeight;
+            themeDpdnOpacity.value = 0;
+            themeDpdnHeight.value = 0;
+        }
+    }, [openedCards.theme]);
+
+    let themeBoxes = [];
+    for(let swatch in colorways) {
+        themeBoxes.push(
+            <ThemeBox name={swatch} />
+        );
+    }
+
+    return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
-                <PressableCard theme={theme} customStyle={{height: settingCardHeight, alignItems: 'flex-start', marginBottom: 10, padding: 0}} outlined={themeData.cardOutlined}>
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Theme: <Text style={{color: theme.s3}}>{themeContext.themeData.theme}</Text></Text>
+                <PressableCard 
+                    theme={theme} 
+                    customStyle={{
+                        alignItems: 'flex-start',
+                        justifyContent: 'flex-end',
+                        marginBottom: 10, 
+                        padding: themeData.cardOutlined ? 0 : 1.5,
+                    }} 
+                    onPress={() => {
+                        setOpenedCards({
+                            ...openedCards,
+                            theme: !openedCards.theme
+                        });
+                    }}
+                    animatedStyle={animatedCardStyle}
+                    outlined={themeData.cardOutlined}
+                >
+                    <Text style={[styles.settings_main_text, {color: theme.s4, position: 'absolute', top: 15, left: 15}]}>
+                        Theme:  <Text style={{color: theme.s3}}>{themeContext.themeData.theme}</Text>
+                    </Text>
                     {/* TODO: dropdown for themes here */}
+                    <View style={[styles.settings_icon, {position: 'absolute', top: 15/2, right: 10}]}>
+                        <MaterialDesignIcon 
+                            name={openedCards.theme ? 'chevron-up' : 'chevron-down'} 
+                            size={30} 
+                            color={theme.s4} 
+                            style={{top: openedCards.theme ? 0 : 2}} 
+                        />
+                    </View>
+                    <Animated.View style={[
+                        {
+                            width: '100%', 
+                            top: 15, 
+                            borderTopWidth: StyleSheet.hairlineWidth, 
+                            borderTopColor: theme.s4
+                        },
+                        animatedDropdownContentStyle
+                        ]}
+                    >
+                            {themeBoxes.map(box => {
+                            return box;
+                        })}
+                    </Animated.View>
                 </PressableCard>
                 <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Outlined cards: </Text>
-                    <View style={[styles.settings_icon, {width: 50, top: '60%', right: 12}]}>
+                    <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
                         <Switch 
                             trackColor={{false: theme.s11, true: theme.s10}}
                             thumbColor={theme.s6}
@@ -145,7 +260,7 @@ const CosmeticsScreen = ({ navigation }) => {
                 </Card>
                 <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Transparent NavBar: </Text>
-                    <View style={[styles.settings_icon, {width: 50, top: '60%', right: 12}]}>
+                    <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
                         <Switch 
                             trackColor={{false: theme.s11, true: theme.s10}}
                             thumbColor={theme.s6}
@@ -209,16 +324,6 @@ const styles = StyleSheet.create({
         paddingRight: 15,
         paddingTop: 0,
     },
-    setting_box: {
-        width: "100%",
-        height: 60,
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        margin: 15,
-        borderRadius: 5,
-        backgroundColor: '#EAEAEA',
-    },
     profilePic: {
         width: 150,
         height: 150,
@@ -256,7 +361,7 @@ const styles = StyleSheet.create({
     },
     settings_main_text: {
         fontSize: 20,
-        fontFamily: 'ProximaNova-Regular',
+        fontFamily: 'Proxima Nova Bold',
     },
     settings_icon: {
         position: 'absolute',

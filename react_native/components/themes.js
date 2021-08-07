@@ -16,11 +16,11 @@ export const swatchDark = {
 
 const swatchLight = {
     s1: 'rgb(255,255,255)',
-    s2: 'rgb(72,72,81)',
+    s2: 'rgb(25,25,25)',
     s3: 'rgb(1,112,255)',
-    s4: 'rgb(160,152,145)',
+    s4: 'rgb(234,234,234)',
     s5: 'rgb(201,155,59)',
-    s6: 'rgb(247,248,249)',
+    s6: 'rgb(0,0,0)',
     s7: 'rgb(163,113,51)',
     s8: 'rgb(89,138,197)',
     s9: 'rgb(25,25,25)',
@@ -30,15 +30,9 @@ const swatchLight = {
     s13: 'rgb(52,52,59)',
 }
 
-export const getTheme = (name) => {
-    switch(name) {
-        case 'Dark':
-            return swatchDark;      
-        case 'Light':
-            return swatchLight;
-        default:
-            return swatchDark;
-    }
+export const colorways = {
+    Dark: swatchDark,
+    Light: swatchLight,
 }
 
 export const hexToRgb = (hex) => {

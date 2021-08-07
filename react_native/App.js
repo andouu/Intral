@@ -17,7 +17,7 @@ import {
     StatusBar,
     StyleSheet,
 } from 'react-native';
-import { getTheme } from './components/themes';
+import { colorways } from './components/themes';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
@@ -35,12 +35,12 @@ const App = () => {
         theme: 'Dark',
         cardOutlined: true,
         navBarTransparent: false,
-        swatch: getTheme('Dark'), // TODO: add more themes
+        swatch: colorways.Dark, // TODO: add more themes
     });
 
     const themeValue = {
         themeData,
-        setTheme: (newData) => {setThemeData(newData); console.log(themeData.navBarTransparent)}
+        setTheme: (newData) => { setThemeData(newData) }
     }
 
     const initialLoginState = {
