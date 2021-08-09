@@ -4,6 +4,8 @@ import {
     View,
     Text,
     Pressable,
+    Dimensions,
+    PixelRatio,
 } from 'react-native';
 import { toRGBA } from '../components/utils';
 import { useIsFocused } from '@react-navigation/core';
@@ -12,6 +14,7 @@ import { ThemeContext } from '../components/themeContext';
 import Animated, {
     useSharedValue,
     withTiming,
+    withSpring,
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
@@ -25,13 +28,13 @@ function dayOfWeek(d, m, y) { // https://www.geeksforgeeks.org/find-day-of-the-w
     return ( y + y/4 - y/100 + y/400 + t[m-1] + d) % 7;
 }
 
-const CalendarDay = ({ displayDay, month, year, theme }) => {
-    const dateToday = new Date();
-    const dayToday = dateToday.getDate();
-    const monthToday = dateToday.getMonth();
-    const yearToday = dateToday.getFullYear();
+const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleydson/0e778e834655d1ee177725d8b4b345d7
+    const screenWidth = Dimensions.get('window').width - 2 * padding;
+    const elemWidth = parseFloat(widthPct);
+    return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
+}
 
-    const sameDay = (displayDay === dayToday && monthToday === month && yearToday === year);
+const CalendarDay = ({ displayDay, sameDay=false, theme }) => {
 
     return (
         <View style={[styles.calendar_day, {}]}>
@@ -49,6 +52,12 @@ const SingleCalendar = ({ size, hwr=75, view='single', style, theme, month, year
     if(typeof size === 'string') {
         height = parseInt(size) * (hwr/100) + '%';
     }
+
+    const dateToday = new Date();
+    const dayToday = dateToday.getDate();
+    const monthToday = dateToday.getMonth();
+    const yearToday = dateToday.getFullYear();
+    
     const getDaysOfMonth = (month) => { // days in month
         if(month === 2) {
             if(year % 400 === 0)
@@ -68,6 +77,7 @@ const SingleCalendar = ({ size, hwr=75, view='single', style, theme, month, year
     const numDays = getDaysOfMonth(month+1);
 
     let dayLabels = daysOfWeek.map((day, index) => {
+        const sameMonthYear = (monthToday === month && yearToday === year);
         return (
             <View 
                 key={index} 
@@ -79,7 +89,17 @@ const SingleCalendar = ({ size, hwr=75, view='single', style, theme, month, year
                     borderBottomColor: theme.s4,
                 }}
             >
-                <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 12, color: theme.s4}}>{day.substr(0, 2)}</Text>
+                <Text 
+                    style={{
+                        fontFamily: 'Proxima Nova Bold', 
+                        fontSize: 12, 
+                        color: index === Math.round(dayOfWeek(dayToday, month+1, year))%7 && sameMonthYear
+                            ? theme.s6 
+                            : theme.s4
+                    }}
+                >
+                    {day.substr(0, 3)}
+                </Text>
             </View>
         );
     });
@@ -102,8 +122,9 @@ const SingleCalendar = ({ size, hwr=75, view='single', style, theme, month, year
                 finishedCounting = true;
             }
         }
+        const sameDay = (count === dayToday && monthToday === month && yearToday === year);
         dayBoxes.push(
-            <CalendarDay key={i} theme={theme} displayDay={count} month={month} year={year} />
+            <CalendarDay key={i} theme={theme} displayDay={count} month={month} year={year} sameDay={sameDay} />
         );
     }
 
@@ -119,10 +140,7 @@ const SingleCalendar = ({ size, hwr=75, view='single', style, theme, month, year
     );
 }
 
-const Calendar = ({ themeData }) => {
-    const dateToday = new Date();
-    const [selectedDate, setSelectedDate] = useState({});
-    
+const Calendar = ({ themeData, selectedDate, setSelectedDate, dateToday }) => {    
     const isFocused = useIsFocused();
 
     const theme = themeData.swatch;
@@ -148,6 +166,7 @@ const Calendar = ({ themeData }) => {
 
     useEffect(() => {
         setSelectedDate({
+            ...selectedDate,
             month: dateToday.getMonth(),
             year: dateToday.getFullYear(),
         });
@@ -204,11 +223,122 @@ const Calendar = ({ themeData }) => {
     );
 }
 
+const EListBtnGroup = ({ theme, style, range, setRange }) => {
+    const rangeDict = {
+        Today: 0,
+        Tomorrow: 1,
+        'This Week': 2,
+    }
+    const groupWidth = widthPctToDP(80, 20);
+
+    const animatedSelectedIndicatorStyle = useAnimatedStyle(() => {
+        return {
+            left: withTiming(rangeDict[range] * groupWidth/3 + 5, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    return (
+        // TODO: refactor below lines to use themecontext cardOutlined after merge with settings/main
+        <View style={[styles.eList_btn_group, {backgroundColor: theme.s1, borderWidth: 1.5, borderColor: theme.s13}, style]}>
+            <Animated.View style={[{width: groupWidth/3 - 5, height: '100%', position: 'absolute', top: 5, borderRadius: 30, backgroundColor: theme.s8}, animatedSelectedIndicatorStyle]} /> 
+            <Pressable
+                style={{
+                    flex: 1, 
+                    height: '100%', 
+                    alignItems: 'center',
+                    justifyContent: 'center', 
+                }}
+                onPress={() => setRange('Today')}
+            >
+                <Text style={[styles.btn_group_text, {color: theme.s6}]}>Today</Text>
+            </Pressable>
+            <Pressable
+                style={{
+                    flex: 1, 
+                    height: '100%', 
+                    alignItems: 'center',
+                    justifyContent: 'center', 
+                }}
+                onPress={() => setRange('Tomorrow')}
+            >
+                <Text style={[styles.btn_group_text, {color: theme.s6}]}>Tomorrow</Text>
+            </Pressable>
+            <Pressable
+                style={{
+                    flex: 1, 
+                    height: '100%', 
+                    alignItems: 'center',
+                    justifyContent: 'center', 
+                }}
+                onPress={() => setRange('This Week')}
+            >
+                <Text style={[styles.btn_group_text, {color: theme.s6}]}>Week</Text>
+            </Pressable>
+        </View>
+    );
+}
+
 const CalendarScreen = ({ navigation }) => {
+    const [eventListExpanded, setEventListExpanded] = useState(false);
+    const dateToday = new Date();
+    const [selectedDate, setSelectedDate] = useState({
+        day: dateToday.getDate(),
+        month: dateToday.getMonth(),
+        year: dateToday.getFullYear(),
+    });
+    const [range, setRange] = useState('Tomorrow');
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
 
+    const animatedEventListStyle = useAnimatedStyle(() => {
+        return {
+            top: withTiming(eventListExpanded ? -360 : 0, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    const animatedEventListHeaderStyle = useAnimatedStyle(() => {
+        return {
+            fontSize: withTiming(eventListExpanded ? 35 : 25, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            marginBottom: withTiming(eventListExpanded ? 5 : 20, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    const animatedEventListSubheaderStyle = useAnimatedStyle(() => {
+        return {
+            opacity: withTiming(eventListExpanded ? 1 : 0, {duration: 1400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            fontSize: withTiming(eventListExpanded ? 18 : 0, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+        }
+    });
+
+    let eventListSubheaderText;
+    let selectedDayOfWeek = Math.round(dayOfWeek(selectedDate.day, selectedDate.month+1, selectedDate.year))%7;
+    switch(range) {
+        case 'Today':
+            eventListSubheaderText = `${daysOfWeek[selectedDayOfWeek]}, ${selectedDate.month+1}/${selectedDate.day}/${selectedDate.year}`;
+            break;
+        case 'Tomorrow':
+            const dateTomorrow = new Date(dateToday);
+            dateTomorrow.setDate(dateTomorrow.getDate() + 1);
+
+            const tmrOfSelectedDayOfWeek = Math.round(dayOfWeek(dateTomorrow.getDate(), dateTomorrow.getMonth()+1, dateTomorrow.getFullYear()))%7;
+            eventListSubheaderText = `${daysOfWeek[tmrOfSelectedDayOfWeek]}, ${dateTomorrow.getMonth()+1}/${dateTomorrow.getDate()}/${dateTomorrow.getFullYear()}`;
+            break;
+        case 'This Week':
+            let firstDayOfWeek, lastDayOfWeek;
+            
+            firstDayOfWeek = new Date(dateToday);
+            if(selectedDayOfWeek !== 0) {
+                firstDayOfWeek.setDate(firstDayOfWeek.getDate() - selectedDayOfWeek);
+            }
+
+            lastDayOfWeek = new Date(dateToday);
+            lastDayOfWeek.setDate(lastDayOfWeek.getDate() + (7 - selectedDayOfWeek));
+
+            eventListSubheaderText = `${firstDayOfWeek.getMonth()+1}/${firstDayOfWeek.getDate()}/${lastDayOfWeek.getFullYear()} - ${lastDayOfWeek.getMonth()+1}/${lastDayOfWeek.getDate()}/${lastDayOfWeek.getFullYear()}`
+            break;
+    }
+    
     return (
         <View style={[styles.container, {backgroundColor: theme.s1}]}>
             <View style={styles.optionsBar}>
@@ -230,8 +360,37 @@ const CalendarScreen = ({ navigation }) => {
                 </View>
             </View>
             <View style={styles.main_container}>
-                <Text style={[styles.header_text, {color: theme.s6}]}>Your Calendar:</Text>
-                <Calendar themeData={themeData} />
+                <Animated.View style={[styles.header_text, {left: 0, width: '100%'}, /* animatedMainHeaderStyle */]}>
+                    <Text style={[styles.header_text, {color: theme.s6, marginBottom: 0}]}>Your Calendar:</Text>
+                </Animated.View>
+                <Calendar themeData={themeData} selectedDate={selectedDate} setSelectedDate={setSelectedDate} dateToday={dateToday} />
+                <Animated.View style={[{width: '100%', height: '100%', backgroundColor: theme.s1}, animatedEventListStyle]}>
+                    <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>
+                    <Animated.Text style={[{fontFamily: 'Proxima Nova Bold', left: 5, color: theme.s4}, animatedEventListSubheaderStyle]}>
+                        {eventListSubheaderText}
+                    </Animated.Text>
+                    <Pressable
+                        style={({pressed}) => [
+                            {
+                                position: 'absolute',
+                                right: 0,
+                                width: 35,
+                                height: 35,
+                                top: -5,
+                                borderRadius: 30,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
+                            },
+                        ]}
+                        onPress={() => {
+                            setEventListExpanded(!eventListExpanded);
+                        }}
+                    >
+                        <MaterialDesignIcons name='arrow-expand' size={18} color={theme.s4} />
+                    </Pressable>  
+                </Animated.View>
+                <EListBtnGroup theme={theme} range={range} setRange={setRange} />
             </View>
         </View>
     );
@@ -292,6 +451,7 @@ const styles = StyleSheet.create({
     calendar_container: {
         width: '100%', 
         height: 300,
+        marginBottom: 5,
     },
     calendar_header: {
         width: '100%',
@@ -313,7 +473,20 @@ const styles = StyleSheet.create({
         borderRadius: 30, 
         alignItems: 'center', 
         justifyContent: 'center', 
-    }
+    },
+    eList_btn_group: {
+        width: '80%',
+        height: 40, 
+        position: 'absolute',
+        left: '15%',
+        bottom: 25,
+        padding: 5,
+        flexDirection: 'row',
+        borderRadius: 30,
+    },
+    btn_group_text: {
+        fontFamily: 'Proxima Nova Bold',
+    },
 });
 
 export default CalendarScreen;
