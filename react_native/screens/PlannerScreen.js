@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useContext, useRef, forwardRef } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
 import {
-    SectionList,
     FlatList,
     View,
     Text,
@@ -11,7 +10,10 @@ import {
     Dimensions,
     Modal,
     Pressable,
-    ActivityIndicator
+    ActivityIndicator,
+    UIManager,
+    LayoutAnimation,
+    LogBox
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
@@ -26,6 +28,17 @@ import Animated, {
     Easing
 } from 'react-native-reanimated';
 import SwipeableItem from 'react-native-swipeable-item/src';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+
+LogBox.ignoreLogs([
+  'ReactNativeFiberHostComponent: Calling getNode() on the ref of an Animated component is no longer necessary. You can now directly use the ref instead. This method will be removed in a future release.',
+]);
+
+if (Platform.OS === 'android') {
+    if (UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+}
 
 const maxEventChars = 80;
 
@@ -47,7 +60,7 @@ const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEven
                     <Text style={[styles.event_modal_text, {color: theme.s1}]}>Hide</Text>
                 </Pressable>
                 <Pressable
-                    onPress={deleteEvent}
+                    onPress={() => {deleteEvent(); setModalVisible(false);}}
                     style={[{backgroundColor: theme.s2}, styles.event_modal_button]}
                 >
                     <Text style={[styles.event_modal_text, {color: theme.s1}]}>Delete</Text>
@@ -57,38 +70,39 @@ const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEven
     );
 }
 
-const EventBox = ({ sectionIdx, eventIdx, isLast, data, handleDelete, handleTextChange, resetAddButton, theme }) => {
+const EventBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange, handleDrag, isDragging, resetAddButton, theme }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditingBox, setIsEditingBox] = useState(data.text === '' ? true : false);
 
     const [text, setText] = useState(data.text);
     const [charsLeft, setCharsLeft] = useState(data.charsLeft);
 
-    const underlayLeft = ({ item, percentOpen, open, close }) => //TODO: change to archive, have archived section
-        <Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s11}]}>
+    const underlayLeft = useCallback(({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
+        return (<Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s11}]}>
             <TouchableOpacity style={{right: 17}}>
                 <Icon
                     name='trash-2'
                     type='feather'
                     size={35}
                     color={theme.s9}
-                    onPress={() => handleDelete(sectionIdx, eventIdx)}
-                    onPressOut={close}
+                    onPress={() => {handleDelete(sectionIdx, eventIdx); close();}}
                 />
             </TouchableOpacity>
-        </Animated.View>;
+        </Animated.View>);
+    }, []);
     
     return (
-        <View style={[styles.event_container, {borderColor: theme.s3}, isLast && {
-            borderBottomWidth: 3,
-            borderBottomLeftRadius: 15,
-            borderBottomRightRadius: 15
-        }]}>
+        <View style={[styles.event_container, {borderTopWidth: 1.5, borderTopColor: theme.s2, borderBottomWidth: 1.5, borderBottomColor: theme.s2}]}>
             <SwipeableItem
                 renderUnderlayLeft={underlayLeft}
                 snapPointsLeft={[70]}
             >
-                <Pressable style={[styles.event_box, {backgroundColor: theme.s1, borderColor: theme.s3}]} onPress={() => setModalVisible(true)}>
+                <Pressable
+                    style={[styles.event_box, {backgroundColor: isDragging ? theme.s9 : theme.s1, borderColor: theme.s3}]}
+                    onPress={() => setModalVisible(true)}
+                    delayLongPress={300}
+                    onLongPress={handleDrag}
+                >
                     <EventModal
                         modalVisible={modalVisible}
                         setModalVisible={setModalVisible}
@@ -145,8 +159,8 @@ const EventBox = ({ sectionIdx, eventIdx, isLast, data, handleDelete, handleText
     );
 }
 
-const EventList = forwardRef(({ isLoading, sortedEvents, handleDelete, handleTextChange, resetAddButton, refreshClasses, sectionListRef, theme }, ref) => {
-    const [isRefreshing, setIsRefreshing] = useState(false);
+const EventList = ({ isLoading, sortedEvents, handleDelete, handleTextChange, handleUpdateSection, resetAddButton, theme }) => {
+    const [scrollEnabled, setScrollEnabled] = useState(true);
 
     const checkEventsEmpty = () => {
         for (let i = 0; i < sortedEvents.length; i ++) {
@@ -157,34 +171,14 @@ const EventList = forwardRef(({ isLoading, sortedEvents, handleDelete, handleTex
         return true;
     };
 
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        await refreshClasses();
-        setIsRefreshing(false);
-    };
-
-    const renderSectionHeader = ({ section: { name, data } }) => {
-        return (<View style={[styles.section_button, {backgroundColor: theme.s3}, data.length > 0 && {
+    const renderSectionHeader = useCallback((section) => {
+        return (<View style={[styles.section_button, {backgroundColor: theme.s3}, section.data.length > 0 && {
             borderBottomLeftRadius: 0,
             borderBottomRightRadius: 0
         }]}>
-            <Text style={[styles.section_button_text, {color: theme.s6}]}>{name}</Text>
+            <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
         </View>);
-    };
-
-    const renderItem = ({ item, index, section }) => {
-        return (<EventBox
-            key={item.key}
-            sectionIdx={section.index}
-            eventIdx={index}
-            isLast={index === section.data.length - 1}
-            data={item.data}
-            handleDelete={handleDelete}
-            handleTextChange={handleTextChange}
-            resetAddButton={resetAddButton}
-            theme={theme}
-        />);
-    };
+    }, []);
 
     return (
         isLoading ? (
@@ -200,22 +194,49 @@ const EventList = forwardRef(({ isLoading, sortedEvents, handleDelete, handleTex
             </View>
         ) : (
             <View style={styles.event_list_container}>
-                <SectionList
+                <FlatList
                     showsVerticalScrollIndicator={false}
-                    sections={sortedEvents}
-                    keyExtractor={item => item.key}
-                    onRefresh={handleRefresh}
-                    refreshing={isRefreshing}
-                    renderSectionHeader={renderSectionHeader}
-                    renderItem={renderItem}
-                    ItemSeparatorComponent={() => <View style={{borderBottomWidth: 3, borderColor: theme.s2}}/>}
+                    scrollEnabled={scrollEnabled}
+                    data={sortedEvents}
+                    renderItem={({ item, index }) => {
+                        let sectionIdx = index;
+                        let sectionLength = item.data.length;
+                        return (<React.Fragment>
+                            {renderSectionHeader(item)}
+                            <DraggableFlatList
+                                scrollEnabled={false}
+                                containerStyle={[sectionLength > 0 && styles.section_container, {borderColor: theme.s3}]}
+                                data={item.data}
+                                renderItem={({ item, index, drag, isActive }) => {
+                                    return (<EventBox
+                                        key={item.key}
+                                        sectionIdx={sectionIdx}
+                                        eventIdx={index}
+                                        data={item.data}
+                                        handleDelete={handleDelete}
+                                        handleTextChange={handleTextChange}
+                                        handleDrag={drag}
+                                        isDragging={isActive}
+                                        resetAddButton={resetAddButton}
+                                        theme={theme}
+                                    />);
+                                }}
+                                keyExtractor={item => item.key}
+                                onDragBegin={() => setScrollEnabled(false)}
+                                onDragEnd={({ data }) => {handleUpdateSection(index, data); setScrollEnabled(true);}}
+                                activationDistance={20}
+                            />
+                        </React.Fragment>);
+                    }}
+                    ItemSeparatorComponent={() => <View style={{marginBottom: 15}} />}
                     ListFooterComponent={() => <View style={{marginBottom: 90}} />}
-                    ref={ref}
+                    keyExtractor={item => item.key}
+                    removeClippedSubviews={false}
                 />
             </View>
         ))
     );
-})
+}
 
 const AddMenu = ({ addButtonXOffset, events, handleAdd, isLoading, theme }) => {
     const addButtonAnimatedStyle = useAnimatedStyle(() => {
@@ -300,9 +321,6 @@ const PlannerPage = ({ navigation }) => {
     const addButtonXOffset = useSharedValue(0);
 
     const [events, setEvents] = useState([]);
-    const [sortedEvents, setSortedEvents] = useState([]);
-
-    const sectionListRef = useRef(null);
     
     const refreshClasses = async () => {
         try {
@@ -366,12 +384,8 @@ const PlannerPage = ({ navigation }) => {
                 }
             });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            LayoutAnimation.configureNext(LayoutAnimation.create(300, 'easeInEaseOut', 'scaleY'));
             setEvents(newEvents);
-            sectionListRef.current.scrollToLocation({
-                itemIndex: newEvents[sectionIdx].data.length - 1,
-                sectionIndex: sectionIdx,
-                viewPosition: 0
-            })
         } catch(err) {
             console.log(err);
         }
@@ -382,6 +396,7 @@ const PlannerPage = ({ navigation }) => {
             let newEvents = events.slice();
             newEvents[sectionIdx].data.splice(eventIdx, 1);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setEvents(newEvents);
         } catch(err) {
             console.log(err);
@@ -390,12 +405,23 @@ const PlannerPage = ({ navigation }) => {
 
     const handleTextChange = async(sectionIdx, eventIdx, newText, newCharsLeft) => {
         try {
-            let currEvents = events.slice();
-            let edits = currEvents[sectionIdx].data[eventIdx];
+            let newEvents = events.slice();
+            let edits = newEvents[sectionIdx].data[eventIdx];
             edits.data.text = newText;
             edits.data.charsLeft = newCharsLeft;
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(currEvents));
-            setEvents(currEvents);
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            setEvents(newEvents);
+        } catch(err) {
+            console.log(err);
+        }
+    };
+
+    const handleUpdateSection = async(sectionIdx, newSectionData) => {
+        try {
+            let newEvents = events.slice();
+            newEvents[sectionIdx].data = newSectionData;
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
+            setEvents(newEvents);
         } catch(err) {
             console.log(err);
         }
@@ -436,10 +462,8 @@ const PlannerPage = ({ navigation }) => {
                 sortedEvents={events}
                 handleDelete={handleDelete}
                 handleTextChange={handleTextChange}
+                handleUpdateSection={handleUpdateSection}
                 resetAddButton={() => { addButtonXOffset.value = 0; }}
-                refreshClasses={refreshClasses}
-                ref={sectionListRef}
-                sectionListRef={sectionListRef}
                 theme={theme}
             />
             <AddMenu
@@ -489,8 +513,13 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%'
     },
+    section_container: {
+        borderWidth: 3,
+        borderBottomLeftRadius: 15,
+        borderBottomRightRadius: 15,
+        overflow: 'hidden'
+    },
     section_button: {
-        marginTop: 15,
         minHeight: 50,
         borderRadius: 25,
         justifyContent: 'center',
@@ -501,8 +530,6 @@ const styles = StyleSheet.create({
         fontSize: 15
     },
     event_container: {
-        borderLeftWidth: 3,
-        borderRightWidth: 3,
         overflow: 'hidden'
     },
     event_edit_underlay: {
@@ -539,7 +566,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     event_text_box: {
-        minHeight: 30,
+        minHeight: 50,
         justifyContent: 'center',
         alignItems: 'center'
     },
