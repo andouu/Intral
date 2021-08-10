@@ -6,7 +6,7 @@ import React, {
     useState,
     useReducer,
 } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { createDrawerNavigator } from '@react-navigation/drawer';
 // WARNING: AsyncStorage is NOT SECURE BY ITSELF. Pair with other libraries such as react-native-keychain and etc. when storing sensitive data.
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
@@ -149,7 +149,15 @@ const App = () => {
                                 style: {backgroundColor: themeData.swatch.s1},
                             }}
                         >
-                            <Drawer.Screen name = 'Home' component = {MainStackScreen} />
+                            <Drawer.Screen 
+                                name = 'Home' 
+                                component = {MainStackScreen} 
+                                options={({route}) => {
+                                    const routeName = getFocusedRouteNameFromRoute(route) ?? 'Personal' // https://stackoverflow.com/questions/55171880/how-to-disable-drawer-navigation-swipe-for-one-of-navigator-screen-only
+                                    if(routeName !== 'Personal')
+                                        return ({swipeEnabled: false})
+                                }}
+                            />
                             <Drawer.Screen name = 'Settings' component = {SettingsScreen} />
                         </Drawer.Navigator>
                     ) : (
