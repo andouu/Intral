@@ -63,35 +63,7 @@ const maxEventChars = 80;
 
 const bezierAnimCurve = Easing.bezier(0.5, 0.01, 0, 1);
 
-const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEventText, deleteEvent, theme }) => {
-    return (
-        <Modal
-            animationType='fade'
-            transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => {
-                setModalVisible(false);
-            }}
-        >
-            <View style={[styles.event_modal, {backgroundColor: theme.s13, borderColor: theme.s4}]}>
-                <Pressable
-                    onPress={() => setModalVisible(false)}
-                    style={[{backgroundColor: theme.s6}, styles.event_modal_button]}
-                >
-                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Hide</Text>
-                </Pressable>
-                <Pressable
-                    onPress={() => {deleteEvent(); setModalVisible(false);}}
-                    style={[{backgroundColor: theme.s2}, styles.event_modal_button]}
-                >
-                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Delete</Text>
-                </Pressable>
-            </View>
-        </Modal>
-    );
-}
-
-const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleDelete }) => {
+const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleDelete, handleScrollEnabled }) => {
     const isLast = index === dataSize - 1;
     const UnderlayLeft = ({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
         return (
@@ -135,7 +107,10 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                     borderBottomColor: theme.s2,
                     backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : theme.s1,
                 }}
-                onLongPress={() => drag()}
+                onLongPress={() => {
+                    handleScrollEnabled(false);
+                    drag();
+                }}
                 onPress={() => handleMenuOpen(true, {key: item.key, category: sectionData.name, priority: item.data.priority, description: item.data.text})}
             >
                 <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
@@ -166,10 +141,14 @@ const BorderedFlatList = (props) => {
                             dataSize={props.data.data.length} 
                             handleMenuOpen={props.handleMenuOpen}
                             handleDelete={props.handleDelete} 
+                            handleScrollEnabled={props.handleScrollEnabled}
                         />
                     }
                     keyExtractor={item => item.key}
-                    onDragEnd={({data}) => props.setSectionData(props.data.name, data)}
+                    onDragEnd={({data}) => {
+                        props.setSectionData(props.data.name, data);
+                        props.handleScrollEnabled(true);
+                    }}
                     activationDistance={50}
                 />
             </View>
@@ -193,14 +172,14 @@ const EventList = (props) => {
 
     if(checkEventsEmpty()) {
         return (
-            <View style={{width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center'}}>
+            <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                 <Text style={[styles.helper_text, {color: theme.s6, bottom: 75}]}>No events right now... click the add button to make one!</Text>
             </View>
         );
     }
 
     return (
-        <View style={[styles.container]}>
+        <View style={{flex: 1, width: '100%'}}>
             <FlatList 
                 data={props.sortedEvents}
                 renderItem={({item}) => 
@@ -209,11 +188,13 @@ const EventList = (props) => {
                         data={item} 
                         setSectionData={props.setSectionData}
                         handleMenuOpen={props.handleMenuOpen} 
-                        handleDelete={props.handleDelete} 
+                        handleDelete={props.handleDelete}
+                        handleScrollEnabled={setScrollEnabled} 
                     />
                 }
                 keyExtractor={(item, index) => item.key}
-                scrollEnabled={true}
+                scrollEnabled={scrollEnabled}
+                showVerticalScrollIndicator={false}
             />
         </View>
     );
@@ -230,7 +211,7 @@ const AddButton = ({ theme, buttonVisible, handleOpen }) => {
     });
 
     return (
-        <Animated.View style={[styles.add_button, {backgroundColor: theme.s5}, addButtonAnimatedStyle]}>
+        <Animated.View style={[styles.add_button, {overflow: 'hidden', backgroundColor: theme.s5}, addButtonAnimatedStyle]}>
             <Pressable
                 style={({pressed}) => [
                     {
@@ -435,7 +416,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
     const menuHeight = useSharedValue(0);
     const animatedMenuStyle = useAnimatedStyle(() => {
         return {
-            height: withTiming(menuHeight.value, {duration: 700, easing: Easing.in(bezierAnimCurve)}),
+            top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}),
         }
     });
 
@@ -479,11 +460,11 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
         return changeFunction;
     }
 
-    const expandedHeight = heightPctToDP(185, 0);
+    const expandedHeight = 100;
     
     const isFocused = useIsFocused();
     useEffect(() => {
-        menuHeight.value = menuVisible ? expandedHeight : 0;
+        menuHeight.value = menuVisible ? 0 : expandedHeight;
         if(!menuVisible) {
             setTimeout(() => {
                 setEventToAdd({
@@ -512,7 +493,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
     }, []);
 
     return (
-        <Animated.View style={[{width: '100%', bottom: 0, backgroundColor: theme.s1}, animatedMenuStyle]}>
+        <Animated.View style={[{width: '100%', height: '100%', position: 'absolute', backgroundColor: theme.s1}, animatedMenuStyle]}>
             <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 45, width: '75%', color: theme.s6, marginBottom: 10}}>New Event:</Text>
             <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5}} />
             {/* TODO: make the close button a custom component for reuse? */}
@@ -538,7 +519,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
             </Pressable>
             <Field 
                 theme={theme} 
-                containerStyle={{height: '4%'}}
+                containerStyle={{height: '10%'}}
                 text='Category:' 
                 rightComponent={
                     <DropdownMenu 
@@ -555,7 +536,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
             />
             <Field
                 theme={theme}
-                containerStyle={{height: '4%'}}
+                containerStyle={{height: '10%'}}
                 text='Priority:'
                 // possible change: use text input instead of dropdown menu for priorities
                 rightComponent={
@@ -575,12 +556,12 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
             <Field
                 theme={theme}
                 text='Description:'
-                containerStyle={{height: '4%', marginBottom: 0}}
+                containerStyle={{height: '10%', marginBottom: 0}}
             />
             <View
                 style={{
                     width: '100%', 
-                    height: '8%',
+                    height: '17.5%',
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: 15,
@@ -878,7 +859,6 @@ const PlannerPage = ({ navigation }) => {
                     categoryData={categoryData}
                     priorityData={priorityData}
                     handleAdd={(ctgy, prty, desc) => { // category, priority, description
-                        console.log('New Event! Category: ' + ctgy + ', Priority: ' + prty + ', Description: ' + desc);
                         handleAdd(ctgy, initData={description: desc, priority: prty});
                     }}
                     handleChange={handleEventEdit}
@@ -919,13 +899,10 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     main_container: {
-        width: '100%',
-        height: '100%',
+        flex: 1,
         alignItems: 'center',
-        justifyContent: 'center',
         paddingLeft: 15,
         paddingRight: 15,
-        overflow: 'hidden',
     },
     loading_container: {
         flex: 1,
