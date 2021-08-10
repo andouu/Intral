@@ -35,6 +35,7 @@ import Animated, {
 import SwipeableItem from 'react-native-swipeable-item/src';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import TabViewComponent from 'react-native-elements/dist/tab/TabView';
+import { mediumaquamarine } from 'color-name';
 
 LogBox.ignoreLogs([
   'ReactNativeFiberHostComponent: Calling getNode() on the ref of an Animated component is no longer necessary. You can now directly use the ref instead. This method will be removed in a future release.',
@@ -90,7 +91,7 @@ const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEven
     );
 }
 
-const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionName, handleDelete }) => {
+const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleDelete }) => {
     const isLast = index === dataSize - 1;
     const UnderlayLeft = ({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
         return (
@@ -111,23 +112,23 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionNa
                         type='feather'
                         size={20}
                         color={theme.s1}
-                        onPress={() => {handleDelete(sectionName, item.key)}}
+                        onPress={() => {handleDelete(sectionData.name, item.key)}}
                     />
                 </TouchableOpacity>
             </Animated.View>
         );
     } 
-
     return (
         <SwipeableItem
             renderUnderlayLeft={({percentOpen}) => <UnderlayLeft item={item} percentOpen={percentOpen} />}
             snapPointsLeft={[55]}
             overSwipe={20}
         >
-            <Pressable
+            <TouchableOpacity
                 style={{
                     width: '100%',
-                    height: 50,
+                    height: 65,
+                    padding: 15,
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
@@ -135,10 +136,10 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionNa
                     backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : theme.s1,
                 }}
                 onLongPress={() => drag()}
-                onPress={() => console.log('pressed')}
+                onPress={() => handleMenuOpen(true, {key: item.key, category: sectionData.name, priority: item.data.priority, description: item.data.text})}
             >
                 <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
-            </Pressable>
+            </TouchableOpacity>
         </SwipeableItem>
     );
 }
@@ -151,18 +152,19 @@ const BorderedFlatList = (props) => {
     return (
         <View style={{width: '100%', marginBottom: 20}}>
             <Text style={[styles.event_text, {color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15}]}>{props.data.name}:</Text>
-            <View style={{borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 15, overflow: 'hidden'}}>
+            <View style={{borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 11, overflow: 'hidden'}}>
                 <DraggableFlatList 
                     data={props.data.data}
                     renderItem={({item, index, drag, isActive}) => 
                         <DraggableItem 
                             theme={props.theme} 
-                            sectionName={props.data.name}
+                            sectionData={props.data}
                             item={item} 
                             index={index} 
                             drag={drag} 
                             isActive={isActive} 
                             dataSize={props.data.data.length} 
+                            handleMenuOpen={props.handleMenuOpen}
                             handleDelete={props.handleDelete} 
                         />
                     }
@@ -201,8 +203,17 @@ const EventList = (props) => {
         <View style={[styles.container]}>
             <FlatList 
                 data={props.sortedEvents}
-                renderItem={({item}) => <BorderedFlatList theme={props.theme} data={item} setSectionData={props.setSectionData} handleDelete={props.handleDelete} />}
+                renderItem={({item}) => 
+                    <BorderedFlatList 
+                        theme={props.theme} 
+                        data={item} 
+                        setSectionData={props.setSectionData}
+                        handleMenuOpen={props.handleMenuOpen} 
+                        handleDelete={props.handleDelete} 
+                    />
+                }
                 keyExtractor={(item, index) => item.key}
+                scrollEnabled={true}
             />
         </View>
     );
@@ -414,14 +425,13 @@ const DropdownMenu = (props) => {                               // props: contai
     );
 }
 
-const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVisible, theme }) => {
+const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
     const [eventToAdd, setEventToAdd] = useState({});
     const [charsLeft, setCharsLeft] = useState(maxEventChars);
     const [openMenus, setOpenMenus] = useState({
         category: false,
         priority: false,
     });
-
     const menuHeight = useSharedValue(0);
     const animatedMenuStyle = useAnimatedStyle(() => {
         return {
@@ -475,19 +485,29 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
     useEffect(() => {
         menuHeight.value = menuVisible ? expandedHeight : 0;
         if(!menuVisible) {
+            setTimeout(() => {
+                setEventToAdd({
+                    category: categoryData.labels[0],
+                    priority: priorityData[0],
+                    description: '',
+                });
+                setCharsLeft(maxEventChars);
+            }, 500);
+        } else {
             setEventToAdd({
-                category: categoryData.labels[0],
-                priority: priorityData[0],
-                description: '',
-            });
+                category: editing ? editData.category : categoryData.labels[0],
+                priority: editing ? editData.priority : priorityData[0],
+                description: editing ? editData.description : '',
+            });  
+            setCharsLeft(maxEventChars - eventToAdd.description.length);
         }
     }, [menuVisible]);
 
     useEffect(() => {
-        setEventToAdd({
-            category: categoryData.labels[0],
-            priority: priorityData[0],
-            description: '',
+        setEventToAdd({ // only loads after re-render?
+            category: editing ? editData.category : categoryData.labels[0],
+            priority: editing ? editData.priority : priorityData[0],
+            description: editing ? editData.description : '',
         });
     }, []);
 
@@ -511,7 +531,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
                     }
                 ]}
                 onPress={() => {
-                    setMenuVisible(false);
+                    closeMenu();
                 }}
             >
                 <MaterialDesignIcons name='close' size={30} color={theme.s4} style={{bottom: 0, right: 0}}/>
@@ -563,10 +583,12 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
                     height: '8%',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    padding: 15,
                     borderWidth: 1.5,
                     borderColor: theme.s2,
                     borderRadius: 30,
                     marginBottom: 60,
+                    overflow: 'hidden',
                 }}
             >
                 <TextInput
@@ -589,8 +611,9 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
                             Keyboard.dismiss();
                         }
                     }}
-                    style={[styles.event_text, {color: theme.s6}]}
+                    style={[styles.event_text, {width: '95%', height: '100%', marginRight: 15,borderRadius: 15, color: theme.s6}]}
                 />
+                <Text style={{position: 'absolute', right: 8, top: '60%', color: theme.s4}}>{charsLeft}</Text>
             </View>
             <Pressable
                 style={({pressed}) => [
@@ -608,14 +631,27 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
                 ]}
                 onPress={() => {
                     if(eventToAdd.description.trim() !== '') {
-                        handleAdd(eventToAdd.category, eventToAdd.priority, eventToAdd.description);
-                        setMenuVisible(false);
+                        if(editing) {
+                            handleChange(
+                                editData.category, 
+                                editData.key,                                   // key is only used for lookup and should not be changed.
+                                {
+                                    category: eventToAdd.category, 
+                                    priority: eventToAdd.priority,
+                                    description: eventToAdd.description,
+                                }
+                            );
+                            closeMenu();
+                        } else {
+                            handleAdd(eventToAdd.category, eventToAdd.priority, eventToAdd.description);
+                            closeMenu();
+                        }
                     } else {
                         Alert.alert('mhmahmawj you can\'t have an empty description');
                     }
                 }}
             >
-                <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 18, color: theme.s6}}>Add</Text>
+                <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 18, color: theme.s6}}>{editing ? 'Finish' : 'Add'}</Text>
             </Pressable>
         </Animated.View>
     );
@@ -627,7 +663,7 @@ const PlannerPage = ({ navigation }) => {
 
     const [isLoading, setIsLoading] = useState(true);
     const [buttonVisible, setButtonVisible] = useState(true);
-    const [menuVisible, setMenuVisible] = useState(false);
+    const [menuData, setMenuData] = useState({visible: false, isEditing: false, editData: {}});
     const isFocused = useIsFocused();
 
     const [events, setEvents] = useState([]);
@@ -708,7 +744,7 @@ const PlannerPage = ({ navigation }) => {
     }, []);
 
     const handleAdd = async(category, initData) => {
-        function randomHSL(){
+        function randomHSL() {
             return "hsla(" + ~~(360 * Math.random()) + "," +
                 "70%,"+
                 "80%,1)"
@@ -762,8 +798,30 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    const handleMenuOpen = () => {
-        setMenuVisible(buttonVisible);
+    const handleEventEdit = async(sectionName, key, newData) => {
+        try {
+            let eventCopy = events.slice();
+            let section = eventCopy.find(elem => elem.name === sectionName);
+            eventObjIdx = section.data.findIndex(elem => elem.key === key);
+            eventObj = section.data[eventObjIdx];
+            eventObj.data = {
+                ...eventObj.data,
+                priority: newData.priority,
+                text: newData.description,
+            }
+            if(newData.category !== sectionName) {
+                let newSection = eventCopy.find(elem => elem.name === newData.category).name;
+                handleAdd(newSection, {priority: eventObj.data.priority, description: eventObj.data.text});
+                section.data.splice(eventObjIdx, 1);
+            }                                                     
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(events));
+        } catch(err) {
+            console.log(err);
+        }
+    }
+
+    const handleMenuOpen = (isEditing=false, editData={}) => {
+        setMenuData({visible: buttonVisible, isEditing: isEditing, editData: editData});
         setButtonVisible(!buttonVisible);
     }
 
@@ -808,6 +866,7 @@ const PlannerPage = ({ navigation }) => {
             <View style={styles.main_container}>
                 <EventList
                     sortedEvents={events}
+                    handleMenuOpen={handleMenuOpen}
                     handleDelete={handleDelete}
                     setSectionData={handleUpdateSection}
                     theme={theme}
@@ -822,8 +881,11 @@ const PlannerPage = ({ navigation }) => {
                         console.log('New Event! Category: ' + ctgy + ', Priority: ' + prty + ', Description: ' + desc);
                         handleAdd(ctgy, initData={description: desc, priority: prty});
                     }}
-                    menuVisible={menuVisible}
-                    setMenuVisible={handleMenuOpen}
+                    handleChange={handleEventEdit}
+                    editing={menuData.isEditing}
+                    editData={menuData.editData}
+                    menuVisible={menuData.visible}
+                    closeMenu={handleMenuOpen}
                 />
             </View>
             <AddButton 
