@@ -8,12 +8,16 @@ import {
     TextInput,
     StyleSheet,
     Dimensions,
+    PixelRatio,
     Modal,
     Pressable,
     ActivityIndicator,
     UIManager,
     LayoutAnimation,
-    LogBox
+    LogBox,
+    Keyboard,
+    Alert,
+    SectionList,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
@@ -25,10 +29,13 @@ import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
-    Easing
+    Easing,
+    greaterOrEq
 } from 'react-native-reanimated';
 import SwipeableItem from 'react-native-swipeable-item/src';
 import DraggableFlatList from 'react-native-draggable-flatlist';
+import TabViewComponent from 'react-native-elements/dist/tab/TabView';
+import { mediumaquamarine } from 'color-name';
 
 LogBox.ignoreLogs([
   'ReactNativeFiberHostComponent: Calling getNode() on the ref of an Animated component is no longer necessary. You can now directly use the ref instead. This method will be removed in a future release.',
@@ -40,274 +47,594 @@ if (Platform.OS === 'android') {
     }
 }
 
+const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleydson/0e778e834655d1ee177725d8b4b345d7
+    const screenWidth = Dimensions.get('window').width - 2 * padding;
+    const elemWidth = parseFloat(widthPct);
+    return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
+}
+
+const heightPctToDP = (heightPct, padding=0) => { // https://gist.github.com/gleydson/0e778e834655d1ee177725d8b4b345d7
+    const screenHeight = Dimensions.get('window').height - 2 * padding;
+    const elemHeight = parseFloat(heightPct);
+    return PixelRatio.roundToNearestPixel(screenHeight * elemHeight / 100);
+}
+
 const maxEventChars = 80;
 
-const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEventText, deleteEvent, theme }) => {
+const bezierAnimCurve = Easing.bezier(0.5, 0.01, 0, 1);
+
+const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleDelete, handleScrollEnabled }) => {
+    const isLast = index === dataSize - 1;
+    const UnderlayLeft = ({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
+        return (
+            <Animated.View 
+                style={[
+                    styles.event_edit_underlay, 
+                    {
+                        borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
+                        borderBottomColor: theme.s2, 
+                        opacity: percentOpen, 
+                        backgroundColor: theme.s11
+                    }
+                ]}
+            >
+                <TouchableOpacity style={{right: 17}}>
+                    <Icon
+                        name='trash-2'
+                        type='feather'
+                        size={20}
+                        color={theme.s1}
+                        onPress={() => {handleDelete(sectionData.name, item.key)}}
+                    />
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    } 
     return (
-        <Modal
-            animationType='fade'
-            transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => {
-                setModalVisible(false);
-            }}
+        <SwipeableItem
+            renderUnderlayLeft={({percentOpen}) => <UnderlayLeft item={item} percentOpen={percentOpen} />}
+            snapPointsLeft={[55]}
+            overSwipe={20}
         >
-            <View style={[styles.event_modal, {backgroundColor: theme.s13, borderColor: theme.s4}]}>
-                <Pressable
-                    onPress={() => setModalVisible(false)}
-                    style={[{backgroundColor: theme.s6}, styles.event_modal_button]}
-                >
-                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Hide</Text>
-                </Pressable>
-                <Pressable
-                    onPress={() => {deleteEvent(); setModalVisible(false);}}
-                    style={[{backgroundColor: theme.s2}, styles.event_modal_button]}
-                >
-                    <Text style={[styles.event_modal_text, {color: theme.s1}]}>Delete</Text>
-                </Pressable>
-            </View>
-        </Modal>
+            <TouchableOpacity
+                style={{
+                    width: '100%',
+                    height: 65,
+                    padding: 15,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
+                    borderBottomColor: theme.s2,
+                    backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : theme.s1,
+                }}
+                onLongPress={() => {
+                    handleScrollEnabled(false);
+                    drag();
+                }}
+                onPress={() => handleMenuOpen(true, {key: item.key, category: sectionData.name, priority: item.data.priority, description: item.data.text})}
+            >
+                <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
+            </TouchableOpacity>
+        </SwipeableItem>
     );
 }
 
-const EventBox = ({ sectionIdx, eventIdx, data, handleDelete, handleTextChange, handleDrag, isDragging, resetAddButton, theme }) => {
-    const [modalVisible, setModalVisible] = useState(false);
-    const [isEditingBox, setIsEditingBox] = useState(data.text === '' ? true : false);
+const BorderedFlatList = (props) => {
+    if(props.data.data.length <= 0) {
+        return null;
+    }
 
-    const [text, setText] = useState(data.text);
-    const [charsLeft, setCharsLeft] = useState(data.charsLeft);
-
-    const underlayLeft = useCallback(({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
-        return (<Animated.View style={[styles.event_edit_underlay, {opacity: percentOpen, backgroundColor: theme.s11}]}>
-            <TouchableOpacity style={{right: 17}}>
-                <Icon
-                    name='trash-2'
-                    type='feather'
-                    size={35}
-                    color={theme.s9}
-                    onPress={() => {handleDelete(sectionIdx, eventIdx); close();}}
-                />
-            </TouchableOpacity>
-        </Animated.View>);
-    }, []);
-    
     return (
-        <View style={[styles.event_container, {borderTopWidth: 1.5, borderTopColor: theme.s2, borderBottomWidth: 1.5, borderBottomColor: theme.s2}]}>
-            <SwipeableItem
-                renderUnderlayLeft={underlayLeft}
-                snapPointsLeft={[70]}
-            >
-                <Pressable
-                    style={[styles.event_box, {backgroundColor: isDragging ? theme.s9 : theme.s1, borderColor: theme.s3}]}
-                    onPress={() => setModalVisible(true)}
-                    delayLongPress={300}
-                    onLongPress={handleDrag}
-                >
-                    <EventModal
-                        modalVisible={modalVisible}
-                        setModalVisible={setModalVisible}
-                        text={text}
-                        charsLeft={charsLeft}
-                        changeEventText={(newText, newCharsLeft) => handleTextChange(sectionIdx, eventIdx, newText, newCharsLeft)}
-                        deleteEvent={() => handleDelete(sectionIdx, eventIdx)}
-                        theme={theme}
-                    />
-                    {isEditingBox ? (
-                        <View style={styles.event_text_box}>
-                            <Text style={[styles.event_character_count, {color: theme.s4}]}>{ charsLeft }</Text>
-                            <View style={{minWidth: '100%', marginLeft: -4, marginRight: -4}}>
-                                <TextInput
-                                    scrollEnabled={false}
-                                    multiline={true}
-                                    autoFocus={true}
-                                    maxLength={maxEventChars}
-                                    textBreakStrategy='simple'
-                                    placeholder='Enter an event'
-                                    placeholderTextColor={toRGBA(theme.s6, 0.5)}
-                                    value={text}
-                                    onChangeText={text => {
-                                        if (text.slice(-1) !== '\n') {
-                                            setText(text);
-                                            setCharsLeft(maxEventChars - text.length);
-                                        }
-                                    }}
-                                    onEndEditing={ () => {
-                                        if (isEditingBox === true) {
-                                            handleTextChange(sectionIdx, eventIdx, text, charsLeft);
-                                            resetAddButton();
-                                            setIsEditingBox(false);
-                                        }
-                                    }}
-                                    style={[styles.event_text, {color: theme.s6}]}
-                                />
-                            </View>
-                        </View>
-                    ) : (
-                        <View style={styles.event_text_box}>
-                            <Text
-                                style={[styles.event_text, {color: theme.s6}]}
-                                selectable={true}
-                                textBreakStrategy='simple'
-                            >
-                                { text }
-                            </Text>
-                        </View>
-                    )}
-                </Pressable>
-            </SwipeableItem>
+        <View style={{width: '100%', marginBottom: 20}}>
+            <Text style={[styles.event_text, {color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15}]}>{props.data.name}:</Text>
+            <View style={{borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 11, overflow: 'hidden'}}>
+                <DraggableFlatList 
+                    data={props.data.data}
+                    renderItem={({item, index, drag, isActive}) => 
+                        <DraggableItem 
+                            theme={props.theme} 
+                            sectionData={props.data}
+                            item={item} 
+                            index={index} 
+                            drag={drag} 
+                            isActive={isActive} 
+                            dataSize={props.data.data.length} 
+                            handleMenuOpen={props.handleMenuOpen}
+                            handleDelete={props.handleDelete} 
+                            handleScrollEnabled={props.handleScrollEnabled}
+                        />
+                    }
+                    keyExtractor={item => item.key}
+                    onDragEnd={({data}) => {
+                        props.setSectionData(props.data.name, data);
+                        props.handleScrollEnabled(true);
+                    }}
+                    activationDistance={50}
+                />
+            </View>
         </View>
     );
 }
 
-const EventList = ({ isLoading, sortedEvents, handleDelete, handleTextChange, handleUpdateSection, resetAddButton, theme }) => {
+const EventList = (props) => {
     const [scrollEnabled, setScrollEnabled] = useState(true);
 
+    const theme = props.theme;
+
     const checkEventsEmpty = () => {
-        for (let i = 0; i < sortedEvents.length; i ++) {
-            if (sortedEvents[i].data.length !== 0) {
+        for (let i = 0; i < props.sortedEvents.length; i ++) {
+            if (props.sortedEvents[i].data.length !== 0) {
                 return false;
             }
         }
         return true;
     };
 
-    const renderSectionHeader = useCallback((section) => {
-        return (<View style={[styles.section_button, {backgroundColor: theme.s3}, section.data.length > 0 && {
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0
-        }]}>
-            <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
-        </View>);
-    }, []);
+    if(checkEventsEmpty()) {
+        return (
+            <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+                <Text style={[styles.helper_text, {color: theme.s6, bottom: 75}]}>No events right now... click the add button to make one!</Text>
+            </View>
+        );
+    }
 
     return (
-        isLoading ? (
-            <View style = {[styles.loading_container, {backgroundColor: theme.s1}]}>
-                <ActivityIndicator size = 'large' color = {theme.s4} />
-            </View>
-        ) : ( checkEventsEmpty() ? (  
-            <View style={styles.helper_container}>
-                <Text style={[styles.helper_text, {color: theme.s6}]}>
-                    There are no events in your planner right now...{'\n'}
-                    Click the button on the bottom right to add one!
-                </Text>
-            </View>
-        ) : (
-            <View style={styles.event_list_container}>
-                <FlatList
-                    showsVerticalScrollIndicator={false}
-                    scrollEnabled={scrollEnabled}
-                    data={sortedEvents}
-                    renderItem={({ item, index }) => {
-                        let sectionIdx = index;
-                        let sectionLength = item.data.length;
-                        return (<React.Fragment>
-                            {renderSectionHeader(item)}
-                            <DraggableFlatList
-                                scrollEnabled={false}
-                                containerStyle={[sectionLength > 0 && styles.section_container, {borderColor: theme.s3}]}
-                                data={item.data}
-                                renderItem={({ item, index, drag, isActive }) => {
-                                    return (<EventBox
-                                        key={item.key}
-                                        sectionIdx={sectionIdx}
-                                        eventIdx={index}
-                                        data={item.data}
-                                        handleDelete={handleDelete}
-                                        handleTextChange={handleTextChange}
-                                        handleDrag={drag}
-                                        isDragging={isActive}
-                                        resetAddButton={resetAddButton}
-                                        theme={theme}
-                                    />);
-                                }}
-                                keyExtractor={item => item.key}
-                                onDragBegin={() => setScrollEnabled(false)}
-                                onDragEnd={({ data }) => {handleUpdateSection(index, data); setScrollEnabled(true);}}
-                                activationDistance={20}
-                            />
-                        </React.Fragment>);
-                    }}
-                    ItemSeparatorComponent={() => <View style={{marginBottom: 15}} />}
-                    ListFooterComponent={() => <View style={{marginBottom: 90}} />}
-                    keyExtractor={item => item.key}
-                    removeClippedSubviews={false}
-                />
-            </View>
-        ))
+        <View style={{flex: 1, width: '100%'}}>
+            <FlatList 
+                data={props.sortedEvents}
+                renderItem={({item}) => 
+                    <BorderedFlatList 
+                        theme={props.theme} 
+                        data={item} 
+                        setSectionData={props.setSectionData}
+                        handleMenuOpen={props.handleMenuOpen} 
+                        handleDelete={props.handleDelete}
+                        handleScrollEnabled={setScrollEnabled} 
+                    />
+                }
+                keyExtractor={(item, index) => item.key}
+                scrollEnabled={scrollEnabled}
+                showVerticalScrollIndicator={false}
+            />
+        </View>
     );
 }
 
-const AddMenu = ({ addButtonXOffset, events, handleAdd, isLoading, theme }) => {
+const AddButton = ({ theme, buttonVisible, handleOpen }) => {
     const addButtonAnimatedStyle = useAnimatedStyle(() => {
         return {
-            transform: [{translateX: withTiming(addButtonXOffset.value, {
-                duration: 300,
-                easing: Easing.in(Easing.exp)
+            transform: [{translateX: withTiming(buttonVisible ? 0 : 100, {
+                duration: buttonVisible ? 1000 : 400,
+                easing: Easing.in(bezierAnimCurve)
             })}]
         };
     });
 
-    const [addModalVisible, setAddModalVisible] = useState(false);
-
-    const closeModal = () => {
-        setAddModalVisible(false);
-        addButtonXOffset.value = 0;
-    };
-
     return (
-        <View style={{position: 'absolute', bottom: 0, right: 0, width: '100%', height: '100%'}}>
-            <Modal
-                animationType='fade'
-                transparent={true}
-                visible={addModalVisible}
-                onRequestClose={closeModal}
+        <Animated.View style={[styles.add_button, {overflow: 'hidden', backgroundColor: theme.s5}, addButtonAnimatedStyle]}>
+            <Pressable
+                style={({pressed}) => [
+                    {
+                        width: '100%', 
+                        height: '100%', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        backgroundColor: pressed ? 'rgba(0, 0, 0, 0.25)' : 'transparent',
+                    }
+                ]}
+                onPress={() => {
+                    handleOpen();
+                }}
             >
-                <View style={[styles.add_modal, {borderColor: theme.s4, backgroundColor: theme.s13}]}>
-                    <FlatList
-                        showsVerticalScrollIndicator={false}
-                        ListHeaderComponent={() => 
-                            <Pressable
-                                style={[styles.add_modal_back_button, {backgroundColor: theme.s9}]}
-                                onPress={closeModal}
-                            >
-                                <Text style={[styles.add_modal_button_text, {color: theme.s3}]}>Back</Text>
-                            </Pressable>
-                        }
-                        ListHeaderComponentStyle={{alignItems: 'center'}}
-                        ItemSeparatorComponent={() => 
-                            <View style={{marginLeft: 15, marginRight: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: theme.s2}} />
-                        }
-                        data={events}
-                        renderItem={({item, index}) =>
-                            <Pressable
-                                style={({pressed}) => [styles.add_modal_button, {opacity: pressed ? 0.6 : 1}]}
-                                onPress={() => {
-                                    setAddModalVisible(false);
-                                    handleAdd(index);
-                                }}
-                            >
-                                <Text style={[styles.add_modal_button_text, {color: theme.s4}]}>{item.name}</Text>
-                            </Pressable>
-                        }
-                        keyExtractor={item => item.key}
-                    />
-                </View>
-            </Modal>
-            {!isLoading && <Animated.View style={[styles.add_button, addButtonAnimatedStyle, {backgroundColor: theme.s5}]}>
                 <Icon
                     name='plus'
                     type='feather'
                     size={35}
                     color={theme.s7}
-                    onPress={() => {
-                        addButtonXOffset.value = 100;
-                        setAddModalVisible(true);
-                    }}
-                    disabled={isLoading}
+                    disabled={false}
                 />
-            </Animated.View>}
+            </Pressable>
+        </Animated.View>
+    );
+}
+
+const Field = (props) => {                           // props: containerStyle = custom style of field (opt), textStyle = custom style of text (opt), theme = theme object (required)
+    const defaultStyle = StyleSheet.create({         // text = left text, rightComponent = component to render on right side of the field
+        container: {
+            width: '100%',
+            height: '8%',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-start',
+            marginBottom: 5,
+        },
+        main_text: {
+            width: '100%',
+            height: '100%',
+            alignSelf: 'flex-start',
+            justifyContent: 'center',
+            fontFamily: 'Proxima Nova Bold',
+            fontSize: 20,
+            textAlignVertical: 'center',
+            color: props.theme.s4,
+        }
+    });
+    return (
+        <View style={[defaultStyle.container, props.containerStyle]}>
+            <Text style={[defaultStyle.main_text, props.textStyle]}>{props.text}</Text>
+            {props.rightComponent}
         </View>
+    );
+}
+
+const DropdownMenu = (props) => {                               // props: containerStyle = custom style of menu (opt), theme = theme object (required),                                                             
+    const [dropdownZIndex, setDropdownZIndex] = useState(1);    // decorator (obj) = left decorator for each box (opt), textStyle = custom style of text (opt)
+                                                                // handlePress (function) = function to call for each button when it's pressed (opt),
+    const defaultStyle = StyleSheet.create({                    // addNewBtnEnabled = whether to have an add new button (opt), name = name of the dropdown (required),
+        container: {                                            // handleAddNew (function) = function for add button (required if add button is enabled, else optional)
+            width: '55%',                                       // dropdownOpen (bool) = whether dropdown is open (required), handleDropdownOpen (function) = function to open dropdown (required),
+            height: '80%', 
+            position: 'absolute',
+            top: 7, 
+            zIndex: dropdownZIndex,
+            borderWidth: 1.5,
+            borderColor: props.theme.s2,
+            borderRadius: 15,
+            overflow: 'hidden',
+            backgroundColor: props.theme.s1
+        },
+        main_text: {
+            width: '100%',
+            height: '100%',
+            alignSelf: 'flex-start',
+            justifyContent: 'center',
+            fontFamily: 'Proxima Nova Bold',
+            fontSize: 20,
+            textAlignVertical: 'center',
+            color: props.theme.s4,
+        }
+    });
+
+    const collapsedHeight = heightPctToDP(6, 15); // same height as one box
+    const expandedHeight = collapsedHeight * (props.items.length + props.addNewBtnEnabled);
+
+    const animatedDropdownStyle = useAnimatedStyle(() => {
+        return {
+            height: withTiming(props.dropdownOpen ? expandedHeight : collapsedHeight, {duration: 200, easing: Easing.in(bezierAnimCurve)}),
+        }
+    });
+
+    useEffect(() => {
+        if(props.dropdownOpen) {
+            setDropdownZIndex(4);
+        } else {
+            setTimeout(() => {
+                setDropdownZIndex(2);
+            }, 200);
+        }
+    }, [props.dropdownOpen]);
+
+    let dropdownBoxes = props.items.map((item, index) => {
+        return (
+            <Pressable 
+                key={index}
+                style={({pressed}) => [
+                    {
+                        width: '100%', 
+                        height: collapsedHeight,
+                        borderBottomWidth: StyleSheet.hairlineWidth, 
+                        borderBottomColor: props.theme.s2,
+                        zIndex: 3,
+                        backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : 'transparent'
+                    }
+                ]}
+                onPress={() => {
+                    props.handleDropdownOpen(props.name, !props.dropdownOpen);
+                    props.handlePress(item);
+                }}
+            >
+                <View style={{width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row',}}>
+                    {props.decorator ? 
+                        <View style={{flex: 1}}>
+                            {props.decorator}
+                        </View>
+                        : null
+                    }
+                    <View style={{flex: 4, alignItems: 'center', justifyContent: 'center'}}>
+                        <Text style={[{fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6}, props.textStyle]}>{item}</Text>
+                    </View>
+                </View>
+            </Pressable>
+        );
+    });
+
+    return (
+        <Animated.View style={[defaultStyle.container, props.style, animatedDropdownStyle]}>
+            <Pressable
+                style={({pressed}) => [
+                    {
+                        flex: 1,
+                        alignItems: 'flex-end',
+                        justifyContent: 'flex-start',
+                        backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : 'transparent',
+                    }
+                ]}
+                onPress={() => props.handleDropdownOpen(props.name, !props.dropdownOpen)}
+            >
+                {props.items.length > 1 
+                    ? (<MaterialDesignIcons 
+                        name={props.dropdownOpen ? 'chevron-up' : 'chevron-down'} 
+                        size={22} 
+                        color={props.theme.s4} 
+                        style={{
+                            position: 'absolute',
+                            top: 9,
+                            right: 7,
+                            zIndex: 10,
+                        }}
+                    />) : null
+                }
+                {dropdownBoxes}
+                {props.addNewBtnEnabled 
+                    ? (
+                        <Pressable 
+                            style={({pressed}) => [
+                                {
+                                    width: '100%', 
+                                    height: collapsedHeight,
+                                    borderBottomWidth: StyleSheet.hairlineWidth, 
+                                    borderBottomColor: props.theme.s2,
+                                    zIndex: 3,
+                                    backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : 'transparent'
+                                }
+                            ]}
+                            onPress={() => {
+                                props.handleDropdownOpen(props.name, !props.dropdownOpen);
+                                // TODO: add handleAddNew function
+                            }}
+                        >
+                            <View style={{width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row',}}>
+                                <MaterialDesignIcons name='plus' size={17} color={props.theme.s4} style={{position: 'absolute', top: 11, left: 47.5}} />
+                                <View style={{flex: 4, alignItems: 'center', justifyContent: 'center'}}>
+                                    <Text style={[{fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, left: 15}]}>Add New</Text>
+                                </View>
+                            </View>
+                        </Pressable>
+                    ) : null
+                }
+            </Pressable>
+        </Animated.View>
+    );
+}
+
+const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
+    const [eventToAdd, setEventToAdd] = useState({});
+    const [charsLeft, setCharsLeft] = useState(maxEventChars);
+    const [openMenus, setOpenMenus] = useState({
+        category: false,
+        priority: false,
+    });
+    const menuHeight = useSharedValue(0);
+    const animatedMenuStyle = useAnimatedStyle(() => {
+        return {
+            top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}),
+        }
+    });
+
+    const handleDropdownOpen = (key, newValue) => {
+        let newOpenMenus = {
+            category: false,
+            priority: false,
+        }
+        newOpenMenus[key] = newValue;
+        setOpenMenus(newOpenMenus);
+    }
+
+    const handleEditEvent = (type) => {
+        let changeFunction;
+        switch(type) {
+            case 'category':
+                changeFunction = (newCategory) => {
+                    setEventToAdd({
+                        ...eventToAdd,
+                        category: newCategory,
+                    });
+                }
+                break;
+            case 'priority':
+                changeFunction = (newPriority) => {
+                    setEventToAdd({
+                        ...eventToAdd,
+                        priority: newPriority,
+                    });
+                }
+                break; 
+            case 'description':
+                changeFunction = (newDescription) => {
+                    setEventToAdd({
+                        ...eventToAdd,
+                        description: newDescription,
+                    });
+                }
+                break;        
+        }
+        return changeFunction;
+    }
+
+    const expandedHeight = 100;
+    
+    const isFocused = useIsFocused();
+    useEffect(() => {
+        menuHeight.value = menuVisible ? 0 : expandedHeight;
+        if(!menuVisible) {
+            setTimeout(() => {
+                setEventToAdd({
+                    category: categoryData.labels[0],
+                    priority: priorityData[0],
+                    description: '',
+                });
+                setCharsLeft(maxEventChars);
+            }, 500);
+        } else {
+            setEventToAdd({
+                category: editing ? editData.category : categoryData.labels[0],
+                priority: editing ? editData.priority : priorityData[0],
+                description: editing ? editData.description : '',
+            });  
+            setCharsLeft(maxEventChars - eventToAdd.description.length);
+        }
+    }, [menuVisible]);
+
+    useEffect(() => {
+        setEventToAdd({ // only loads after re-render?
+            category: editing ? editData.category : categoryData.labels[0],
+            priority: editing ? editData.priority : priorityData[0],
+            description: editing ? editData.description : '',
+        });
+    }, []);
+
+    return (
+        <Animated.View style={[{width: '100%', height: '100%', position: 'absolute', backgroundColor: theme.s1}, animatedMenuStyle]}>
+            <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 45, width: '75%', color: theme.s6, marginBottom: 10}}>New Event:</Text>
+            <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5}} />
+            {/* TODO: make the close button a custom component for reuse? */}
+            <Pressable
+                style={({pressed}) => [
+                    {
+                        width: 40,
+                        height: 40,
+                        position: 'absolute', 
+                        top: 2, 
+                        right: -5,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 30,
+                        backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent'
+                    }
+                ]}
+                onPress={() => {
+                    closeMenu();
+                }}
+            >
+                <MaterialDesignIcons name='close' size={30} color={theme.s4} style={{bottom: 0, right: 0}}/>
+            </Pressable>
+            <Field 
+                theme={theme} 
+                containerStyle={{height: '10%'}}
+                text='Category:' 
+                rightComponent={
+                    <DropdownMenu 
+                        theme={theme} 
+                        items={[eventToAdd.category, ...categoryData.labels.slice().filter(c => c !== eventToAdd.category)]} 
+                        textStyle={{left: 10}} 
+                        addNewBtnEnabled={true}
+                        handlePress={handleEditEvent('category')}
+                        name='category'
+                        dropdownOpen={openMenus.category}
+                        handleDropdownOpen={handleDropdownOpen}
+                    />
+                }
+            />
+            <Field
+                theme={theme}
+                containerStyle={{height: '10%'}}
+                text='Priority:'
+                // possible change: use text input instead of dropdown menu for priorities
+                rightComponent={
+                    <DropdownMenu 
+                        theme={theme} 
+                        items={[eventToAdd.priority, ...priorityData.filter(p => p !== eventToAdd.priority)]} 
+                        style={{width: '25%'}} 
+                        textStyle={{left: 5}} 
+                        addNewBtnEnabled={false}
+                        handlePress={handleEditEvent('priority')}
+                        name='priority'
+                        dropdownOpen={openMenus.priority}
+                        handleDropdownOpen={handleDropdownOpen}
+                    />
+                }
+            />
+            <Field
+                theme={theme}
+                text='Description:'
+                containerStyle={{height: '10%', marginBottom: 0}}
+            />
+            <View
+                style={{
+                    width: '100%', 
+                    height: '17.5%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 15,
+                    borderWidth: 1.5,
+                    borderColor: theme.s2,
+                    borderRadius: 30,
+                    marginBottom: 60,
+                    overflow: 'hidden',
+                }}
+            >
+                <TextInput
+                    scrollEnabled={false}
+                    multiline={true}
+                    autoFocus={false}
+                    maxLength={maxEventChars}
+                    textBreakStrategy='simple'
+                    placeholder='Tap to Edit'
+                    placeholderTextColor={toRGBA(theme.s4, 0.5)}
+                    value={eventToAdd.description}
+                    onChangeText={text => {
+                        if (text.slice().split('').indexOf('\n') === -1) {
+                            setEventToAdd({
+                                ...eventToAdd,
+                                description: text,
+                            });
+                            setCharsLeft(maxEventChars - text.length);
+                        } else {
+                            Keyboard.dismiss();
+                        }
+                    }}
+                    style={[styles.event_text, {width: '95%', height: '100%', marginRight: 15,borderRadius: 15, color: theme.s6}]}
+                />
+                <Text style={{position: 'absolute', right: 8, top: '60%', color: theme.s4}}>{charsLeft}</Text>
+            </View>
+            <Pressable
+                style={({pressed}) => [
+                    {
+                        width: 100,
+                        height: 40,
+                        alignSelf: 'flex-end',
+                        borderRadius: 30,
+                        borderWidth: 1.5,
+                        borderColor: theme.s2,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: pressed ? theme.s2 : 'transparent',
+                    },
+                ]}
+                onPress={() => {
+                    if(eventToAdd.description.trim() !== '') {
+                        if(editing) {
+                            handleChange(
+                                editData.category, 
+                                editData.key,                                   // key is only used for lookup and should not be changed.
+                                {
+                                    category: eventToAdd.category, 
+                                    priority: eventToAdd.priority,
+                                    description: eventToAdd.description,
+                                }
+                            );
+                            closeMenu();
+                        } else {
+                            handleAdd(eventToAdd.category, eventToAdd.priority, eventToAdd.description);
+                            closeMenu();
+                        }
+                    } else {
+                        Alert.alert('mhmahmawj you can\'t have an empty description');
+                    }
+                }}
+            >
+                <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 18, color: theme.s6}}>{editing ? 'Finish' : 'Add'}</Text>
+            </Pressable>
+        </Animated.View>
     );
 }
 
@@ -316,35 +643,49 @@ const PlannerPage = ({ navigation }) => {
     const theme = themeContext.themeData.swatch;
 
     const [isLoading, setIsLoading] = useState(true);
+    const [buttonVisible, setButtonVisible] = useState(true);
+    const [menuData, setMenuData] = useState({visible: false, isEditing: false, editData: {}});
     const isFocused = useIsFocused();
 
-    const addButtonXOffset = useSharedValue(0);
-
     const [events, setEvents] = useState([]);
+    const [categoryData, setCategoryData] = useState({});
+    const [priorityData, setPriorityData] = useState([1, 2, 3]); // TODO: allow user to add or change priority array
     
     const refreshClasses = async () => {
         try {
             let storedClasses = await AsyncStorage.getItem('classes');
             let parsed = await JSON.parse(storedClasses);
             if (Array.isArray(parsed)) {
-                let eventSections;
+                let eventSections, categoryTitles = [];
                 if (events.length === 0) {
                     eventSections = [];
-                    parsed.map((item, index) => {
+                    parsed.map((item, index) => { // TODO: refactor to use for loop, no reason to map and create another array
+                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
                         eventSections.push({
+                            // TODO: get color from async storage
                             key: getRandomKey(10),
+                            color: '',
                             index: index,
-                            name: item.Title,
+                            name: cleanTitle,
                             data: []
                         });
-                    });
+                        categoryTitles.push(cleanTitle);
+                    });          
+                    categoryTitles.push('Other');      
                 } else {
                     eventSections = events.slice();
                     parsed.map((item, index) => {
-                        eventSections[index].name = item.Title;
+                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
+                        eventSections[index].name = cleanTitle;
+                        categoryTitles.push(cleanTitle);
                     });
                 }
+                categoryTitles.push('Other');
                 await AsyncStorage.setItem('plannerEvents', JSON.stringify(eventSections));
+                setCategoryData({
+                    ...categoryData,
+                    labels: categoryTitles,
+                });
                 setEvents(eventSections);
                 setIsLoading(false);
             }
@@ -353,48 +694,72 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    useEffect(async () => {
-        if (isFocused) {
-            await refreshClasses();
-        }
-    }, [isFocused]);
-
+    // useEffect(async () => {  // why refresh on focus? Use the refresh effect instead
+    //     if (isFocused) {
+    //         await refreshClasses();
+    //     }
+    // }, [isFocused]);
 
     useEffect(async () => {
         try {
+            await refreshClasses();
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
             if(Array.isArray(parsed)) {
                 setEvents(parsed);
             }
+            let tmpCategoryLabels = [];
+            for(let i = 0; i < parsed.length; i++) {
+                tmpCategoryLabels.push(parsed[i].name);
+            }
+            if(tmpCategoryLabels.find(e => e === 'Other') === -1)
+                tmpCategoryLabels.push('Other');  
+            setCategoryData({
+                ...categoryData, 
+                labels: tmpCategoryLabels,
+            });
+            setIsLoading(false);
         } catch(err) {
             console.log(err);
         }
     }, []);
 
-    const handleAdd = async(sectionIdx) => {
+    const handleAdd = async(category, initData) => {
+        function randomHSL() {
+            return "hsla(" + ~~(360 * Math.random()) + "," +
+                "70%,"+
+                "80%,1)"
+        }
         try {
             let newEvents = events.slice();
             let randomKey = getRandomKey(10);
-            newEvents[sectionIdx].data.push({
+            let randomColor = randomHSL();
+            let dataArr = newEvents.find(elem => elem.name === category);
+            if(dataArr.color === '') {
+                dataArr.color = randomColor;
+            }
+            dataArr.data.push({
                 key: randomKey,
                 data: {
-                    text: '',
-                    charsLeft: maxEventChars
+                    text: initData.description,
+                    priority: initData.priority,
+                    charsLeft: maxEventChars - initData.description.length,
                 }
             });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
-            LayoutAnimation.configureNext(LayoutAnimation.create(300, 'easeInEaseOut', 'scaleY'));
+            //LayoutAnimation.configureNext(LayoutAnimation.create(300, 'easeInEaseOut', 'scaleY'));
             setEvents(newEvents);
         } catch(err) {
             console.log(err);
         }
     };
 
-    const handleDelete = async(sectionIdx, eventIdx) => {
+    const handleDelete = async(sectionName, itemKey) => {
         try {
             let newEvents = events.slice();
-            newEvents[sectionIdx].data.splice(eventIdx, 1);
+            let section = newEvents.find(elem => elem.name === sectionName);
+            //console.log('sectiondata:', section.data.findIndex(e => e.key === itemKey));
+            section.data.splice(section.data.findIndex(event => event.key === itemKey), 1);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setEvents(newEvents);
@@ -403,29 +768,43 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    const handleTextChange = async(sectionIdx, eventIdx, newText, newCharsLeft) => {
+    const handleUpdateSection = async(sectionName, newSectionData) => {
         try {
             let newEvents = events.slice();
-            let edits = newEvents[sectionIdx].data[eventIdx];
-            edits.data.text = newText;
-            edits.data.charsLeft = newCharsLeft;
+            newEvents.find(elem => elem.name === sectionName).data = newSectionData;
+            setEvents(newEvents);                                                       // call setEvents before setting asyncstorage!! await will make the draggable flatlist laggy
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
-            setEvents(newEvents);
         } catch(err) {
             console.log(err);
         }
     };
 
-    const handleUpdateSection = async(sectionIdx, newSectionData) => {
+    const handleEventEdit = async(sectionName, key, newData) => {
         try {
-            let newEvents = events.slice();
-            newEvents[sectionIdx].data = newSectionData;
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
-            setEvents(newEvents);
+            let eventCopy = events.slice();
+            let section = eventCopy.find(elem => elem.name === sectionName);
+            eventObjIdx = section.data.findIndex(elem => elem.key === key);
+            eventObj = section.data[eventObjIdx];
+            eventObj.data = {
+                ...eventObj.data,
+                priority: newData.priority,
+                text: newData.description,
+            }
+            if(newData.category !== sectionName) {
+                let newSection = eventCopy.find(elem => elem.name === newData.category).name;
+                handleAdd(newSection, {priority: eventObj.data.priority, description: eventObj.data.text});
+                section.data.splice(eventObjIdx, 1);
+            }                                                     
+            await AsyncStorage.setItem('plannerEvents', JSON.stringify(events));
         } catch(err) {
             console.log(err);
         }
-    };
+    }
+
+    const handleMenuOpen = (isEditing=false, editData={}) => {
+        setMenuData({visible: buttonVisible, isEditing: isEditing, editData: editData});
+        setButtonVisible(!buttonVisible);
+    }
 
     const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
         let result = ''
@@ -436,6 +815,14 @@ const PlannerPage = ({ navigation }) => {
         }
         return result;
     };
+
+    if(isLoading) {
+        return (
+            <View style = {[styles.container, {alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}]}>
+                <ActivityIndicator size = 'large' color={theme.s4} />
+            </View> 
+        );
+    }
 
     return ( 
         <View style = {[styles.container, {backgroundColor: theme.s1}]}>
@@ -457,22 +844,35 @@ const PlannerPage = ({ navigation }) => {
                     />
                 </View>
             </View>
-            <EventList
-                isLoading={isLoading}
-                sortedEvents={events}
-                handleDelete={handleDelete}
-                handleTextChange={handleTextChange}
-                handleUpdateSection={handleUpdateSection}
-                resetAddButton={() => { addButtonXOffset.value = 0; }}
-                theme={theme}
-            />
-            <AddMenu
-                addButtonXOffset={addButtonXOffset}
-                events={events}
-                handleAdd={handleAdd}
-                isLoading={isLoading}
-                theme={theme}
-            />
+            <View style={styles.main_container}>
+                <EventList
+                    sortedEvents={events}
+                    handleMenuOpen={handleMenuOpen}
+                    handleDelete={handleDelete}
+                    setSectionData={handleUpdateSection}
+                    theme={theme}
+                />
+                <AddMenu
+                    events={events}
+                    isLoading={isLoading}
+                    theme={theme}
+                    categoryData={categoryData}
+                    priorityData={priorityData}
+                    handleAdd={(ctgy, prty, desc) => { // category, priority, description
+                        handleAdd(ctgy, initData={description: desc, priority: prty});
+                    }}
+                    handleChange={handleEventEdit}
+                    editing={menuData.isEditing}
+                    editData={menuData.editData}
+                    menuVisible={menuData.visible}
+                    closeMenu={handleMenuOpen}
+                />
+            </View>
+            <AddButton 
+                theme={theme} 
+                buttonVisible={buttonVisible} 
+                handleOpen={handleMenuOpen}
+            /> 
         </View>
     );
 }
@@ -497,9 +897,12 @@ const styles = StyleSheet.create({
     container: {
         height: '100%',
         width: '100%',
-        padding: 15 ,
-        paddingTop: 0,
-        paddingBottom: 0,
+    },
+    main_container: {
+        flex: 1,
+        alignItems: 'center',
+        paddingLeft: 15,
+        paddingRight: 15,
     },
     loading_container: {
         flex: 1,
@@ -536,7 +939,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-end'
+        justifyContent: 'flex-end',
     },
     event_box: {
         width: '100%',
@@ -558,7 +961,6 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         margin: 5,
         alignItems: 'center',
-        justifyContent: 'center'
     },
     event_modal_text: {
         fontSize: 25,
@@ -575,10 +977,10 @@ const styles = StyleSheet.create({
         top: -10
     },
     event_text: {
-        fontSize: 15,
-        fontFamily: 'ProximaNova-Regular',
-        fontWeight: 'normal',
-        textAlign: 'center'
+        fontSize: 18,
+        fontFamily: 'Proxima Nova Bold',
+        textAlign: 'center',
+        textAlignVertical: 'center',
     },
     add_button: {
         width: 60,
@@ -588,7 +990,7 @@ const styles = StyleSheet.create({
         borderRadius: 50,
         position: 'absolute',
         bottom: 20,
-        right: 20,
+        right: 15,
     },
     add_modal: {
         marginTop: '60%',
@@ -629,19 +1031,21 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     options_bar: {
-        height: 100,
+        height: '15%',
         top: 0,
         width: '100%',
         flexDirection: 'row',
         alignSelf: 'flex-start',
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: 10,
     },  
     menu_button: {
         alignSelf: 'center',
         padding: 0,
         marginRight: 'auto',
         width: 45,
+        left: 15,
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
