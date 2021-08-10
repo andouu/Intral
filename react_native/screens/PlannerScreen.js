@@ -90,23 +90,56 @@ const EventModal = ({ modalVisible, setModalVisible, text, charsLeft, changeEven
     );
 }
 
-const DraggableItem = ({ theme, item, index, drag, isActive, dataSize }) => {
+const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionName, handleDelete }) => {
     const isLast = index === dataSize - 1;
+    const UnderlayLeft = ({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
+        return (
+            <Animated.View 
+                style={[
+                    styles.event_edit_underlay, 
+                    {
+                        borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
+                        borderBottomColor: theme.s2, 
+                        opacity: percentOpen, 
+                        backgroundColor: theme.s11
+                    }
+                ]}
+            >
+                <TouchableOpacity style={{right: 17}}>
+                    <Icon
+                        name='trash-2'
+                        type='feather'
+                        size={20}
+                        color={theme.s1}
+                        onPress={() => {handleDelete(sectionName, item.key)}}
+                    />
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    } 
+
     return (
-        <Pressable
-            style={{
-                width: '100%',
-                height: 50,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
-                borderBottomColor: theme.s2,
-                backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : theme.s1,
-            }}
-            onLongPress={() => drag()}
+        <SwipeableItem
+            renderUnderlayLeft={({percentOpen}) => <UnderlayLeft item={item} percentOpen={percentOpen} />}
+            snapPointsLeft={[55]}
+            overSwipe={20}
         >
-            <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
-        </Pressable>
+            <Pressable
+                style={{
+                    width: '100%',
+                    height: 50,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
+                    borderBottomColor: theme.s2,
+                    backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : theme.s1,
+                }}
+                onLongPress={() => drag()}
+                onPress={() => console.log('pressed')}
+            >
+                <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
+            </Pressable>
+        </SwipeableItem>
     );
 }
 
@@ -114,15 +147,28 @@ const BorderedFlatList = (props) => {
     if(props.data.data.length <= 0) {
         return null;
     }
+
     return (
-        <View style={{width: '100%'}}>
+        <View style={{width: '100%', marginBottom: 20}}>
             <Text style={[styles.event_text, {color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15}]}>{props.data.name}:</Text>
-            <View style={{borderLeftWidth: 1.5, borderLeftColor: props.theme.s5, borderRadius: 15, overflow: 'hidden'}}>
+            <View style={{borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 15, overflow: 'hidden'}}>
                 <DraggableFlatList 
                     data={props.data.data}
-                    renderItem={({item, index, drag, isActive}) => <DraggableItem theme={props.theme} item={item} index={index} drag={drag} isActive={isActive} dataSize={props.data.data.length}/>}
+                    renderItem={({item, index, drag, isActive}) => 
+                        <DraggableItem 
+                            theme={props.theme} 
+                            sectionName={props.data.name}
+                            item={item} 
+                            index={index} 
+                            drag={drag} 
+                            isActive={isActive} 
+                            dataSize={props.data.data.length} 
+                            handleDelete={props.handleDelete} 
+                        />
+                    }
                     keyExtractor={item => item.key}
                     onDragEnd={({data}) => props.setSectionData(props.data.name, data)}
+                    activationDistance={50}
                 />
             </View>
         </View>
@@ -143,19 +189,10 @@ const EventList = (props) => {
         return true;
     };
 
-    const renderSectionHeader = useCallback((section) => {
-        return (<View style={[styles.section_button, {backgroundColor: theme.s3}, section.data.length > 0 && {
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0
-        }]}>
-            <Text style={[styles.section_button_text, {color: theme.s6}]}>{section.name}</Text>
-        </View>);
-    }, []);
-
     if(checkEventsEmpty()) {
         return (
-            <View style={{width: '100%', height: '100%', position: 'absolute', alignItems: 'center', justifyContent: 'center'}}>
-                <Text style={[styles.helper_text, {color: theme.s6, bottom: 0}]}>No events right now... click the add button to make one!</Text>
+            <View style={{width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center'}}>
+                <Text style={[styles.helper_text, {color: theme.s6, bottom: 75}]}>No events right now... click the add button to make one!</Text>
             </View>
         );
     }
@@ -164,7 +201,7 @@ const EventList = (props) => {
         <View style={[styles.container]}>
             <FlatList 
                 data={props.sortedEvents}
-                renderItem={({item}) => <BorderedFlatList theme={props.theme} data={item} setSectionData={props.setSectionData} />}
+                renderItem={({item}) => <BorderedFlatList theme={props.theme} data={item} setSectionData={props.setSectionData} handleDelete={props.handleDelete} />}
                 keyExtractor={(item, index) => item.key}
             />
         </View>
@@ -301,7 +338,6 @@ const DropdownMenu = (props) => {                               // props: contai
                 onPress={() => {
                     props.handleDropdownOpen(props.name, !props.dropdownOpen);
                     props.handlePress(item);
-                    props.categoryData
                 }}
             >
                 <View style={{width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row',}}>
@@ -440,7 +476,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
         menuHeight.value = menuVisible ? expandedHeight : 0;
         if(!menuVisible) {
             setEventToAdd({
-                category: categoryData[0],
+                category: categoryData.labels[0],
                 priority: priorityData[0],
                 description: '',
             });
@@ -449,7 +485,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
 
     useEffect(() => {
         setEventToAdd({
-            category: categoryData[0],
+            category: categoryData.labels[0],
             priority: priorityData[0],
             description: '',
         });
@@ -487,7 +523,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, menuVisible, setMenuVi
                 rightComponent={
                     <DropdownMenu 
                         theme={theme} 
-                        items={[eventToAdd.category, ...categoryData.slice().filter(c => c !== eventToAdd.category)]} 
+                        items={[eventToAdd.category, ...categoryData.labels.slice().filter(c => c !== eventToAdd.category)]} 
                         textStyle={{left: 10}} 
                         addNewBtnEnabled={true}
                         handlePress={handleEditEvent('category')}
@@ -595,7 +631,7 @@ const PlannerPage = ({ navigation }) => {
     const isFocused = useIsFocused();
 
     const [events, setEvents] = useState([]);
-    const [categoryData, setCategoryData] = useState([]);
+    const [categoryData, setCategoryData] = useState({});
     const [priorityData, setPriorityData] = useState([1, 2, 3]); // TODO: allow user to add or change priority array
     
     const refreshClasses = async () => {
@@ -603,30 +639,36 @@ const PlannerPage = ({ navigation }) => {
             let storedClasses = await AsyncStorage.getItem('classes');
             let parsed = await JSON.parse(storedClasses);
             if (Array.isArray(parsed)) {
-                let eventSections;
+                let eventSections, categoryTitles = [];
                 if (events.length === 0) {
                     eventSections = [];
-                    categoryTitles = [];
                     parsed.map((item, index) => { // TODO: refactor to use for loop, no reason to map and create another array
-                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim() // clean title meaning without the class id (CHH701.0.OL, etc.)
+                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
                         eventSections.push({
+                            // TODO: get color from async storage
                             key: getRandomKey(10),
+                            color: '',
                             index: index,
                             name: cleanTitle,
                             data: []
                         });
                         categoryTitles.push(cleanTitle);
-                    });
-                    categoryTitles.push('Other');
+                    });          
+                    categoryTitles.push('Other');      
                 } else {
                     eventSections = events.slice();
                     parsed.map((item, index) => {
-                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim()
+                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
                         eventSections[index].name = cleanTitle;
+                        categoryTitles.push(cleanTitle);
                     });
                 }
+                categoryTitles.push('Other');
                 await AsyncStorage.setItem('plannerEvents', JSON.stringify(eventSections));
-                setCategoryData(categoryTitles);
+                setCategoryData({
+                    ...categoryData,
+                    labels: categoryTitles,
+                });
                 setEvents(eventSections);
                 setIsLoading(false);
             }
@@ -643,6 +685,7 @@ const PlannerPage = ({ navigation }) => {
 
     useEffect(async () => {
         try {
+            await refreshClasses();
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
             if(Array.isArray(parsed)) {
@@ -651,8 +694,13 @@ const PlannerPage = ({ navigation }) => {
             let tmpCategoryLabels = [];
             for(let i = 0; i < parsed.length; i++) {
                 tmpCategoryLabels.push(parsed[i].name);
-            } 
-            setCategoryData(tmpCategoryLabels);
+            }
+            if(tmpCategoryLabels.find(e => e === 'Other') === -1)
+                tmpCategoryLabels.push('Other');  
+            setCategoryData({
+                ...categoryData, 
+                labels: tmpCategoryLabels,
+            });
             setIsLoading(false);
         } catch(err) {
             console.log(err);
@@ -660,11 +708,21 @@ const PlannerPage = ({ navigation }) => {
     }, []);
 
     const handleAdd = async(category, initData) => {
+        function randomHSL(){
+            return "hsla(" + ~~(360 * Math.random()) + "," +
+                "70%,"+
+                "80%,1)"
+        }
         try {
             let newEvents = events.slice();
             let randomKey = getRandomKey(10);
-            newEvents.find(elem => elem.name === category).data.push({
-                key: getRandomKey(10),
+            let randomColor = randomHSL();
+            let dataArr = newEvents.find(elem => elem.name === category);
+            if(dataArr.color === '') {
+                dataArr.color = randomColor;
+            }
+            dataArr.data.push({
+                key: randomKey,
                 data: {
                     text: initData.description,
                     priority: initData.priority,
@@ -679,25 +737,14 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    const handleDelete = async(sectionIdx, eventIdx) => {
+    const handleDelete = async(sectionName, itemKey) => {
         try {
             let newEvents = events.slice();
-            newEvents[sectionIdx].data.splice(eventIdx, 1);
+            let section = newEvents.find(elem => elem.name === sectionName);
+            //console.log('sectiondata:', section.data.findIndex(e => e.key === itemKey));
+            section.data.splice(section.data.findIndex(event => event.key === itemKey), 1);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setEvents(newEvents);
-        } catch(err) {
-            console.log(err);
-        }
-    };
-
-    const handleTextChange = async(sectionIdx, eventIdx, newText, newCharsLeft) => {
-        try {
-            let newEvents = events.slice();
-            let edits = newEvents[sectionIdx].data[eventIdx];
-            edits.data.text = newText;
-            edits.data.charsLeft = newCharsLeft;
-            await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             setEvents(newEvents);
         } catch(err) {
             console.log(err);
@@ -762,7 +809,6 @@ const PlannerPage = ({ navigation }) => {
                 <EventList
                     sortedEvents={events}
                     handleDelete={handleDelete}
-                    handleTextChange={handleTextChange}
                     setSectionData={handleUpdateSection}
                     theme={theme}
                 />
@@ -854,7 +900,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-end'
+        justifyContent: 'flex-end',
     },
     event_box: {
         width: '100%',
