@@ -16,26 +16,21 @@ import {
     LayoutAnimation,
     LogBox,
     Keyboard,
-    Alert,
-    SectionList,
+    Alert
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
 import { ThemeContext } from '../components/themeContext';
 import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useIsFocused } from '@react-navigation/native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
-    Easing,
-    greaterOrEq
+    Easing
 } from 'react-native-reanimated';
 import SwipeableItem from 'react-native-swipeable-item/src';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import TabViewComponent from 'react-native-elements/dist/tab/TabView';
-import { mediumaquamarine } from 'color-name';
 
 LogBox.ignoreLogs([
   'ReactNativeFiberHostComponent: Calling getNode() on the ref of an Animated component is no longer necessary. You can now directly use the ref instead. This method will be removed in a future release.',
@@ -84,7 +79,7 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                         type='feather'
                         size={20}
                         color={theme.s1}
-                        onPress={() => {handleDelete(sectionData.name, item.key)}}
+                        onPress={() => handleDelete(sectionData.name, item.key)}
                     />
                 </TouchableOpacity>
             </Animated.View>
@@ -173,7 +168,7 @@ const EventList = (props) => {
     if(checkEventsEmpty()) {
         return (
             <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-                <Text style={[styles.helper_text, {color: theme.s6, bottom: 75}]}>No events right now... click the add button to make one!</Text>
+                <Text style={[styles.helper_text, {color: theme.s6, bottom: 75}]}>No events right now... click the add button to create one!</Text>
             </View>
         );
     }
@@ -238,8 +233,19 @@ const AddButton = ({ theme, buttonVisible, handleOpen }) => {
     );
 }
 
-const Field = (props) => {                           // props: containerStyle = custom style of field (opt), textStyle = custom style of text (opt), theme = theme object (required)
-    const defaultStyle = StyleSheet.create({         // text = left text, rightComponent = component to render on right side of the field
+/**
+ * @param {*} props
+ * Required:
+ * - theme = theme object
+ * - text = left text
+ * - rightComponent = component to render on right side of the field
+ * ---
+ * Optional:
+ * - containerStyle = custom style of field
+ * - textStyle = custom style of text
+ */
+const Field = (props) => {
+    const defaultStyle = StyleSheet.create({
         container: {
             width: '100%',
             height: '8%',
@@ -265,13 +271,30 @@ const Field = (props) => {                           // props: containerStyle = 
         </View>
     );
 }
+/**
+ * @param {*} props
+ * Required:
+ * - theme = theme object
+ * - name = name of the dropdown
+ * - selectedItem (string) = current selected item string
+ * - items (list) = all items (strings)
+ * - dropdownOpen (bool) = whether dropdown is open
+ * - handleDropdownOpen (function) = function to open dropdown
+ * - handleAddNew (function) = function for add button *(required if add button is enabled, else optional)*
+ * ---
+ * Optional:
+ * - containerStyle = custom style of menu
+ * - decorator (obj) = left decorator for each box
+ * - textStyle = custom style of text
+ * - handlePress (function) = function to call for each button when it's pressed
+ * - addNewBtnEnabled = whether to have an add new button
+ */
+const DropdownMenu = (props) => {                                                           
+    const [dropdownZIndex, setDropdownZIndex] = useState(1);
 
-const DropdownMenu = (props) => {                               // props: containerStyle = custom style of menu (opt), theme = theme object (required),                                                             
-    const [dropdownZIndex, setDropdownZIndex] = useState(1);    // decorator (obj) = left decorator for each box (opt), textStyle = custom style of text (opt)
-                                                                // handlePress (function) = function to call for each button when it's pressed (opt),
-    const defaultStyle = StyleSheet.create({                    // addNewBtnEnabled = whether to have an add new button (opt), name = name of the dropdown (required),
-        container: {                                            // handleAddNew (function) = function for add button (required if add button is enabled, else optional)
-            width: '55%',                                       // dropdownOpen (bool) = whether dropdown is open (required), handleDropdownOpen (function) = function to open dropdown (required),
+    const defaultStyle = StyleSheet.create({
+        container: {
+            width: '60%',
             height: '80%', 
             position: 'absolute',
             top: 7, 
@@ -281,25 +304,15 @@ const DropdownMenu = (props) => {                               // props: contai
             borderRadius: 15,
             overflow: 'hidden',
             backgroundColor: props.theme.s1
-        },
-        main_text: {
-            width: '100%',
-            height: '100%',
-            alignSelf: 'flex-start',
-            justifyContent: 'center',
-            fontFamily: 'Proxima Nova Bold',
-            fontSize: 20,
-            textAlignVertical: 'center',
-            color: props.theme.s4,
         }
     });
 
     const collapsedHeight = heightPctToDP(6, 15); // same height as one box
-    const expandedHeight = collapsedHeight * (props.items.length + props.addNewBtnEnabled);
+    const expandedHeight = collapsedHeight * (props.items.length + props.addNewBtnEnabled + 1); //+ 1 because of top selected item
 
     const animatedDropdownStyle = useAnimatedStyle(() => {
         return {
-            height: withTiming(props.dropdownOpen ? expandedHeight : collapsedHeight, {duration: 200, easing: Easing.in(bezierAnimCurve)}),
+            height: withTiming(props.dropdownOpen ? expandedHeight : collapsedHeight, {duration: 300, easing: Easing.in(bezierAnimCurve)}),
         }
     });
 
@@ -313,10 +326,9 @@ const DropdownMenu = (props) => {                               // props: contai
         }
     }, [props.dropdownOpen]);
 
-    let dropdownBoxes = props.items.map((item, index) => {
+    const DropdownBox = ({ name, showCheck=false }) => {
         return (
-            <Pressable 
-                key={index}
+            <Pressable
                 style={({pressed}) => [
                     {
                         width: '100%', 
@@ -329,23 +341,32 @@ const DropdownMenu = (props) => {                               // props: contai
                 ]}
                 onPress={() => {
                     props.handleDropdownOpen(props.name, !props.dropdownOpen);
-                    props.handlePress(item);
+                    props.handlePress(name);
                 }}
             >
-                <View style={{width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row',}}>
-                    {props.decorator ? 
+                <View style={{ width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row' }}>
+                    {props.decorator &&
                         <View style={{flex: 1}}>
                             {props.decorator}
                         </View>
-                        : null
                     }
-                    <View style={{flex: 4, alignItems: 'center', justifyContent: 'center'}}>
-                        <Text style={[{fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6}, props.textStyle]}>{item}</Text>
+                    <View style={{ flex: 4, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={[{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, textAlign: 'center' }, props.textStyle]}>{name}</Text>
                     </View>
                 </View>
+                {showCheck && <View style={{ position: 'absolute', right: 5, top: 11 }}>
+                    <Icon
+                        name='check'
+                        type='feather'
+                        size={20}
+                        color={props.theme.s4}
+                    />
+                </View>}
             </Pressable>
         );
-    });
+    }
+
+    const dropdownBoxes = props.items.map((item, index) => <DropdownBox name={item} showCheck={props.selectedItem === item} key={index} />);
 
     return (
         <Animated.View style={[defaultStyle.container, props.style, animatedDropdownStyle]}>
@@ -360,46 +381,45 @@ const DropdownMenu = (props) => {                               // props: contai
                 ]}
                 onPress={() => props.handleDropdownOpen(props.name, !props.dropdownOpen)}
             >
-                {props.items.length > 1 
-                    ? (<MaterialDesignIcons 
-                        name={props.dropdownOpen ? 'chevron-up' : 'chevron-down'} 
-                        size={22} 
-                        color={props.theme.s4} 
-                        style={{
-                            position: 'absolute',
-                            top: 9,
-                            right: 7,
-                            zIndex: 10,
-                        }}
-                    />) : null
-                }
+                <MaterialDesignIcons 
+                    name={props.dropdownOpen ? 'chevron-up' : 'chevron-down'} 
+                    size={22} 
+                    color={props.theme.s4} 
+                    style={{
+                        position: 'absolute',
+                        top: 9,
+                        right: 7,
+                        zIndex: 10,
+                    }}
+                />
+                <DropdownBox name={props.selectedItem}/>
                 {dropdownBoxes}
-                {props.addNewBtnEnabled 
-                    ? (
-                        <Pressable 
-                            style={({pressed}) => [
-                                {
-                                    width: '100%', 
-                                    height: collapsedHeight,
-                                    borderBottomWidth: StyleSheet.hairlineWidth, 
-                                    borderBottomColor: props.theme.s2,
-                                    zIndex: 3,
-                                    backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : 'transparent'
-                                }
-                            ]}
-                            onPress={() => {
-                                props.handleDropdownOpen(props.name, !props.dropdownOpen);
-                                // TODO: add handleAddNew function
-                            }}
-                        >
-                            <View style={{width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row',}}>
-                                <MaterialDesignIcons name='plus' size={17} color={props.theme.s4} style={{position: 'absolute', top: 11, left: 47.5}} />
-                                <View style={{flex: 4, alignItems: 'center', justifyContent: 'center'}}>
-                                    <Text style={[{fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, left: 15}]}>Add New</Text>
-                                </View>
+                {props.addNewBtnEnabled &&
+                    <Pressable 
+                        style={({pressed}) => [
+                            {
+                                width: '100%', 
+                                height: collapsedHeight,
+                                borderBottomWidth: StyleSheet.hairlineWidth, 
+                                borderBottomColor: props.theme.s2,
+                                zIndex: 3,
+                                backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : props.theme.s9
+                            }
+                        ]}
+                        onPress={() => {
+                            props.handleDropdownOpen(props.name, !props.dropdownOpen);
+                            // TODO: add handleAddNew function
+                        }}
+                    >
+                        <View style={{ width: '85%', height: '100%', flexDirection: 'row', justifyContent: 'center' }}>
+                            <View style={{ flex: 3, alignItems: 'flex-end', justifyContent: 'center' }}>
+                                <MaterialDesignIcons name='plus' size={20} color={props.theme.s4} style={{ marginRight: 5 }} />
                             </View>
-                        </Pressable>
-                    ) : null
+                            <View style={{ flex: 4, alignItems: 'flex-start', justifyContent: 'center' }}>
+                                <Text style={[{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, marginLeft: 5 }]}>Add New</Text>
+                            </View>
+                        </View>
+                    </Pressable>
                 }
             </Pressable>
         </Animated.View>
@@ -413,7 +433,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
         category: false,
         priority: false,
     });
-    const menuHeight = useSharedValue(0);
+    const menuHeight = useSharedValue(100);
     const animatedMenuStyle = useAnimatedStyle(() => {
         return {
             top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}),
@@ -462,7 +482,6 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
 
     const expandedHeight = 100;
     
-    const isFocused = useIsFocused();
     useEffect(() => {
         menuHeight.value = menuVisible ? 0 : expandedHeight;
         if(!menuVisible) {
@@ -523,8 +542,9 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                 text='Category:' 
                 rightComponent={
                     <DropdownMenu 
-                        theme={theme} 
-                        items={[eventToAdd.category, ...categoryData.labels.slice().filter(c => c !== eventToAdd.category)]} 
+                        theme={theme}
+                        selectedItem={eventToAdd.category}
+                        items={categoryData.labels}
                         textStyle={{left: 10}} 
                         addNewBtnEnabled={true}
                         handlePress={handleEditEvent('category')}
@@ -542,8 +562,9 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                 rightComponent={
                     <DropdownMenu 
                         theme={theme} 
-                        items={[eventToAdd.priority, ...priorityData.filter(p => p !== eventToAdd.priority)]} 
-                        style={{width: '25%'}} 
+                        selectedItem={eventToAdd.priority}
+                        items={priorityData} 
+                        style={{width: '30%'}} 
                         textStyle={{left: 5}} 
                         addNewBtnEnabled={false}
                         handlePress={handleEditEvent('priority')}
@@ -575,10 +596,9 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                 <TextInput
                     scrollEnabled={false}
                     multiline={true}
-                    autoFocus={false}
                     maxLength={maxEventChars}
                     textBreakStrategy='simple'
-                    placeholder='Tap to Edit'
+                    placeholder='Tap to edit'
                     placeholderTextColor={toRGBA(theme.s4, 0.5)}
                     value={eventToAdd.description}
                     onChangeText={text => {
@@ -645,7 +665,6 @@ const PlannerPage = ({ navigation }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [buttonVisible, setButtonVisible] = useState(true);
     const [menuData, setMenuData] = useState({visible: false, isEditing: false, editData: {}});
-    const isFocused = useIsFocused();
 
     const [events, setEvents] = useState([]);
     const [categoryData, setCategoryData] = useState({});
@@ -694,17 +713,12 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    // useEffect(async () => {  // why refresh on focus? Use the refresh effect instead
-    //     if (isFocused) {
-    //         await refreshClasses();
-    //     }
-    // }, [isFocused]);
-
     useEffect(async () => {
         try {
             await refreshClasses();
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
+            console.log(parsed);
             if(Array.isArray(parsed)) {
                 setEvents(parsed);
             }
@@ -724,7 +738,7 @@ const PlannerPage = ({ navigation }) => {
         }
     }, []);
 
-    const handleAdd = async(category, initData) => {
+    const handleAdd = async (category, initData) => {
         function randomHSL() {
             return "hsla(" + ~~(360 * Math.random()) + "," +
                 "70%,"+
@@ -754,11 +768,10 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    const handleDelete = async(sectionName, itemKey) => {
+    const handleDelete = async (sectionName, itemKey) => {
         try {
             let newEvents = events.slice();
             let section = newEvents.find(elem => elem.name === sectionName);
-            //console.log('sectiondata:', section.data.findIndex(e => e.key === itemKey));
             section.data.splice(section.data.findIndex(event => event.key === itemKey), 1);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -768,7 +781,7 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    const handleUpdateSection = async(sectionName, newSectionData) => {
+    const handleUpdateSection = async (sectionName, newSectionData) => {
         try {
             let newEvents = events.slice();
             newEvents.find(elem => elem.name === sectionName).data = newSectionData;
@@ -779,7 +792,7 @@ const PlannerPage = ({ navigation }) => {
         }
     };
 
-    const handleEventEdit = async(sectionName, key, newData) => {
+    const handleEventEdit = async (sectionName, key, newData) => {
         try {
             let eventCopy = events.slice();
             let section = eventCopy.find(elem => elem.name === sectionName);
@@ -979,7 +992,6 @@ const styles = StyleSheet.create({
     event_text: {
         fontSize: 18,
         fontFamily: 'Proxima Nova Bold',
-        textAlign: 'center',
         textAlignVertical: 'center',
     },
     add_button: {
