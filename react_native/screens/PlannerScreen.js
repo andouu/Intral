@@ -16,7 +16,7 @@ import {
     LayoutAnimation,
     LogBox,
     Keyboard,
-    Alert
+    Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
@@ -58,15 +58,62 @@ const maxEventChars = 80;
 
 const bezierAnimCurve = Easing.bezier(0.5, 0.01, 0, 1);
 
-const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleDelete, handleScrollEnabled }) => {
+const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleChangePriority, handleDelete, handleScrollEnabled }) => {
     const isLast = index === dataSize - 1;
+
+    const priorityColors = [theme.s13, theme.s9, theme.s1];
+    let priorityColor = priorityColors[item.data.priority - 1];
+
+    const UnderlayRight = ({ item, percentOpen, open, close }) => {
+        return (
+            <Animated.View 
+                style={[
+                    styles.event_right_underlay, 
+                    {
+                        borderBottomWidth: !isLast ? 1 : 0, 
+                        borderBottomColor: theme.s2,
+                        backgroundColor: theme.s3,
+                    },
+                ]}
+            >
+                <View style={{width: 50, height: '100%', backgroundColor: theme.s4, alignItems: 'center', justifyContent: 'center'}}>
+                    <Icon
+                        name='chevron-down'
+                        type='feather'
+                        size={30}
+                        color={theme.s1}
+                        onPress={() => {close(); handleChangePriority(3);}}
+                    />
+                </View>
+                <View style={{width: 50, height: '100%', backgroundColor: theme.s8, alignItems: 'center', justifyContent: 'center'}}>
+                    <Icon
+                        name='chevron-up'
+                        type='feather'
+                        size={30}
+                        color={theme.s1}
+                        onPress={() => {close(); handleChangePriority(2);}}
+                    />
+                </View>
+                <View style={{width: 50, height: '100%', backgroundColor: theme.s3, alignItems: 'center', justifyContent: 'center'}}>
+                    <Icon
+                        name='chevrons-up'
+                        type='feather'
+                        size={30}
+                        color={theme.s1}
+                        onPress={() => {close(); handleChangePriority(1);}}
+                    />
+                </View>
+            </Animated.View>
+        );
+    }
+
     const UnderlayLeft = ({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
         return (
             <Animated.View 
                 style={[
-                    styles.event_edit_underlay, 
+                    styles.event_left_underlay, 
                     {
-                        borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
+                        borderBottomWidth: !isLast ? 1 : 0, 
                         borderBottomColor: theme.s2, 
                         opacity: percentOpen, 
                         backgroundColor: theme.s11
@@ -79,37 +126,45 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                         type='feather'
                         size={20}
                         color={theme.s1}
-                        onPress={() => handleDelete(sectionData.name, item.key)}
+                        onPress={() => {close(); handleDelete(sectionData.name, item.key);}}
                     />
                 </TouchableOpacity>
             </Animated.View>
         );
-    } 
+    }
+
     return (
         <SwipeableItem
-            renderUnderlayLeft={({percentOpen}) => <UnderlayLeft item={item} percentOpen={percentOpen} />}
+            renderUnderlayRight={({percentOpen, close}) => <UnderlayRight item={item} percentOpen={percentOpen} close={close} />}
+            snapPointsRight={[50, 100, 150]}
+            renderUnderlayLeft={({percentOpen, close}) => <UnderlayLeft item={item} percentOpen={percentOpen} close={close} />}
             snapPointsLeft={[55]}
             overSwipe={20}
         >
-            <TouchableOpacity
-                style={{
-                    width: '100%',
-                    height: 65,
-                    padding: 15,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderBottomWidth: !isLast ? StyleSheet.hairlineWidth : 0, 
-                    borderBottomColor: theme.s2,
-                    backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : theme.s1,
-                }}
-                onLongPress={() => {
-                    handleScrollEnabled(false);
-                    drag();
-                }}
-                onPress={() => handleMenuOpen(true, {key: item.key, category: sectionData.name, priority: item.data.priority, description: item.data.text})}
-            >
-                <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
-            </TouchableOpacity>
+            <View style={{
+                width: '100%',
+                minHeight: 65,
+                borderBottomWidth: !isLast ? 1 : 0, 
+                borderBottomColor: theme.s2,
+                backgroundColor: isActive ? toRGBA(theme.s4, 0.5) : priorityColor,
+            }}>
+                <TouchableOpacity
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 15,
+                    }}
+                    onLongPress={() => {
+                        handleScrollEnabled(false);
+                        drag();
+                    }}
+                    onPress={() => handleMenuOpen(true, {key: item.key, category: sectionData.name, priority: item.data.priority, description: item.data.text})}
+                >
+                    <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
+                </TouchableOpacity>
+            </View>
         </SwipeableItem>
     );
 }
@@ -135,7 +190,16 @@ const BorderedFlatList = (props) => {
                             isActive={isActive} 
                             dataSize={props.data.data.length} 
                             handleMenuOpen={props.handleMenuOpen}
-                            handleDelete={props.handleDelete} 
+                            handleChangePriority={(newPriority) => props.handleEventEdit(
+                                props.data.name,
+                                item.key,
+                                {
+                                    category: props.data.name, 
+                                    priority: newPriority,
+                                    description: item.data.text,
+                                }
+                            )}
+                            handleDelete={props.handleDelete}
                             handleScrollEnabled={props.handleScrollEnabled}
                         />
                     }
@@ -153,9 +217,7 @@ const BorderedFlatList = (props) => {
 
 const EventList = (props) => {
     const [scrollEnabled, setScrollEnabled] = useState(true);
-
-    const theme = props.theme;
-
+    
     const checkEventsEmpty = () => {
         for (let i = 0; i < props.sortedEvents.length; i ++) {
             if (props.sortedEvents[i].data.length !== 0) {
@@ -168,7 +230,7 @@ const EventList = (props) => {
     if(checkEventsEmpty()) {
         return (
             <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-                <Text style={[styles.helper_text, {color: theme.s6, bottom: 75}]}>No events right now... click the add button to create one!</Text>
+                <Text style={[styles.helper_text, {color: props.theme.s6, bottom: 75}]}>No events right now... click the add button to create one!</Text>
             </View>
         );
     }
@@ -182,7 +244,8 @@ const EventList = (props) => {
                         theme={props.theme} 
                         data={item} 
                         setSectionData={props.setSectionData}
-                        handleMenuOpen={props.handleMenuOpen} 
+                        handleMenuOpen={props.handleMenuOpen}
+                        handleEventEdit={props.handleEventEdit}
                         handleDelete={props.handleDelete}
                         handleScrollEnabled={setScrollEnabled} 
                     />
@@ -531,6 +594,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                     }
                 ]}
                 onPress={() => {
+                    Keyboard.dismiss();
                     closeMenu();
                 }}
             >
@@ -642,9 +706,11 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                                     description: eventToAdd.description,
                                 }
                             );
+                            Keyboard.dismiss();
                             closeMenu();
                         } else {
                             handleAdd(eventToAdd.category, eventToAdd.priority, eventToAdd.description);
+                            Keyboard.dismiss();
                             closeMenu();
                         }
                     } else {
@@ -718,7 +784,6 @@ const PlannerPage = ({ navigation }) => {
             await refreshClasses();
             let storedEvents = await AsyncStorage.getItem('plannerEvents');
             let parsed = await JSON.parse(storedEvents);
-            console.log(parsed);
             if(Array.isArray(parsed)) {
                 setEvents(parsed);
             }
@@ -807,7 +872,8 @@ const PlannerPage = ({ navigation }) => {
                 let newSection = eventCopy.find(elem => elem.name === newData.category).name;
                 handleAdd(newSection, {priority: eventObj.data.priority, description: eventObj.data.text});
                 section.data.splice(eventObjIdx, 1);
-            }                                                     
+            }
+            setEvents(eventCopy);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(events));
         } catch(err) {
             console.log(err);
@@ -861,6 +927,7 @@ const PlannerPage = ({ navigation }) => {
                 <EventList
                     sortedEvents={events}
                     handleMenuOpen={handleMenuOpen}
+                    handleEventEdit={handleEventEdit}
                     handleDelete={handleDelete}
                     setSectionData={handleUpdateSection}
                     theme={theme}
@@ -948,7 +1015,13 @@ const styles = StyleSheet.create({
     event_container: {
         overflow: 'hidden'
     },
-    event_edit_underlay: {
+    event_right_underlay: { // right swipe underlay
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+    },
+    event_left_underlay: { // left swipe underlay
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
