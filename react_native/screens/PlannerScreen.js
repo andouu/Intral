@@ -160,7 +160,7 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                         handleScrollEnabled(false);
                         drag();
                     }}
-                    onPress={() => handleMenuOpen(true, {key: item.key, category: sectionData.name, priority: item.data.priority, description: item.data.text})}
+                    onPress={() => handleMenuOpen(true, {key: item.key, sectionName: sectionData.name, priority: item.data.priority, description: item.data.text})}
                 >
                     <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
                 </TouchableOpacity>
@@ -194,7 +194,7 @@ const BorderedFlatList = (props) => {
                                 props.data.name,
                                 item.key,
                                 {
-                                    category: props.data.name, 
+                                    sectionName: props.data.name, 
                                     priority: newPriority,
                                     description: item.data.text,
                                 }
@@ -310,17 +310,14 @@ const AddButton = ({ theme, buttonVisible, handleOpen }) => {
 const Field = (props) => {
     const defaultStyle = StyleSheet.create({
         container: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
             width: '100%',
-            height: '8%',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-start',
-            marginBottom: 5,
+            height: '10%',
+            marginBottom: 5
         },
         main_text: {
-            width: '100%',
             height: '100%',
-            alignSelf: 'flex-start',
-            justifyContent: 'center',
             fontFamily: 'Proxima Nova Bold',
             fontSize: 20,
             textAlignVertical: 'center',
@@ -350,23 +347,24 @@ const Field = (props) => {
  * - decorator (obj) = left decorator for each box
  * - textStyle = custom style of text
  * - handlePress (function) = function to call for each button when it's pressed
- * - addNewBtnEnabled = whether to have an add new button
+ * - otherDropdownOpening (bool) = whether another dropdown is opening causing this dropdown to close (used to handle zIndex)
+ * - multiselect (bool) = whether to allow dropdown multiselect                                       //TODO! (also, if this is true, selectedItem should not exist)
+ * - addNewBtnEnabled (bool) = whether to have an add new button
  */
 const DropdownMenu = (props) => {                                                           
     const [dropdownZIndex, setDropdownZIndex] = useState(1);
 
     const defaultStyle = StyleSheet.create({
         container: {
-            width: '60%',
-            height: '80%', 
-            position: 'absolute',
-            top: 7, 
+            top: 7.5,
+            width: '50%',
+            height: '80%',
             zIndex: dropdownZIndex,
             borderWidth: 1.5,
             borderColor: props.theme.s2,
             borderRadius: 15,
             overflow: 'hidden',
-            backgroundColor: props.theme.s1
+            backgroundColor: props.theme.s1,
         }
     });
 
@@ -383,9 +381,11 @@ const DropdownMenu = (props) => {
         if(props.dropdownOpen) {
             setDropdownZIndex(4);
         } else {
-            setTimeout(() => {
+            if (props.otherDropdownOpening) {
                 setDropdownZIndex(2);
-            }, 200);
+            } else {
+                setTimeout(() => setDropdownZIndex(2), 200);
+            }
         }
     }, [props.dropdownOpen]);
 
@@ -432,7 +432,7 @@ const DropdownMenu = (props) => {
     const dropdownBoxes = props.items.map((item, index) => <DropdownBox name={item} showCheck={props.selectedItem === item} key={index} />);
 
     return (
-        <Animated.View style={[defaultStyle.container, props.style, animatedDropdownStyle]}>
+        <Animated.View style={[defaultStyle.container, props.containerStyle, animatedDropdownStyle]}>
             <Pressable
                 style={({pressed}) => [
                     {
@@ -489,13 +489,14 @@ const DropdownMenu = (props) => {
     );
 }
 
-const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
+const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
     const [eventToAdd, setEventToAdd] = useState({});
     const [charsLeft, setCharsLeft] = useState(maxEventChars);
     const [openMenus, setOpenMenus] = useState({
-        category: false,
+        sectionName: false,
         priority: false,
     });
+    const [otherDropdownOpening, setOtherDropdownOpening] = useState(false);
     const menuHeight = useSharedValue(100);
     const animatedMenuStyle = useAnimatedStyle(() => {
         return {
@@ -504,22 +505,39 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
     });
 
     const handleDropdownOpen = (key, newValue) => {
-        let newOpenMenus = {
-            category: false,
-            priority: false,
+        let newOpenMenus = {...openMenus};
+        if (!newValue) {
+            newOpenMenus[key] = false;
+            setOpenMenus(newOpenMenus);
+            setOtherDropdownOpening(false);
+        } else
+        {
+            let keys = Object.keys(newOpenMenus);
+            let otherOpening = false;
+            for (let i = 0; i < keys.length; i ++) {
+                let curKey = keys[i];
+                if (curKey === key) {
+                    newOpenMenus[key] = true;
+                } else {
+                    if (newOpenMenus[curKey]) {
+                        otherOpening = true;
+                        newOpenMenus[curKey] = false;
+                    }
+                }
+            }
+            setOpenMenus(newOpenMenus);
+            setOtherDropdownOpening(otherOpening);
         }
-        newOpenMenus[key] = newValue;
-        setOpenMenus(newOpenMenus);
     }
 
     const handleEditEvent = (type) => {
         let changeFunction;
         switch(type) {
-            case 'category':
-                changeFunction = (newCategory) => {
+            case 'sectionName':
+                changeFunction = (newSectionName) => {
                     setEventToAdd({
                         ...eventToAdd,
-                        category: newCategory,
+                        sectionName: newSectionName,
                     });
                 }
                 break;
@@ -530,7 +548,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                         priority: newPriority,
                     });
                 }
-                break; 
+                break;
             case 'description':
                 changeFunction = (newDescription) => {
                     setEventToAdd({
@@ -538,7 +556,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                         description: newDescription,
                     });
                 }
-                break;        
+                break;
         }
         return changeFunction;
     }
@@ -546,11 +564,15 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
     const expandedHeight = 100;
     
     useEffect(() => {
+        setOpenMenus({
+            sectionName: false,
+            priority: false,
+        });
         menuHeight.value = menuVisible ? 0 : expandedHeight;
         if(!menuVisible) {
             setTimeout(() => {
                 setEventToAdd({
-                    category: categoryData.labels[0],
+                    sectionName: sectionsData.sectionNames[0],
                     priority: priorityData[0],
                     description: '',
                 });
@@ -558,17 +580,17 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
             }, 500);
         } else {
             setEventToAdd({
-                category: editing ? editData.category : categoryData.labels[0],
+                sectionName: editing ? editData.sectionName : sectionsData.sectionNames[0],
                 priority: editing ? editData.priority : priorityData[0],
                 description: editing ? editData.description : '',
-            });  
+            });
             setCharsLeft(maxEventChars - eventToAdd.description.length);
         }
     }, [menuVisible]);
 
     useEffect(() => {
         setEventToAdd({ // only loads after re-render?
-            category: editing ? editData.category : categoryData.labels[0],
+            sectionName: editing ? editData.sectionName : sectionsData.sectionNames[0],
             priority: editing ? editData.priority : priorityData[0],
             description: editing ? editData.description : '',
         });
@@ -600,48 +622,84 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
             >
                 <MaterialDesignIcons name='close' size={30} color={theme.s4} style={{bottom: 0, right: 0}}/>
             </Pressable>
-            <Field 
-                theme={theme} 
-                containerStyle={{height: '10%'}}
-                text='Category:' 
+            <Field
+                theme={theme}
+                text='Section Name:'
                 rightComponent={
-                    <DropdownMenu 
+                    <DropdownMenu
                         theme={theme}
-                        selectedItem={eventToAdd.category}
-                        items={categoryData.labels}
-                        textStyle={{left: 10}} 
+                        selectedItem={eventToAdd.sectionName}
+                        items={sectionsData.sectionNames}
+                        textStyle={{left: 10}}
                         addNewBtnEnabled={true}
-                        handlePress={handleEditEvent('category')}
-                        name='category'
-                        dropdownOpen={openMenus.category}
+                        handlePress={handleEditEvent('sectionName')}
+                        name='sectionName'
+                        dropdownOpen={openMenus.sectionName}
                         handleDropdownOpen={handleDropdownOpen}
+                        otherDropdownOpening={otherDropdownOpening}
                     />
                 }
             />
             <Field
                 theme={theme}
-                containerStyle={{height: '10%'}}
+                text='Due Date:'
+                rightComponent={
+                    <View style={styles.add_date_button}>
+                        <Pressable
+                            style={({ pressed }) => [{
+                                width: '100%',
+                                height: '75%',
+                                backgroundColor: pressed ? theme.s2 : theme.s1,
+                                borderWidth: 1.5,
+                                borderRadius: 30,
+                                borderColor: theme.s2,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }]}
+                            onPress={() => console.log('due date modal opened')}
+                        >
+                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>Choose</Text>
+                            <Icon
+                                name='calendar'
+                                type='feather'
+                                size={20}
+                                color={theme.s6}
+                            />
+                        </Pressable>
+                    </View>
+                }
+            />
+            <Field                      //TODO
+                theme={theme}
+                text='Due Time:'
+                rightComponent={
+                    null
+                }
+            />
+            <Field
+                theme={theme}
                 text='Priority:'
-                // possible change: use text input instead of dropdown menu for priorities
                 rightComponent={
                     <DropdownMenu 
-                        theme={theme} 
+                        theme={theme}
                         selectedItem={eventToAdd.priority}
-                        items={priorityData} 
-                        style={{width: '30%'}} 
-                        textStyle={{left: 5}} 
+                        items={priorityData}
+                        containerStyle={{width: '30%'}}
+                        textStyle={{left: 5}}
                         addNewBtnEnabled={false}
                         handlePress={handleEditEvent('priority')}
                         name='priority'
                         dropdownOpen={openMenus.priority}
                         handleDropdownOpen={handleDropdownOpen}
+                        otherDropdownOpening={otherDropdownOpening}
                     />
                 }
             />
             <Field
                 theme={theme}
                 text='Description:'
-                containerStyle={{height: '10%', marginBottom: 0}}
+                containerStyle={{marginBottom: 0}}
             />
             <View
                 style={{
@@ -653,7 +711,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                     borderWidth: 1.5,
                     borderColor: theme.s2,
                     borderRadius: 30,
-                    marginBottom: 60,
+                    marginBottom: 40,
                     overflow: 'hidden',
                 }}
             >
@@ -698,10 +756,10 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                     if(eventToAdd.description.trim() !== '') {
                         if(editing) {
                             handleChange(
-                                editData.category, 
+                                editData.sectionName,                           // editData.sectionName is the previous section of the current eventToAdd
                                 editData.key,                                   // key is only used for lookup and should not be changed.
                                 {
-                                    category: eventToAdd.category, 
+                                    sectionName: eventToAdd.sectionName, 
                                     priority: eventToAdd.priority,
                                     description: eventToAdd.description,
                                 }
@@ -709,7 +767,7 @@ const AddMenu = ({ categoryData, priorityData, handleAdd, handleChange, menuVisi
                             Keyboard.dismiss();
                             closeMenu();
                         } else {
-                            handleAdd(eventToAdd.category, eventToAdd.priority, eventToAdd.description);
+                            handleAdd(eventToAdd.sectionName, eventToAdd.priority, eventToAdd.description);
                             Keyboard.dismiss();
                             closeMenu();
                         }
@@ -733,7 +791,7 @@ const PlannerPage = ({ navigation }) => {
     const [menuData, setMenuData] = useState({visible: false, isEditing: false, editData: {}});
 
     const [events, setEvents] = useState([]);
-    const [categoryData, setCategoryData] = useState({});
+    const [sectionsData, setSectionsData] = useState({});
     const [priorityData, setPriorityData] = useState([1, 2, 3]); // TODO: allow user to add or change priority array
     
     const refreshClasses = async () => {
@@ -741,7 +799,7 @@ const PlannerPage = ({ navigation }) => {
             let storedClasses = await AsyncStorage.getItem('classes');
             let parsed = await JSON.parse(storedClasses);
             if (Array.isArray(parsed)) {
-                let eventSections, categoryTitles = [];
+                let eventSections, sectionNames = [];
                 if (events.length === 0) {
                     eventSections = [];
                     parsed.map((item, index) => { // TODO: refactor to use for loop, no reason to map and create another array
@@ -754,22 +812,20 @@ const PlannerPage = ({ navigation }) => {
                             name: cleanTitle,
                             data: []
                         });
-                        categoryTitles.push(cleanTitle);
-                    });          
-                    categoryTitles.push('Other');      
+                        sectionNames.push(cleanTitle);
+                    });
                 } else {
                     eventSections = events.slice();
                     parsed.map((item, index) => {
                         let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
                         eventSections[index].name = cleanTitle;
-                        categoryTitles.push(cleanTitle);
+                        sectionNames.push(cleanTitle);
                     });
                 }
-                categoryTitles.push('Other');
                 await AsyncStorage.setItem('plannerEvents', JSON.stringify(eventSections));
-                setCategoryData({
-                    ...categoryData,
-                    labels: categoryTitles,
+                setSectionsData({
+                    ...sectionsData,
+                    sectionNames: sectionNames,
                 });
                 setEvents(eventSections);
                 setIsLoading(false);
@@ -787,15 +843,13 @@ const PlannerPage = ({ navigation }) => {
             if(Array.isArray(parsed)) {
                 setEvents(parsed);
             }
-            let tmpCategoryLabels = [];
-            for(let i = 0; i < parsed.length; i++) {
-                tmpCategoryLabels.push(parsed[i].name);
+            let sectionNames = [];
+            for(let i = 0; i < parsed.length; i ++) {
+                sectionNames.push(parsed[i].name);
             }
-            if(tmpCategoryLabels.find(e => e === 'Other') === -1)
-                tmpCategoryLabels.push('Other');  
-            setCategoryData({
-                ...categoryData, 
-                labels: tmpCategoryLabels,
+            setSectionsData({
+                ...sectionsData, 
+                sectionNames: sectionNames,
             });
             setIsLoading(false);
         } catch(err) {
@@ -803,7 +857,7 @@ const PlannerPage = ({ navigation }) => {
         }
     }, []);
 
-    const handleAdd = async (category, initData) => {
+    const handleAdd = async (sectionName, initData) => {
         function randomHSL() {
             return "hsla(" + ~~(360 * Math.random()) + "," +
                 "70%,"+
@@ -813,7 +867,7 @@ const PlannerPage = ({ navigation }) => {
             let newEvents = events.slice();
             let randomKey = getRandomKey(10);
             let randomColor = randomHSL();
-            let dataArr = newEvents.find(elem => elem.name === category);
+            let dataArr = newEvents.find(elem => elem.name === sectionName);
             if(dataArr.color === '') {
                 dataArr.color = randomColor;
             }
@@ -850,17 +904,17 @@ const PlannerPage = ({ navigation }) => {
         try {
             let newEvents = events.slice();
             newEvents.find(elem => elem.name === sectionName).data = newSectionData;
-            setEvents(newEvents);                                                       // call setEvents before setting asyncstorage!! await will make the draggable flatlist laggy
+            setEvents(newEvents);                                                      // call setEvents before setting asyncstorage!! await will make the draggable flatlist laggy
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
         } catch(err) {
             console.log(err);
         }
     };
 
-    const handleEventEdit = async (sectionName, key, newData) => {
+    const handleEventEdit = async (prevSectionName, key, newData) => {
         try {
             let eventCopy = events.slice();
-            let section = eventCopy.find(elem => elem.name === sectionName);
+            let section = eventCopy.find(elem => elem.name === prevSectionName);
             eventObjIdx = section.data.findIndex(elem => elem.key === key);
             eventObj = section.data[eventObjIdx];
             eventObj.data = {
@@ -868,8 +922,8 @@ const PlannerPage = ({ navigation }) => {
                 priority: newData.priority,
                 text: newData.description,
             }
-            if(newData.category !== sectionName) {
-                let newSection = eventCopy.find(elem => elem.name === newData.category).name;
+            if(newData.sectionName !== prevSectionName) {
+                let newSection = eventCopy.find(elem => elem.name === newData.sectionName).name;
                 handleAdd(newSection, {priority: eventObj.data.priority, description: eventObj.data.text});
                 section.data.splice(eventObjIdx, 1);
             }
@@ -889,7 +943,7 @@ const PlannerPage = ({ navigation }) => {
         let result = ''
         let characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let charlen = characters.length;
-        for(let i=0; i<length; i++) {
+        for(let i = 0; i < length; i ++) {
             result += characters.charAt(Math.floor(Math.random() * charlen));
         }
         return result;
@@ -936,10 +990,10 @@ const PlannerPage = ({ navigation }) => {
                     events={events}
                     isLoading={isLoading}
                     theme={theme}
-                    categoryData={categoryData}
+                    sectionsData={sectionsData}
                     priorityData={priorityData}
-                    handleAdd={(ctgy, prty, desc) => { // category, priority, description
-                        handleAdd(ctgy, initData={description: desc, priority: prty});
+                    handleAdd={(prevSectionName, priority, description) => {
+                        handleAdd(prevSectionName, initData={description: description, priority: priority});
                     }}
                     handleChange={handleEventEdit}
                     editing={menuData.isEditing}
@@ -984,37 +1038,6 @@ const styles = StyleSheet.create({
         paddingLeft: 15,
         paddingRight: 15,
     },
-    loading_container: {
-        flex: 1,
-        marginBottom: 50,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    event_list_container: {
-        marginTop: -15,
-        flex: 1,
-        width: '100%',
-        height: '100%'
-    },
-    section_container: {
-        borderWidth: 3,
-        borderBottomLeftRadius: 15,
-        borderBottomRightRadius: 15,
-        overflow: 'hidden'
-    },
-    section_button: {
-        minHeight: 50,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    section_button_text: {
-        fontFamily: 'ProximaNova-Regular',
-        fontSize: 15
-    },
-    event_container: {
-        overflow: 'hidden'
-    },
     event_right_underlay: { // right swipe underlay
         flex: 1,
         flexDirection: 'row',
@@ -1026,41 +1049,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-    },
-    event_box: {
-        width: '100%',
-        justifyContent: 'center',
-        padding: 25
-    },
-    event_modal: {
-        marginTop: Dimensions.get('window').height / 3 - 10,
-        marginLeft: 15,
-        marginRight: 15,
-        height: '30%',
-        borderWidth: 3,
-        borderRadius: 15,
-        flexDirection: 'row',
-        padding: 5,
-    },
-    event_modal_button: {
-        flex: 1,
-        borderRadius: 10,
-        margin: 5,
-        alignItems: 'center',
-    },
-    event_modal_text: {
-        fontSize: 25,
-        fontFamily: 'ProximaNova-Regular',
-        fontWeight: 'bold',
-    },
-    event_text_box: {
-        minHeight: 50,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    event_character_count: {
-        position: 'absolute',
-        top: -10
     },
     event_text: {
         fontSize: 18,
@@ -1077,31 +1065,11 @@ const styles = StyleSheet.create({
         bottom: 20,
         right: 15,
     },
-    add_modal: {
-        marginTop: '60%',
-        marginLeft: 15,
-        marginRight: 15,
-        height: '40%',
-        borderRadius: 15,
-        borderWidth: 2
-    },
-    add_modal_back_button: {
-        marginTop: 10,
-        marginBottom: 5,
-        width: '50%',
-        minHeight: 45,
-        borderRadius: 15,
+    add_date_button: {
+        width: '40%',
+        height: '100%',
         alignItems: 'center',
-        justifyContent: 'center'
-    },
-    add_modal_button: {
-        minHeight: 45,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    add_modal_button_text: {
-        fontSize: 15,
-        fontFamily: 'ProximaNova-Regular'
+        justifyContent: 'center',
     },
     helper_container: {
         alignItems: 'center',
