@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import {
     StyleSheet,
     View,
@@ -7,6 +7,7 @@ import {
     Dimensions,
     PixelRatio,
 } from 'react-native';
+import Calendar from '../components/Calendar';
 import { toRGBA } from '../components/utils';
 import { useIsFocused } from '@react-navigation/core';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
@@ -17,7 +18,6 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 
-const monthDict = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
@@ -30,217 +30,6 @@ const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleyd
     const screenWidth = Dimensions.get('window').width - 2 * padding;
     const elemWidth = parseFloat(widthPct);
     return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
-}
-
-const getDaysOfMonth = (month, year) => { // days in month, month is 1-indexed
-    if (month === 2) {
-        if (year % 400 === 0)
-            return 29;
-        else if (year % 100 === 0)
-            return 28;
-        else if (year % 4 === 0)
-            return 29;
-        else
-            return 28;
-    } else if (month === 4 || month === 6 || month === 9 || month === 11) {
-        return 30;
-    } else {
-        return 31;
-    }
-};
-
-const CalendarDay = ({ dayNumber, month, year, isToday=false, isSelected=false, setSelectedDate, theme }) => {
-    return (
-        <View style={styles.calendar_day}>
-            <Pressable
-                style={({pressed}) => [
-                    styles.calendar_day_selected,
-                    {backgroundColor: isToday ? theme.s6 : (isSelected ? theme.s8 : (pressed ? theme.s13 : 'transparent'))}
-                ]}
-                onPress={() => setSelectedDate({
-                    day: dayNumber,
-                    month: month,
-                    year: year
-                })}
-            >
-                <Text style={{fontFamily: 'ProximaNova-Regular', fontSize: 15, color: isToday ? theme.s1 : (isSelected ? theme.s6 : theme.s4)}}>
-                    {dayNumber}
-                </Text>
-            </Pressable>
-        </View>
-    );
-}
-
-const SingleCalendar = ({ size, hwr=75, style, theme, dateToday, displayDate, selectedDate, setSelectedDate }) => { // hwr = height width ratio percent    
-    let height = size * hwr/100;
-    if (typeof size === 'string') {
-        height = parseInt(size) * (hwr/100) + '%';
-    }
-
-    const dayToday = dateToday.getDate();
-    const monthToday = dateToday.getMonth() + 1;
-    const yearToday = dateToday.getFullYear();
-    const todayDayOfWeek = dateToday.getDay();
-    const todaySameMonthYear = (monthToday === displayDate.month && yearToday === displayDate.year);
-
-    const numDays = getDaysOfMonth(displayDate.month, displayDate.year);
-
-    let dayLabels = daysOfWeek.map((day, index) => {
-        return (
-            <View 
-                key={index} 
-                style={[styles.calendar_day_label, {borderBottomColor: theme.s4}]}
-            >
-                <Text 
-                    style={[styles.calendar_day_label_text, {
-                        color: index === todayDayOfWeek && todaySameMonthYear
-                            ? theme.s6 
-                            : theme.s4
-                    }]}
-                >
-                    {day.substr(0, 3)}
-                </Text>
-            </View>
-        );
-    });
-
-    let dayBoxes = []
-    let firstDayOfMonth = dayOfWeek(1, displayDate.month, displayDate.year);
-    for (let i = 0; i < firstDayOfMonth; i ++) {
-        dayBoxes.push(
-            <View key={i} style={styles.calendar_day}/>
-        );
-    }
-    const selectedSameMonthYear = (selectedDate.month === displayDate.month && selectedDate.year === displayDate.year)
-    let count = 0;
-    for (let i = firstDayOfMonth; i < 42; i ++) {
-        count ++;
-        if (count > numDays) break;
-        const isToday = (todaySameMonthYear && count === dayToday);
-        const isSelected = (selectedSameMonthYear && count === selectedDate.day);
-        dayBoxes.push(
-            <CalendarDay
-                key={i}
-                theme={theme}
-                dayNumber={count}
-                month={displayDate.month}
-                year={displayDate.year}
-                isToday={isToday}
-                isSelected={isSelected}
-                setSelectedDate={setSelectedDate}
-            />
-        );
-    }
-
-    return (
-        <Animated.View style={[{width: size, height: height}, style]}>
-            <View style={styles.calendar_labels_container}>
-                {dayLabels}
-            </View>
-            <View style={styles.calendar_days_container}>
-                {dayBoxes}
-            </View>
-        </Animated.View>
-    );
-}
-
-const Calendar = ({ selectedDate, setSelectedDate, dateToday, theme }) => {    
-    const [displayDate, setDisplayDate] = useState({
-        month: dateToday.getMonth() + 1,
-        year: dateToday.getFullYear()
-    }); // what calendar displays, only month and year
-
-    const isFocused = useIsFocused();
-
-    const handleDisplayDateChange = (deltaMonth) => {
-        let newMonth = (displayDate.month + deltaMonth);
-        let yearChange = 0;
-        if (newMonth < 1)
-        {
-            newMonth += 12;
-            yearChange = -1;
-            if (displayDate.year + yearChange < 1900) return;
-        }
-        else if (newMonth > 12)
-        {
-            newMonth -= 12;
-            yearChange = 1;
-        }
-        setDisplayDate({
-            month: newMonth,
-            year: displayDate.year + yearChange,
-        });
-    }
-
-    useEffect(() => { // reload calendar
-        setSelectedDate({
-            day: dateToday.getDate(), //day as in day of the month
-            month: dateToday.getMonth() + 1,
-            year: dateToday.getFullYear()
-        });
-        setDisplayDate({
-            month: dateToday.getMonth() + 1,
-            year: dateToday.getFullYear()
-        });
-    }, [isFocused])
-
-    return (
-        <View style={styles.calendar_container}>
-            <View 
-                style={[
-                    styles.calendar_header, 
-                    {
-                        // TODO: uncomment below lines after settings merge with main
-                        // borderWidth: themeData.cardOutlined 
-                        //     ? 1.5
-                        //     : 0,
-                        borderWidth: 1.5,
-                        borderColor: theme.s2,
-                    }
-                ]}
-            >
-                <Pressable 
-                    style={({pressed}) => [{
-                        flex: 3, 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        borderRadius: 50,
-                        backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
-                    }]}
-                    onPress={() => handleDisplayDateChange(-1)}
-                > 
-                    {/* Left arrow */}
-                    <MaterialDesignIcons name='chevron-left' size={35} color={theme.s4} style={{right: 2}} />
-                </Pressable>
-                <View style={{flex: 16, alignItems: 'center', justifyContent: 'center'}}> 
-                    {/* Date */}
-                    <Text style={{fontFamily: 'ProximaNova-Regular', fontSize: 20, color: theme.s6}}>{monthDict[displayDate.month - 1]} {displayDate.year}</Text>
-                </View>
-                <Pressable 
-                    style={({pressed}) => [{
-                        flex: 3, 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        borderRadius: 50,
-                        backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
-                    }]}
-                    onPress={() => handleDisplayDateChange(1)}
-                > 
-                    {/* Right arrow */}
-                    <MaterialDesignIcons name='chevron-right' size={35} color={theme.s4} style={{left: 2}} />
-                </Pressable>
-            </View>
-            <SingleCalendar
-                size={'100%'}
-                hwr={80}
-                theme={theme}
-                dateToday={dateToday}
-                displayDate={displayDate}
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-            />
-        </View>
-    );
 }
 
 const EListBtnGroup = ({ theme, style, range, setRange }) => {
@@ -307,6 +96,8 @@ const CalendarScreen = ({ navigation }) => {
         year: dateToday.getFullYear()
     });
     const [range, setRange] = useState('Today');
+    const isFocused = useIsFocused();
+
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
@@ -379,7 +170,9 @@ const CalendarScreen = ({ navigation }) => {
                 <Animated.View style={[styles.header_text, {left: 0, width: '100%'}, /* animatedMainHeaderStyle */]}>
                     <Text style={[styles.header_text, {color: theme.s6, marginBottom: 0}]}>Your Calendar:</Text>
                 </Animated.View>
-                <Calendar selectedDate={selectedDate} setSelectedDate={setSelectedDate} dateToday={dateToday} theme={theme} />
+                <View style={{ width: '100%', height: '45%', marginBottom: 20 }}>
+                    <Calendar dateToday={dateToday} selectedDate={selectedDate} setSelectedDate={setSelectedDate} isRefreshing={isFocused} />
+                </View>
                 <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
                     <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>
                     <Animated.Text style={[{fontFamily: 'Proxima Nova Bold', left: 5, color: theme.s4}, animatedEventListSubheaderStyle]}>
@@ -403,7 +196,7 @@ const CalendarScreen = ({ navigation }) => {
                         }}
                     >
                         <MaterialDesignIcons name='arrow-expand' size={18} color={theme.s4} />
-                    </Pressable>  
+                    </Pressable>
                 </Animated.View>
                 <EListBtnGroup theme={theme} range={range} setRange={setRange} />
             </View>
@@ -457,58 +250,6 @@ const styles = StyleSheet.create({
         left: 2,
         marginBottom: 20,
     },
-    cardHeader_text: {
-        fontFamily: 'Proxima Nova Bold',
-        fontSize: 20,
-        marginBottom: 15,
-        left: 2,
-    },
-    calendar_container: {
-        width: '100%', 
-        height: 300,
-        marginBottom: 5,
-    },
-    calendar_header: {
-        width: '100%',
-        height: 45,
-        flexDirection: 'row',
-        borderRadius: 30,
-        overflow: 'hidden',
-        marginBottom: 10,
-    },
-    calendar_labels_container: {
-        flex: 2,
-        flexDirection: 'row',
-        marginBottom: 10
-    },
-    calendar_day_label: {
-        flex: 1,
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        borderBottomWidth: StyleSheet.hairlineWidth
-    },
-    calendar_day_label_text: {
-        fontFamily: 'Proxima Nova Bold', 
-        fontSize: 12, 
-    },
-    calendar_days_container: {
-        flex: 10,
-        flexDirection: 'row',
-        flexWrap: 'wrap'
-    },
-    calendar_day: {
-        width: '14.2857%', //100/7+'%' 
-        height: '16.6666%', //100/6+'%'
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    calendar_day_selected: {
-        width: 25,
-        height: 25,
-        borderRadius: 30,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
     eList_selector: {
         height: '100%',
         position: 'absolute',
@@ -517,7 +258,7 @@ const styles = StyleSheet.create({
     },
     event_list_container: {
         width: '100%',
-        height: '100%'
+        height: '100%',
     },
     eList_btn_group: {
         width: '80%',
