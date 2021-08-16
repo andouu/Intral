@@ -127,14 +127,14 @@ const CalendarMonth = ({ calendarMonthStyle, dateToday, displayDate, selectedDat
     );
 }
 
-const Calendar = ({ dateToday, selectedDate, setSelectedDate, isRefreshing, containerStyle, monthSelectorStyle, calendarMonthStyle }) => {
+const Calendar = ({ dateToday, selectedDate, setSelectedDate, containerStyle, monthSelectorStyle, calendarMonthStyle }) => {
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
     
     const [displayDate, setDisplayDate] = useState({
-        month: dateToday.getMonth() + 1,
-        year: dateToday.getFullYear()
+        month: selectedDate.month,
+        year: selectedDate.year
     }); // what calendar displays, only month and year
 
     const handleDisplayDateChange = (deltaMonth) => {
@@ -156,18 +156,6 @@ const Calendar = ({ dateToday, selectedDate, setSelectedDate, isRefreshing, cont
             year: displayDate.year + yearChange,
         });
     }
-
-    useEffect(() => { // reload calendar when refreshing (i.e. when dateToday changes)
-        setSelectedDate({
-            day: dateToday.getDate(), //day as in day of the month
-            month: dateToday.getMonth() + 1,
-            year: dateToday.getFullYear()
-        });
-        setDisplayDate({
-            month: dateToday.getMonth() + 1,
-            year: dateToday.getFullYear()
-        });
-    }, [isRefreshing]);
 
     return (
         <View style={[styles.container, containerStyle]}>

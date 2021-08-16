@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import Calendar from '../components/Calendar';
 import { toRGBA } from '../components/utils';
-import { useIsFocused } from '@react-navigation/core';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ThemeContext } from '../components/themeContext';
 import Animated, {
@@ -96,7 +95,6 @@ const CalendarScreen = ({ navigation }) => {
         year: dateToday.getFullYear()
     });
     const [range, setRange] = useState('Today');
-    const isFocused = useIsFocused();
 
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
@@ -171,7 +169,7 @@ const CalendarScreen = ({ navigation }) => {
                     <Text style={[styles.header_text, {color: theme.s6, marginBottom: 0}]}>Your Calendar:</Text>
                 </Animated.View>
                 <View style={{ width: '100%', height: '45%', marginBottom: 20 }}>
-                    <Calendar dateToday={dateToday} selectedDate={selectedDate} setSelectedDate={setSelectedDate} isRefreshing={isFocused} />
+                    <Calendar dateToday={dateToday} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
                 </View>
                 <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
                     <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>

@@ -18,19 +18,20 @@ import {
     Keyboard,
     Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from 'react-native-elements';
+import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import SwipeableItem from 'react-native-swipeable-item/src';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+import Calendar from '../components/Calendar';
 import { ThemeContext } from '../components/themeContext';
 import { toRGBA } from '../components/utils';
-import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
     Easing
 } from 'react-native-reanimated';
-import SwipeableItem from 'react-native-swipeable-item/src';
-import DraggableFlatList from 'react-native-draggable-flatlist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 LogBox.ignoreLogs([
   'ReactNativeFiberHostComponent: Calling getNode() on the ref of an Animated component is no longer necessary. You can now directly use the ref instead. This method will be removed in a future release.',
@@ -52,6 +53,16 @@ const heightPctToDP = (heightPct, padding=0) => { // https://gist.github.com/gle
     const screenHeight = Dimensions.get('window').height - 2 * padding;
     const elemHeight = parseFloat(heightPct);
     return PixelRatio.roundToNearestPixel(screenHeight * elemHeight / 100);
+}
+
+//TODO: export below from Calendar.js and import here instead of have duplicate code
+const monthDict = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
+    let t = [ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 ];
+    y -= (m < 3) ? 1 : 0;
+    return Math.round(( y + y/4 - y/100 + y/400 + t[m - 1] + d) % 7) % 7;
 }
 
 const maxEventChars = 80;
@@ -489,7 +500,121 @@ const DropdownMenu = (props) => {
     );
 }
 
-const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
+const DateField = ({ dateToday, selectedDate, setSelectedDate, theme }) => {
+    const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+    const [doneSelecting, setDoneSelecting] = useState(false);
+
+    const startSelection = () => {
+        setCalendarModalVisible(true);
+    };
+
+    const finishSelection = () => {
+        setDoneSelecting(true);
+        setCalendarModalVisible(false);
+    };
+
+    let dateText = 'Choose';
+    if (doneSelecting) {
+        const todayDay = dateToday.getDate();
+        const todayMonth = dateToday.getMonth() + 1;
+        const todayYear = dateToday.getFullYear();
+        if (selectedDate.day == todayDay + 1 && selectedDate.month == todayMonth && selectedDate.year == todayYear) {
+            dateText = 'Tomorrow';
+        } else {
+            const todayDayOfWeek = dayOfWeek(todayDay, todayMonth, todayYear);
+            let todayFirstDayOfWeek = new Date(todayYear, todayMonth - 1, todayDay);
+            todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() - todayDayOfWeek);
+
+            const selectedDayOfWeek = dayOfWeek(selectedDate.day, selectedDate.month, selectedDate.year);
+            let selectedFirstDayOfWeek = new Date(selectedDate.year, selectedDate.month - 1, selectedDate.day);
+            selectedFirstDayOfWeek.setDate(selectedFirstDayOfWeek.getDate() - selectedDayOfWeek);
+            const wordDayOfWeek = daysOfWeek[selectedDayOfWeek];
+            
+            if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
+                dateText = wordDayOfWeek;
+            } else {
+                todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() + 7); //next week's first day of week
+                if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
+                    dateText = 'Next ' + wordDayOfWeek;
+                } else {
+                    dateText = wordDayOfWeek.substr(0, 3) + ', ' + 
+                        monthDict[selectedDate.month - 1] + ' ' + 
+                        selectedDate.day + ', ' + 
+                        selectedDate.year;
+                }
+            }
+        }
+    }
+
+    return (
+        <React.Fragment>
+            <Field
+                theme={theme}
+                text='Due Date:'
+                rightComponent={
+                    <View style={[styles.add_date_button,
+                        {width: doneSelecting ? '60%' : '40%'}
+                    ]}>
+                        <Pressable
+                            style={({ pressed }) => [{
+                                width: '100%',
+                                height: '75%',
+                                backgroundColor: pressed ? theme.s2 : theme.s1,
+                                borderWidth: 1.5,
+                                borderRadius: 30,
+                                borderColor: theme.s2,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }]}
+                            onPress={startSelection}
+                        >
+                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
+                                {dateText}
+                            </Text>
+                            <Icon
+                                name='calendar'
+                                type='feather'
+                                size={20}
+                                color={theme.s6}
+                            />
+                        </Pressable>
+                    </View>
+                }
+            />
+            <Modal
+                animationType='fade'
+                transparent={true}
+                visible={calendarModalVisible}
+                onRequestClose={finishSelection}
+            >
+                <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={[styles.calendar_container, {backgroundColor: theme.s9}]}>
+                        <Calendar
+                            dateToday={dateToday}
+                            selectedDate={selectedDate}
+                            setSelectedDate={setSelectedDate}
+                            isRefreshing={false}
+                        />
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.calendar_modal_back_button,
+                                {
+                                    backgroundColor: pressed ? theme.s13 : theme.s1
+                                },
+                            ]}
+                            onPress={finishSelection}
+                        >
+                            <Text style={[styles.calendar_modal_back_button_text, {color: theme.s2}]}>Done</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+        </React.Fragment>
+    );
+}
+
+const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData, dateToday }) => {
     const [eventToAdd, setEventToAdd] = useState({});
     const [charsLeft, setCharsLeft] = useState(maxEventChars);
     const [openMenus, setOpenMenus] = useState({
@@ -502,6 +627,11 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
         return {
             top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}),
         }
+    });
+    const [selectedDate, setSelectedDate] = useState({
+        day: dateToday.getDate(),
+        month: dateToday.getMonth() + 1,
+        year: dateToday.getFullYear()
     });
 
     const handleDropdownOpen = (key, newValue) => {
@@ -584,7 +714,7 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                 priority: editing ? editData.priority : priorityData[0],
                 description: editing ? editData.description : '',
             });
-            setCharsLeft(maxEventChars - eventToAdd.description.length);
+            setCharsLeft(maxEventChars - (editing ? editData.description.length : 0));
         }
     }, [menuVisible]);
 
@@ -640,35 +770,11 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                     />
                 }
             />
-            <Field
+            <DateField
+                dateToday={dateToday}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
                 theme={theme}
-                text='Due Date:'
-                rightComponent={
-                    <View style={styles.add_date_button}>
-                        <Pressable
-                            style={({ pressed }) => [{
-                                width: '100%',
-                                height: '75%',
-                                backgroundColor: pressed ? theme.s2 : theme.s1,
-                                borderWidth: 1.5,
-                                borderRadius: 30,
-                                borderColor: theme.s2,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }]}
-                            onPress={() => console.log('due date modal opened')}
-                        >
-                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>Choose</Text>
-                            <Icon
-                                name='calendar'
-                                type='feather'
-                                size={20}
-                                color={theme.s6}
-                            />
-                        </Pressable>
-                    </View>
-                }
             />
             <Field                      //TODO
                 theme={theme}
@@ -794,6 +900,8 @@ const PlannerPage = ({ navigation }) => {
     const [sectionsData, setSectionsData] = useState({});
     const [priorityData, setPriorityData] = useState([1, 2, 3]); // TODO: allow user to add or change priority array
     
+    const dateToday = new Date(); //might be used in this component, so put here
+
     const refreshClasses = async () => {
         try {
             let storedClasses = await AsyncStorage.getItem('classes');
@@ -1000,6 +1108,7 @@ const PlannerPage = ({ navigation }) => {
                     editData={menuData.editData}
                     menuVisible={menuData.visible}
                     closeMenu={handleMenuOpen}
+                    dateToday={dateToday}
                 />
             </View>
             <AddButton 
@@ -1066,10 +1175,29 @@ const styles = StyleSheet.create({
         right: 15,
     },
     add_date_button: {
-        width: '40%',
         height: '100%',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    calendar_container: {
+        width: '100%',
+        height: '50%',
+        borderRadius: 15,
+        padding: 5,
+        paddingTop: 10,
+        paddingBottom: 10,
+        alignItems: 'center',
+    },
+    calendar_modal_back_button: {
+        width: '50%',
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 8,
+    },
+    calendar_modal_back_button_text: {
+        fontSize: 15,
+        fontFamily: 'Proxima Nova Bold',
     },
     helper_container: {
         alignItems: 'center',
