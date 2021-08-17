@@ -59,10 +59,65 @@ const heightPctToDP = (heightPct, padding=0) => { // https://gist.github.com/gle
 const monthDict = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const dateToday = new Date();
+
 const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
     let t = [ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 ];
     y -= (m < 3) ? 1 : 0;
     return Math.round(( y + y/4 - y/100 + y/400 + t[m - 1] + d) % 7) % 7;
+}
+
+const dayHasPast = (y1, m1, d1, y2, m2, d2) => {
+    if (y1 == y2) {
+        if (m1 == m2) {
+            if (d1 < d2) return true;
+        } else if (m1 < m2) return true;
+    } else if (y1 < y2) return true;
+    return false;
+}
+
+const getDateText = (day, month, year, addParentheses=false) => {
+    let selectedDayOfWeek = dayOfWeek(day, month, year);
+    const wordDayOfWeek = daysOfWeek[selectedDayOfWeek];
+    let dateText = wordDayOfWeek.substr(0, 3) + ', ' + 
+        monthDict[month - 1] + ' ' + 
+        day + ', ' + 
+        year;
+    const todayDay = dateToday.getDate();
+    const todayMonth = dateToday.getMonth() + 1;
+    const todayYear = dateToday.getFullYear();
+    if (!dayHasPast(year, month, day, todayYear, todayMonth, todayDay)) { //selected date > today
+        let parentheses = ' (' + dateText + ')';
+
+        if (day == todayDay && month == todayMonth && year == todayYear) {
+            dateText = 'Today';
+        }
+        else if (day == todayDay + 1 && month == todayMonth && year == todayYear) {
+            dateText = 'Tomorrow';
+        } else {
+            let todayDayOfWeek = dayOfWeek(todayDay, todayMonth, todayYear);
+            todayDayOfWeek = ((todayDayOfWeek - 1) + 7) % 7; //makes Monday first day of week
+            let todayFirstDayOfWeek = new Date(todayYear, todayMonth - 1, todayDay);
+            todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() - todayDayOfWeek);
+            
+            let selectedFirstDayOfWeek = new Date(year, month - 1, day);
+            selectedDayOfWeek = ((selectedDayOfWeek - 1) + 7) % 7;
+            selectedFirstDayOfWeek.setDate(selectedFirstDayOfWeek.getDate() - selectedDayOfWeek);
+            
+            if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
+                dateText = wordDayOfWeek;
+            } else {
+                todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() + 7); //next week's first day of week
+                if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
+                    dateText = 'Next ' + wordDayOfWeek;
+                } else parentheses = '';
+            }
+        }
+        
+        if (addParentheses) return dateText + parentheses;
+    }
+
+    return dateText;
 }
 
 const maxEventChars = 80;
@@ -171,9 +226,18 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                         handleScrollEnabled(false);
                         drag();
                     }}
-                    onPress={() => handleMenuOpen(true, {key: item.key, sectionName: sectionData.name, priority: item.data.priority, description: item.data.text})}
+                    onPress={() => handleMenuOpen(true, {
+                        key: item.key,
+                        sectionName: sectionData.name,
+                        priority: item.data.priority,
+                        description: item.data.text,
+                        dueDay: item.data.dueDay,
+                        dueMonth: item.data.dueMonth,
+                        dueYear: item.data.dueYear,
+                    })}
                 >
-                    <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text> 
+                    <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text>
+                    <Text style={[styles.event_due_text, {color: theme.s4}]}>{'Due: ' + getDateText(item.data.dueDay, item.data.dueMonth, item.data.dueYear, true)}</Text>
                 </TouchableOpacity>
             </View>
         </SwipeableItem>
@@ -208,6 +272,9 @@ const BorderedFlatList = (props) => {
                                     sectionName: props.data.name, 
                                     priority: newPriority,
                                     description: item.data.text,
+                                    dueDay: item.data.dueDay,
+                                    dueMonth: item.data.dueMonth,
+                                    dueYear: item.data.dueYear,
                                 }
                             )}
                             handleDelete={props.handleDelete}
@@ -241,7 +308,7 @@ const EventList = (props) => {
     if(checkEventsEmpty()) {
         return (
             <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-                <Text style={[styles.helper_text, {color: props.theme.s6, bottom: 75}]}>No events right now... click the add button to create one!</Text>
+                <Text style={[styles.helper_text, {color: props.theme.s6, bottom: 60}]}>No events right now... click the add button to create one!</Text>
             </View>
         );
     }
@@ -500,51 +567,16 @@ const DropdownMenu = (props) => {
     );
 }
 
-const DateField = ({ dateToday, selectedDate, setSelectedDate, theme }) => {
+const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, theme }) => {
     const [calendarModalVisible, setCalendarModalVisible] = useState(false);
-    const [doneSelecting, setDoneSelecting] = useState(false);
 
     const startSelection = () => {
         setCalendarModalVisible(true);
     };
 
     const finishSelection = () => {
-        setDoneSelecting(true);
         setCalendarModalVisible(false);
     };
-
-    let dateText = 'Choose';
-    if (doneSelecting) {
-        const todayDay = dateToday.getDate();
-        const todayMonth = dateToday.getMonth() + 1;
-        const todayYear = dateToday.getFullYear();
-        if (selectedDate.day == todayDay + 1 && selectedDate.month == todayMonth && selectedDate.year == todayYear) {
-            dateText = 'Tomorrow';
-        } else {
-            const todayDayOfWeek = dayOfWeek(todayDay, todayMonth, todayYear);
-            let todayFirstDayOfWeek = new Date(todayYear, todayMonth - 1, todayDay);
-            todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() - todayDayOfWeek);
-
-            const selectedDayOfWeek = dayOfWeek(selectedDate.day, selectedDate.month, selectedDate.year);
-            let selectedFirstDayOfWeek = new Date(selectedDate.year, selectedDate.month - 1, selectedDate.day);
-            selectedFirstDayOfWeek.setDate(selectedFirstDayOfWeek.getDate() - selectedDayOfWeek);
-            const wordDayOfWeek = daysOfWeek[selectedDayOfWeek];
-            
-            if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
-                dateText = wordDayOfWeek;
-            } else {
-                todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() + 7); //next week's first day of week
-                if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
-                    dateText = 'Next ' + wordDayOfWeek;
-                } else {
-                    dateText = wordDayOfWeek.substr(0, 3) + ', ' + 
-                        monthDict[selectedDate.month - 1] + ' ' + 
-                        selectedDate.day + ', ' + 
-                        selectedDate.year;
-                }
-            }
-        }
-    }
 
     return (
         <React.Fragment>
@@ -552,9 +584,7 @@ const DateField = ({ dateToday, selectedDate, setSelectedDate, theme }) => {
                 theme={theme}
                 text='Due Date:'
                 rightComponent={
-                    <View style={[styles.add_date_button,
-                        {width: doneSelecting ? '60%' : '40%'}
-                    ]}>
+                    <View style={styles.add_date_button}>
                         <Pressable
                             style={({ pressed }) => [{
                                 width: '100%',
@@ -570,7 +600,7 @@ const DateField = ({ dateToday, selectedDate, setSelectedDate, theme }) => {
                             onPress={startSelection}
                         >
                             <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
-                                {dateText}
+                                {getDateText(selectedDate.day, selectedDate.month, selectedDate.year)}
                             </Text>
                             <Icon
                                 name='calendar'
@@ -593,9 +623,14 @@ const DateField = ({ dateToday, selectedDate, setSelectedDate, theme }) => {
                         <Calendar
                             dateToday={dateToday}
                             selectedDate={selectedDate}
-                            setSelectedDate={setSelectedDate}
+                            setSelectedDate={(newDate) => {
+                                setSelectedDate(newDate);
+                                handleChangeSelectedDate(newDate.day, newDate.month, newDate.year);
+                            }}
                             isRefreshing={false}
                         />
+                    </View>
+                    <View style={[styles.calendar_modal_back_button_container, {backgroundColor: theme.s9}]}>
                         <Pressable
                             style={({ pressed }) => [
                                 styles.calendar_modal_back_button,
@@ -614,7 +649,7 @@ const DateField = ({ dateToday, selectedDate, setSelectedDate, theme }) => {
     );
 }
 
-const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData, dateToday }) => {
+const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
     const [eventToAdd, setEventToAdd] = useState({});
     const [charsLeft, setCharsLeft] = useState(maxEventChars);
     const [openMenus, setOpenMenus] = useState({
@@ -679,11 +714,13 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                     });
                 }
                 break;
-            case 'description':
-                changeFunction = (newDescription) => {
+            case 'selectedDate':
+                changeFunction = (newDay, newMonth, newYear) => {
                     setEventToAdd({
                         ...eventToAdd,
-                        description: newDescription,
+                        dueDay: newDay,
+                        dueMonth: newMonth,
+                        dueYear: newYear,
                     });
                 }
                 break;
@@ -701,29 +738,76 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
         menuHeight.value = menuVisible ? 0 : expandedHeight;
         if(!menuVisible) {
             setTimeout(() => {
+                setSelectedDate({
+                    day: dateToday.getDate(),
+                    month: dateToday.getMonth() + 1,
+                    year: dateToday.getFullYear(),
+                });
                 setEventToAdd({
                     sectionName: sectionsData.sectionNames[0],
                     priority: priorityData[0],
                     description: '',
+                    dueDay: dateToday.getDate(),
+                    dueMonth: dateToday.getMonth() + 1,
+                    dueYear: dateToday.getFullYear(),
                 });
                 setCharsLeft(maxEventChars);
             }, 500);
         } else {
-            setEventToAdd({
-                sectionName: editing ? editData.sectionName : sectionsData.sectionNames[0],
-                priority: editing ? editData.priority : priorityData[0],
-                description: editing ? editData.description : '',
-            });
+            if (editing) {
+                setSelectedDate({
+                    day: editData.dueDay,
+                    month: editData.dueMonth,
+                    year: editData.dueYear,
+                });
+                setEventToAdd({
+                    sectionName: editData.sectionName,
+                    priority: editData.priority,
+                    description: editData.description,
+                    dueDay: editData.dueDay,
+                    dueMonth: editData.dueMonth,
+                    dueYear: editData.dueYear,
+                });
+            } else {
+                setSelectedDate({
+                    day: dateToday.getDate(),
+                    month: dateToday.getMonth() + 1,
+                    year: dateToday.getFullYear(),
+                });
+                setEventToAdd({
+                    sectionName: sectionsData.sectionNames[0],
+                    priority: priorityData[0],
+                    description: '',
+                    dueDay: dateToday.getDate(),
+                    dueMonth: dateToday.getMonth() + 1,
+                    dueYear: dateToday.getFullYear(),
+                });
+            }
             setCharsLeft(maxEventChars - (editing ? editData.description.length : 0));
         }
     }, [menuVisible]);
 
     useEffect(() => {
-        setEventToAdd({ // only loads after re-render?
-            sectionName: editing ? editData.sectionName : sectionsData.sectionNames[0],
-            priority: editing ? editData.priority : priorityData[0],
-            description: editing ? editData.description : '',
-        });
+        // only loads after re-render?
+        if (editing) {
+            setEventToAdd({
+                sectionName: editData.sectionName,
+                priority: editData.priority,
+                description: editData.description,
+                dueDay: editData.dueDay,
+                dueMonth: editData.dueMonth,
+                dueYear: editData.dueYear,
+            });
+        } else {
+            setEventToAdd({
+                sectionName: sectionsData.sectionNames[0],
+                priority: priorityData[0],
+                description: '',
+                dueDay: selectedDate.day,
+                dueMonth: selectedDate.month,
+                dueYear: selectedDate.year,
+            });
+        }
     }, []);
 
     return (
@@ -771,9 +855,9 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                 }
             />
             <DateField
-                dateToday={dateToday}
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
+                handleChangeSelectedDate={handleEditEvent('selectedDate')}
                 theme={theme}
             />
             <Field                      //TODO
@@ -868,12 +952,22 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                                     sectionName: eventToAdd.sectionName, 
                                     priority: eventToAdd.priority,
                                     description: eventToAdd.description,
+                                    dueDay: eventToAdd.dueDay,
+                                    dueMonth: eventToAdd.dueMonth,
+                                    dueYear: eventToAdd.dueYear,
                                 }
                             );
                             Keyboard.dismiss();
                             closeMenu();
                         } else {
-                            handleAdd(eventToAdd.sectionName, eventToAdd.priority, eventToAdd.description);
+                            handleAdd(
+                                eventToAdd.sectionName,
+                                eventToAdd.priority,
+                                eventToAdd.description,
+                                eventToAdd.dueDay,
+                                eventToAdd.dueMonth,
+                                eventToAdd.dueYear,
+                            );
                             Keyboard.dismiss();
                             closeMenu();
                         }
@@ -899,8 +993,6 @@ const PlannerPage = ({ navigation }) => {
     const [events, setEvents] = useState([]);
     const [sectionsData, setSectionsData] = useState({});
     const [priorityData, setPriorityData] = useState([1, 2, 3]); // TODO: allow user to add or change priority array
-    
-    const dateToday = new Date(); //might be used in this component, so put here
 
     const refreshClasses = async () => {
         try {
@@ -985,6 +1077,9 @@ const PlannerPage = ({ navigation }) => {
                     text: initData.description,
                     priority: initData.priority,
                     charsLeft: maxEventChars - initData.description.length,
+                    dueDay: initData.dueDay,
+                    dueMonth: initData.dueMonth,
+                    dueYear: initData.dueYear,
                 }
             });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
@@ -1029,10 +1124,19 @@ const PlannerPage = ({ navigation }) => {
                 ...eventObj.data,
                 priority: newData.priority,
                 text: newData.description,
+                dueDay: newData.dueDay,
+                dueMonth: newData.dueMonth,
+                dueYear: newData.dueYear,
             }
             if(newData.sectionName !== prevSectionName) {
                 let newSection = eventCopy.find(elem => elem.name === newData.sectionName).name;
-                handleAdd(newSection, {priority: eventObj.data.priority, description: eventObj.data.text});
+                handleAdd(newSection, {
+                    priority: eventObj.data.priority,
+                    description: eventObj.data.text,
+                    dueDay: eventObj.data.dueDay,
+                    dueMonth: eventObj.data.dueMonth,
+                    dueYear: eventObj.data.dueYear,
+                });
                 section.data.splice(eventObjIdx, 1);
             }
             setEvents(eventCopy);
@@ -1060,7 +1164,7 @@ const PlannerPage = ({ navigation }) => {
     if(isLoading) {
         return (
             <View style = {[styles.container, {alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}]}>
-                <ActivityIndicator size = 'large' color={theme.s4} />
+                <ActivityIndicator size='large' color={theme.s4} />
             </View> 
         );
     }
@@ -1100,15 +1204,20 @@ const PlannerPage = ({ navigation }) => {
                     theme={theme}
                     sectionsData={sectionsData}
                     priorityData={priorityData}
-                    handleAdd={(prevSectionName, priority, description) => {
-                        handleAdd(prevSectionName, initData={description: description, priority: priority});
+                    handleAdd={(prevSectionName, priority, description, dueDay, dueMonth, dueYear) => {
+                        handleAdd(prevSectionName, initData={
+                            description: description,
+                            priority: priority,
+                            dueDay: dueDay,
+                            dueMonth: dueMonth,
+                            dueYear: dueYear,
+                        });
                     }}
                     handleChange={handleEventEdit}
                     editing={menuData.isEditing}
                     editData={menuData.editData}
                     menuVisible={menuData.visible}
                     closeMenu={handleMenuOpen}
-                    dateToday={dateToday}
                 />
             </View>
             <AddButton 
@@ -1162,7 +1271,11 @@ const styles = StyleSheet.create({
     event_text: {
         fontSize: 18,
         fontFamily: 'Proxima Nova Bold',
-        textAlignVertical: 'center',
+    },
+    event_due_text: {
+        marginTop: 5,
+        fontSize: 12,
+        fontFamily: 'Proxima Nova Thin',
     },
     add_button: {
         width: 60,
@@ -1175,6 +1288,7 @@ const styles = StyleSheet.create({
         right: 15,
     },
     add_date_button: {
+        width: '60%',
         height: '100%',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1182,11 +1296,18 @@ const styles = StyleSheet.create({
     calendar_container: {
         width: '100%',
         height: '50%',
-        borderRadius: 15,
+        borderTopLeftRadius: 15,
+        borderTopRightRadius: 15,
         padding: 5,
         paddingTop: 10,
-        paddingBottom: 10,
+        paddingBottom: 50,
+    },
+    calendar_modal_back_button_container: {
+        width: '100%',
+        borderBottomLeftRadius: 15,
+        borderBottomRightRadius: 15,
         alignItems: 'center',
+        paddingBottom: 10,
     },
     calendar_modal_back_button: {
         width: '50%',
