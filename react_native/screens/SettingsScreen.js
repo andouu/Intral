@@ -12,7 +12,9 @@ import {
     View,
     Text,
     Pressable,
-    Switch
+    Switch,
+    Vibration,
+    Platform,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -46,6 +48,22 @@ const Header = ({ navigation, theme, type }) => {
 
 const settingCardHeight = 50;
 
+const DOT = 50;
+const DASH = 150;
+const DOT_SPACE = 50; //space between parts of the same letter
+const DASH_SPACE = 150; //space between letters
+let vibrationPattern; //[0, 300, 100, 50, 50, 50, 50, 50, 50, 150, 50, 400]; //trumpet sound?
+if (Platform.OS === 'android') vibrationPattern = [0, 
+    DASH, DOT_SPACE, DOT, DOT_SPACE, DOT, DOT_SPACE, DOT, DASH_SPACE, //B
+    DASH, DOT_SPACE, DASH, DOT_SPACE, DASH, DASH_SPACE,               //O
+    DASH, DOT_SPACE, DOT, DOT_SPACE, DOT, DOT_SPACE, DOT, DASH_SPACE, //B
+    DOT, DOT_SPACE, DASH, DASH_SPACE,                                 //A
+    DOT, DOT_SPACE, DASH, DOT_SPACE, DOT, DOT_SPACE, DOT, DASH_SPACE, //L
+    DOT, DOT_SPACE, DASH, DOT_SPACE, DOT, DOT_SPACE, DOT, DASH_SPACE, //L
+    DOT, DOT_SPACE, DOT, DOT_SPACE, DOT                               //S
+] //morse code for BOBALLS
+else if (Platform.OS === 'ios') vibrationPattern = [50, 50, 50];
+
 const HomeScreen = ({ navigation }) => {
     const { signOut } = useContext(AuthContext); // TODO: move signout button to drawer
     const themeContext = useContext(ThemeContext);
@@ -63,8 +81,11 @@ const HomeScreen = ({ navigation }) => {
                     onPress={() => { /* !@#$% <<easter egg>> ^&*() */
                         if (boballs + 1 > 10) {
                             setBoballs(1);
-                            console.log('Annihilation imminent.');
-                        } else setBoballs(boballs + 1);
+                            Vibration.vibrate(vibrationPattern);
+                        } else {
+                            setBoballs(boballs + 1);
+                            Vibration.cancel();
+                        }
                     }}
                 >
                     Settings:
@@ -107,6 +128,19 @@ const HomeScreen = ({ navigation }) => {
     )
 }
 
+const DividerHeader = ({ text, theme }) => {
+    return (
+        <View style={styles.divider_header_container}>
+            <View style={styles.divider_header_subcontainer}>
+                <Text style={[styles.divider_header_text, {color: theme.s4}]}>{text}</Text>
+                <View style={styles.divider_header_line_container}>
+                    <View style={[styles.divider_header_line, {borderColor: theme.s13}]} />
+                </View>
+            </View>
+        </View>
+    );
+}
+
 const FunctionsScreen = ({ navigation }) => {
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
@@ -116,17 +150,9 @@ const FunctionsScreen = ({ navigation }) => {
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
-                <Card
-                    theme={theme}
-                    customStyle={{
-                        height: settingCardHeight,
-                        alignItems: 'flex-start',
-                        paddingLeft: 15,
-                        paddingRight: 15
-                    }}
-                    outlined={themeData.cardOutlined}
-                >
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Grade Refresh Rate:</Text>
+                <DividerHeader text='Gradebook' theme={theme} />
+                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Grade refresh rate:</Text>
                 </Card>
             </View>
         </View>
@@ -221,6 +247,7 @@ const CosmeticsScreen = ({ navigation }) => {
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
+                <DividerHeader text='General' theme={theme} />
                 <PressableCard 
                     theme={theme} 
                     containerStyle={{
@@ -284,6 +311,74 @@ const CosmeticsScreen = ({ navigation }) => {
                         />
                     </View>
                 </Card>
+
+                <DividerHeader text='Planner' theme={theme} />
+                {/* <PressableCard 
+                    theme={theme} 
+                    containerStyle={{
+                        marginBottom: 10
+                    }}
+                    pressableStyle={{
+                        paddingLeft: 15,
+                        paddingRight: 15
+                    }}
+                    onPress={() => {}}
+                    animatedStyle={}
+                    outlined={themeData.cardOutlined}
+                >
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Section colors:</Text>
+                    <View style={[styles.settings_icon, {top: 15/2}]}>
+                        <MaterialDesignIcon 
+                            name={openedCards.theme ? 'chevron-up' : 'chevron-down'} 
+                            size={30} 
+                            color={theme.s4}
+                        />
+                    </View>
+                </PressableCard> */}
+                {/* <PressableCard 
+                    theme={theme} 
+                    containerStyle={{
+                        marginBottom: 10
+                    }}
+                    pressableStyle={{
+                        paddingLeft: 15,
+                        paddingRight: 15
+                    }}
+                    onPress={() => {}}
+                    animatedStyle={}
+                    outlined={themeData.cardOutlined}
+                >
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Event priority colors:</Text>
+                    <View style={[styles.settings_icon, {top: 15/2}]}>
+                        <MaterialDesignIcon 
+                            name={openedCards.theme ? 'chevron-up' : 'chevron-down'} 
+                            size={30} 
+                            color={theme.s4}
+                        />
+                    </View>
+                </PressableCard> */}
+                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Use relative dates:</Text>
+                    <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
+                        <Switch
+                            trackColor={{false: theme.s11, true: theme.s10}}
+                            thumbColor={theme.s6}
+                            onValueChange={() => {}}
+                            value={true}
+                        />
+                    </View>
+                </Card>
+                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
+                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Show absolute dates:</Text>
+                    <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
+                        <Switch 
+                            trackColor={{false: theme.s11, true: theme.s10}}
+                            thumbColor={theme.s6}
+                            onValueChange={() => {}}
+                            value={true}
+                        />
+                    </View>
+                </Card>
             </View>
         </View>
     );
@@ -338,6 +433,7 @@ const styles = StyleSheet.create({
         paddingLeft: 15,
         paddingRight: 15,
         paddingTop: 0,
+        marginTop: -15,
     },
     profilePic: {
         width: 150,
@@ -373,6 +469,29 @@ const styles = StyleSheet.create({
         maxHeight: 45,
         borderRadius: 40,
         borderWidth: 1,
+    },
+    divider_header_container: {
+        width: '100%',
+        minHeight: 30,
+        marginTop: 15,
+        marginBottom: 10,
+    },
+    divider_header_subcontainer: {
+        flex: 1,
+        flexDirection: 'row',
+        overflow: 'hidden',
+    },
+    divider_header_text: {
+        fontSize: 25,
+        fontFamily: 'Proxima Nova Bold',
+        marginRight: 10,
+    },
+    divider_header_line_container: {
+        width: '100%',
+        justifyContent: 'center',
+    },
+    divider_header_line: {
+        borderBottomWidth: 1,
     },
     settings_main_text: {
         fontSize: 20,
