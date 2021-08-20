@@ -18,7 +18,7 @@ const tabIconSize = 35;
 
 const Tab = createBottomTabNavigator();
 
-const MainStackScreen = () => {
+const MainStackScreen = ({ navigation }) => {
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
 
@@ -57,8 +57,7 @@ const MainStackScreen = () => {
             <Tab.Screen 
                 name = "Reminders" 
                 component = { RemindersDrawer } 
-                options = {({route}) => {
-                    const routeName = getFocusedRouteNameFromRoute(route) ?? 'Personal' // https://stackoverflow.com/questions/55171880/how-to-disable-drawer-navigation-swipe-for-one-of-navigator-screen-only
+                options = {() => {
                     return {
                         tabBarIcon: (tintColor) => {
                             return(
@@ -66,7 +65,6 @@ const MainStackScreen = () => {
                             );
                         },
                         tabBarLabel: 'Reminders',
-                        tabBarVisible: routeName === 'Calendar' ? false : true,
                     }
                 }}
             /> 

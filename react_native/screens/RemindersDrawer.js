@@ -10,11 +10,12 @@ import PlannerScreen from './PlannerScreen';
 import CalendarScreen from './CalendarScreen';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 
-const Screens = ({ navigation, style }) => {
+const DrawerScreens = ({ navigation, route, style }) => {
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
 
@@ -26,6 +27,13 @@ const Screens = ({ navigation, style }) => {
         },
     };
 
+    const routeName = getFocusedRouteNameFromRoute(route);
+    useEffect(() => {
+        if(routeName === 'Calendar')    // https://stackoverflow.com/questions/51352081/react-navigation-how-to-hide-tabbar-from-inside-stack-navigation
+            navigation.dangerouslyGetParent().setOptions({ tabBarVisible: false });
+        else
+            navigation.dangerouslyGetParent().setOptions({ tabBarVisible: true });
+    }, [routeName])
     return (
         <Animated.View style={[styles.stack, style, {borderColor: theme.s3}]}>
             <Stack.Navigator
@@ -152,8 +160,8 @@ const RemindersDrawer = ({ navigation }) => {
             drawerStyle={styles.drawer_container}
             drawerContent={props => <DrawerContent {...props} setProgress={setProgress} />}
         >
-            <Drawer.Screen name='Screens'>
-                {props => <Screens {...props} style={screensAnimatedStyle} />}
+            <Drawer.Screen name='DrawerScreens'>
+                {props => <DrawerScreens {...props} style={screensAnimatedStyle} />}
             </Drawer.Screen>
             {/* <Drawer.Screen name='Planner' component={PlannerScreen} />
             <Drawer.Screen name='Calendar' component={CalendarScreen} /> */}

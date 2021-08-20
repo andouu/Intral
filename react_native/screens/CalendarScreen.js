@@ -6,8 +6,9 @@ import {
     Pressable,
     Dimensions,
     PixelRatio,
+    TouchableOpacity,
 } from 'react-native';
-import Calendar from '../components/Calendar';
+import { StaticCalendar, ScrollingCalendar } from '../components/Calendar';
 import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ThemeContext } from '../components/themeContext';
@@ -16,7 +17,6 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
-
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
@@ -31,17 +31,54 @@ const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleyd
     return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
 }
 
-const EListBtnGroup = ({ theme, style, range, setRange }) => {
+const Header = ({ theme, navigation, changeView }) => {
+    return (
+        <View style={styles.optionsBar}>
+            <View style={[styles.menu_button, {borderColor: toRGBA(theme.s4, 0.5)}]}>
+                <MaterialDesignIcons.Button 
+                    underlayColor={toRGBA(theme.s4, 0.5)}
+                    activeOpacity={0.5}
+                    right={2}
+                    bottom={4}
+                    hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
+                    borderRadius = {80}
+                    name='menu' 
+                    color={theme.s4} 
+                    size={35}
+                    backgroundColor='transparent'
+                    onPress={() => navigation.openDrawer()} 
+                    style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
+                />
+            </View>
+            <Pressable 
+                style={({pressed}) => [
+                    styles.calendarViewBtnContainer,
+                    {
+                        opacity: pressed ? 0.5 : 1, 
+                        backgroundColor: pressed ? theme.s4 : 'transparent',
+                        borderColor: pressed ? theme.s4 : toRGBA(theme.s4, 0.5),
+                    },  
+                ]}
+                onPress={() => changeView()}
+            >
+                <MaterialDesignIcons name='calendar-multiple' color={toRGBA(theme.s4, 0.5)} size={23} />
+            </Pressable>
+        </View>
+    );
+}
+
+const EListBtnGroup = (props) => {
+    const { theme, style, range, setRange } = props;
     const rangeDict = {
-        Today: 0,
-        Tomorrow: 1,
+        'Today': 0,
+        'Tomorrow': 1,
         'This Week': 2,
     }
     const groupWidth = widthPctToDP(80, 20);
 
     const animatedSelectedIndicatorStyle = useAnimatedStyle(() => {
         return {
-            left: withTiming(rangeDict[range] * groupWidth/3 + 5, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            left: withTiming(rangeDict[range] * groupWidth/3 + 5, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
         }
     });
 
@@ -49,7 +86,7 @@ const EListBtnGroup = ({ theme, style, range, setRange }) => {
         // TODO: refactor below lines to use themecontext cardOutlined after merge with settings/main
         <View style={[styles.eList_btn_group, {backgroundColor: theme.s1, borderColor: theme.s13}, style]}>
             <Animated.View style={[styles.eList_selector, {width: groupWidth/3 - 5, backgroundColor: theme.s8}, animatedSelectedIndicatorStyle]} /> 
-            <Pressable
+            <TouchableOpacity
                 style={{
                     flex: 1, 
                     height: '100%', 
@@ -59,8 +96,8 @@ const EListBtnGroup = ({ theme, style, range, setRange }) => {
                 onPress={() => setRange('Today')}
             >
                 <Text style={[styles.btn_group_text, {color: theme.s6}]}>Today</Text>
-            </Pressable>
-            <Pressable
+            </TouchableOpacity>
+            <TouchableOpacity
                 style={{
                     flex: 1, 
                     height: '100%', 
@@ -70,8 +107,8 @@ const EListBtnGroup = ({ theme, style, range, setRange }) => {
                 onPress={() => setRange('Tomorrow')}
             >
                 <Text style={[styles.btn_group_text, {color: theme.s6}]}>Tomorrow</Text>
-            </Pressable>
-            <Pressable
+            </TouchableOpacity>
+            <TouchableOpacity
                 style={{
                     flex: 1, 
                     height: '100%', 
@@ -81,13 +118,14 @@ const EListBtnGroup = ({ theme, style, range, setRange }) => {
                 onPress={() => setRange('This Week')}
             >
                 <Text style={[styles.btn_group_text, {color: theme.s6}]}>Week</Text>
-            </Pressable>
+            </TouchableOpacity>
         </View>
     );
 }
 
 const CalendarScreen = ({ navigation }) => {
     const [eventListExpanded, setEventListExpanded] = useState(false);
+    const [selectedView, setSelectedView] = useState(0);
     const dateToday = new Date();
     const [selectedDate, setSelectedDate] = useState({
         day: dateToday.getDate(),
@@ -95,6 +133,7 @@ const CalendarScreen = ({ navigation }) => {
         year: dateToday.getFullYear()
     });
     const [range, setRange] = useState('Today');
+    const viewTypes = ['month', 'year', 'day'];             // types of views the user can switch between: month(default), year(multiple calendar view), day(scrolling), etc.
 
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
@@ -143,60 +182,80 @@ const CalendarScreen = ({ navigation }) => {
             eventListSubheaderText = `Sun, ${firstDayOfWeek.getMonth() + 1}/${firstDayOfWeek.getDate()}/${lastDayOfWeek.getFullYear()} - Sat, ${lastDayOfWeek.getMonth() + 1}/${lastDayOfWeek.getDate()}/${lastDayOfWeek.getFullYear()}`
             break;
     }
+
+    let CalendarComponent = ({ viewTypeIdx }) => {
+        let viewType = viewTypes[viewTypeIdx];
+        switch(viewType) {
+            case 'month':
+                return (
+                    <View style={{ width: '100%', height: '45%', marginBottom: 20 }}>
+                        <StaticCalendar dateToday={dateToday} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+                    </View>
+                );
+            case 'year':
+                return (
+                    <View style={{width: '100%', height: '100%', backgroundColor: 'red'}}>
+
+                    </View>
+                );
+            case 'day':
+                return (
+                    <View style={{width: '100%', height: '100%', backgroundColor: 'blue'}}>
+
+                    </View>
+                );
+        }
+    }
+
+    const handleViewChange = () => {
+        if(selectedView != viewTypes.length - 1)
+            setSelectedView(selectedView + 1);
+        else
+            setSelectedView(0);
+        console.log(viewTypes[selectedView]);
+    }
     
     return (
         <View style={[styles.container, {backgroundColor: theme.s1}]}>
-            <View style={styles.optionsBar}>
-                <View style={[styles.menu_button, {borderColor: toRGBA(theme.s4, 0.5)}]}>
-                    <MaterialDesignIcons.Button 
-                        underlayColor={toRGBA(theme.s4, 0.5)}
-                        activeOpacity={0.5}
-                        right={2}
-                        bottom={4}
-                        hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
-                        borderRadius = {80}
-                        name='menu' 
-                        color={theme.s4} 
-                        size={35}
-                        backgroundColor='transparent'
-                        onPress={() => navigation.openDrawer()} 
-                        style={{padding: 8, paddingRight: 0, width: 45, opacity: 0.5}}
-                    />
-                </View>
-            </View>
+            <Header theme={theme} navigation={navigation} changeView={handleViewChange} />
             <View style={styles.main_container}>
                 <Animated.View style={[styles.header_text, {left: 0, width: '100%'}, /* animatedMainHeaderStyle */]}>
                     <Text style={[styles.header_text, {color: theme.s6, marginBottom: 0}]}>Your Calendar:</Text>
                 </Animated.View>
-                <View style={{ width: '100%', height: '45%', marginBottom: 20 }}>
-                    <Calendar dateToday={dateToday} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-                </View>
-                <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
-                    <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>
-                    <Animated.Text style={[{fontFamily: 'Proxima Nova Bold', left: 5, color: theme.s4}, animatedEventListSubheaderStyle]}>
-                        {eventListSubheaderText}
-                    </Animated.Text>
-                    <Pressable
-                        style={({pressed}) => [
-                            {
-                                position: 'absolute',
-                                right: 0,
-                                width: 35,
-                                height: 35,
-                                borderRadius: 30,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
-                            },
-                        ]}
-                        onPress={() => {
-                            setEventListExpanded(!eventListExpanded);
-                        }}
-                    >
-                        <MaterialDesignIcons name='arrow-expand' size={18} color={theme.s4} />
-                    </Pressable>
-                </Animated.View>
-                <EListBtnGroup theme={theme} range={range} setRange={setRange} />
+                <CalendarComponent viewTypeIdx={selectedView} />     
+                {viewTypes[selectedView] == 'month' &&
+                    <View style={{width: '100%', height: '100%'}}>
+                        <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
+                            <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>
+                            <Animated.Text style={[{fontFamily: 'Proxima Nova Bold', left: 5, color: theme.s4}, animatedEventListSubheaderStyle]}>
+                                {eventListSubheaderText}
+                            </Animated.Text>
+                            <Pressable
+                                style={({pressed}) => [
+                                    {
+                                        position: 'absolute',
+                                        right: 0,
+                                        width: 35,
+                                        height: 35,
+                                        borderRadius: 30,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
+                                    },
+                                ]}
+                                onPress={() => {
+                                    setEventListExpanded(!eventListExpanded);
+                                }}
+                            >
+                                <MaterialDesignIcons name='arrow-expand' size={18} color={theme.s4} />
+                            </Pressable>
+                        </Animated.View>
+                    </View>
+                }
+                {/* can't put the button group with event list because of absolute position */}
+                {viewTypes[selectedView] == 'month' &&
+                    <EListBtnGroup theme={theme} range={range} setRange={setRange} />
+                }
             </View>
         </View>
     );
@@ -271,6 +330,15 @@ const styles = StyleSheet.create({
     },
     btn_group_text: {
         fontFamily: 'Proxima Nova Bold',
+    },
+    calendarViewBtnContainer: {
+        width: 45,
+        height: 45,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 0,
+        borderRadius: 40,
+        borderWidth: 1,
     },
 });
 

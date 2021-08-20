@@ -127,7 +127,7 @@ const CalendarMonth = ({ calendarMonthStyle, dateToday, displayDate, selectedDat
     );
 }
 
-const Calendar = ({ dateToday, selectedDate, setSelectedDate, containerStyle, monthSelectorStyle, calendarMonthStyle }) => {
+export const StaticCalendar = ({ dateToday, selectedDate, setSelectedDate, containerStyle, monthSelectorStyle, calendarMonthStyle }) => {
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
@@ -208,6 +208,14 @@ const Calendar = ({ dateToday, selectedDate, setSelectedDate, containerStyle, mo
     );
 }
 
+export const ScrollingCalendar = () => {
+    return (
+        <View style={{flex: 1, backgroundColor: 'red'}}>
+
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -277,4 +285,3 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Calendar;
