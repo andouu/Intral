@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
     StyleSheet,
     View,
@@ -7,8 +7,9 @@ import {
     Dimensions,
     PixelRatio,
     TouchableOpacity,
+    ScrollView,
 } from 'react-native';
-import { StaticCalendar, ScrollingCalendar } from '../components/Calendar';
+import { StaticCalendar, SmallPressableCalendar, ScrollingCalendar } from '../components/Calendar';
 import { toRGBA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ThemeContext } from '../components/themeContext';
@@ -29,6 +30,11 @@ const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleyd
     const screenWidth = Dimensions.get('window').width - 2 * padding;
     const elemWidth = parseFloat(widthPct);
     return PixelRatio.roundToNearestPixel(screenWidth * elemWidth / 100);
+}
+
+function random_rgb() {
+    var o = Math.round, r = Math.random, s = 255;
+    return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + 1 + ')';
 }
 
 const Header = ({ theme, navigation, changeView }) => {
@@ -125,7 +131,7 @@ const EListBtnGroup = (props) => {
 
 const CalendarScreen = ({ navigation }) => {
     const [eventListExpanded, setEventListExpanded] = useState(false);
-    const [selectedView, setSelectedView] = useState(0);
+    const [selectedView, setSelectedView] = useState(null);
     const dateToday = new Date();
     const [selectedDate, setSelectedDate] = useState({
         day: dateToday.getDate(),
@@ -141,7 +147,7 @@ const CalendarScreen = ({ navigation }) => {
 
     const animatedEventListStyle = useAnimatedStyle(() => {
         return {
-            top: withTiming(eventListExpanded ? -360 : 0, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            top: withTiming(eventListExpanded ? -360 : 40, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
         }
     });
 
@@ -193,10 +199,17 @@ const CalendarScreen = ({ navigation }) => {
                     </View>
                 );
             case 'year':
+                let calendarBoxes = [];
+                let boxSize = Dimensions.get('window').width / 2 - 20;
+                for(let month = 1; month <= 12; month++) {
+                    calendarBoxes.push(
+                        <SmallPressableCalendar key={month} month={month} year={selectedDate.year} boxSize={boxSize} theme={theme} />
+                    );
+                }
                 return (
-                    <View style={{width: '100%', height: '100%', backgroundColor: 'red'}}>
-
-                    </View>
+                    <ScrollView contentContainerStyle={styles.calendarYearViewContainer}>
+                        {calendarBoxes}
+                    </ScrollView>
                 );
             case 'day':
                 return (
@@ -204,6 +217,8 @@ const CalendarScreen = ({ navigation }) => {
 
                     </View>
                 );
+            default:
+                return null;
         }
     }
 
@@ -214,6 +229,10 @@ const CalendarScreen = ({ navigation }) => {
             setSelectedView(0);
         console.log(viewTypes[selectedView]);
     }
+
+    useEffect(() => {
+        setSelectedView(0);
+    }, [])
     
     return (
         <View style={[styles.container, {backgroundColor: theme.s1}]}>
@@ -223,8 +242,8 @@ const CalendarScreen = ({ navigation }) => {
                     <Text style={[styles.header_text, {color: theme.s6, marginBottom: 0}]}>Your Calendar:</Text>
                 </Animated.View>
                 <CalendarComponent viewTypeIdx={selectedView} />     
-                {viewTypes[selectedView] == 'month' &&
-                    <View style={{width: '100%', height: '100%'}}>
+                {viewTypes[selectedView] == 'month' &&                  // BUG: shows expanded event list for a split second before rendering correctly
+                    <View style={{width: '100%', height: '100%'}}> 
                         <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
                             <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>
                             <Animated.Text style={[{fontFamily: 'Proxima Nova Bold', left: 5, color: theme.s4}, animatedEventListSubheaderStyle]}>
@@ -340,6 +359,11 @@ const styles = StyleSheet.create({
         borderRadius: 40,
         borderWidth: 1,
     },
+    calendarYearViewContainer: {
+        width: '100%', 
+        flexDirection: 'row', 
+        flexWrap: 'wrap',
+    }
 });
 
 export default CalendarScreen;

@@ -87,17 +87,17 @@ const CalendarMonth = ({ calendarMonthStyle, dateToday, displayDate, selectedDat
         );
     });
 
-    let dayBoxes = []
+    let dayBoxes = [];
     let firstDayOfMonth = dayOfWeek(1, displayDate.month, displayDate.year);
-    for (let i = 0; i < firstDayOfMonth; i ++) {
+    for (let i = 0; i < firstDayOfMonth; i++) {
         dayBoxes.push(
             <View key={i} style={styles.day_box} />
         );
     }
     const selectedSameMonthYear = (selectedDate.month === displayDate.month && selectedDate.year === displayDate.year)
     let count = 0;
-    for (let i = firstDayOfMonth; i < 42; i ++) {
-        count ++;
+    for (let i = firstDayOfMonth; i < 42; i++) {
+        count++;
         if (count > numDays) break;
         const isToday = (todaySameMonthYear && count === dayToday);
         const isSelected = (selectedSameMonthYear && count === selectedDate.day);
@@ -208,6 +208,57 @@ export const StaticCalendar = ({ dateToday, selectedDate, setSelectedDate, conta
     );
 }
 
+export const SmallPressableCalendar = (props) => {
+    const { month, year, boxSize, theme } = props;
+
+    let dayBoxes = [];
+    const DayBox = ({ day }) => {
+        return (
+            <View style={styles.day_box}>
+                <Text style={[styles.date_text, {color: theme.s4}]}>{day}</Text>
+            </View>
+        );
+    }
+    let numDays = getDaysOfMonth(month, year);
+    let firstDayOfMonth = dayOfWeek(1, month, year);
+    console.log(firstDayOfMonth);
+    for (let i = 0; i < firstDayOfMonth; i++) {
+        dayBoxes.push(
+            <DayBox key={i} day={null} />
+        );
+    }
+    let count = 0;
+    for (let i = firstDayOfMonth; i < 42; i++) {
+        count++;
+        if (count > numDays) break;
+        dayBoxes.push(
+            <DayBox key={i} day={count} />
+        );
+    }
+
+    return (
+        <Pressable 
+            style={({pressed}) => [
+                styles.card, 
+                {
+                    width: boxSize, 
+                    height: boxSize, 
+                    borderColor: theme.s2,
+                    backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
+                }
+            ]}
+            onPress={() => {}}
+        >
+            <View style={styles.smallCalendarHeader}>
+                <Text style={[styles.smallCalendarHeaderText, {color: theme.s4}]}>{monthDict[month - 1]}</Text>
+            </View>
+            <View style={styles.smallCalendarDaysContainer}>
+                {dayBoxes}
+            </View>
+        </Pressable>
+    )
+}
+
 export const ScrollingCalendar = () => {
     return (
         <View style={{flex: 1, backgroundColor: 'red'}}>
@@ -282,6 +333,28 @@ const styles = StyleSheet.create({
     date_text: {
         fontFamily: 'ProximaNova-Regular',
         fontSize: 15,
+    },
+    card: {
+        margin: 2.5,
+        marginBottom: 15, 
+        borderWidth: 1, 
+        borderRadius: 15,
+        overflow: 'hidden',
+    },
+    smallCalendarHeader: {
+        flex: 1, 
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    smallCalendarHeaderText: {
+        fontFamily: 'Proxima Nova Bold',
+    },
+    smallCalendarDaysContainer: {
+        flex: 5, 
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        padding: 5, 
+        paddingTop: 0,
     },
 });
 
