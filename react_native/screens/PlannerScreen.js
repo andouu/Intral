@@ -23,6 +23,7 @@ import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcon
 import SwipeableItem from 'react-native-swipeable-item/src';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import Calendar from '../components/Calendar';
+import TimePicker from '../components/TimePicker';
 import { ThemeContext } from '../components/themeContext';
 import { toRGBA } from '../components/utils';
 import Animated, {
@@ -250,44 +251,46 @@ const BorderedFlatList = (props) => {
     }
 
     return (
-        <View style={{width: '100%', marginBottom: 20}}>
-            <Text style={[styles.event_text, {color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15}]}>{props.data.name}:</Text>
-            <View style={{borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 11, overflow: 'hidden'}}>
-                <DraggableFlatList 
-                    data={props.data.data}
-                    renderItem={({item, index, drag, isActive}) => 
-                        <DraggableItem 
-                            theme={props.theme} 
-                            sectionData={props.data}
-                            item={item} 
-                            index={index} 
-                            drag={drag} 
-                            isActive={isActive} 
-                            dataSize={props.data.data.length} 
-                            handleMenuOpen={props.handleMenuOpen}
-                            handleChangePriority={(newPriority) => props.handleEventEdit(
-                                props.data.name,
-                                item.key,
-                                {
-                                    sectionName: props.data.name, 
-                                    priority: newPriority,
-                                    description: item.data.text,
-                                    dueDay: item.data.dueDay,
-                                    dueMonth: item.data.dueMonth,
-                                    dueYear: item.data.dueYear,
-                                }
-                            )}
-                            handleDelete={props.handleDelete}
-                            handleScrollEnabled={props.handleScrollEnabled}
-                        />
-                    }
-                    keyExtractor={item => item.key}
-                    onDragEnd={({data}) => {
-                        props.setSectionData(props.data.name, data);
-                        props.handleScrollEnabled(true);
-                    }}
-                    activationDistance={50}
-                />
+        <View style={{ width: '100%', marginBottom: 20 }}>
+            <Text style={[ styles.event_text, { color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15 }] }>{ props.data.name }:</Text>
+            <View style={{ borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 11 }}>
+                <View style={{ borderRadius: 11, overflow: 'hidden' }}>
+                    <DraggableFlatList 
+                        data={props.data.data}
+                        renderItem={({item, index, drag, isActive}) => 
+                            <DraggableItem 
+                                theme={props.theme} 
+                                sectionData={props.data}
+                                item={item} 
+                                index={index} 
+                                drag={drag} 
+                                isActive={isActive} 
+                                dataSize={props.data.data.length} 
+                                handleMenuOpen={props.handleMenuOpen}
+                                handleChangePriority={(newPriority) => props.handleEventEdit(
+                                    props.data.name,
+                                    item.key,
+                                    {
+                                        sectionName: props.data.name, 
+                                        priority: newPriority,
+                                        description: item.data.text,
+                                        dueDay: item.data.dueDay,
+                                        dueMonth: item.data.dueMonth,
+                                        dueYear: item.data.dueYear,
+                                    }
+                                )}
+                                handleDelete={props.handleDelete}
+                                handleScrollEnabled={props.handleScrollEnabled}
+                            />
+                        }
+                        keyExtractor={item => item.key}
+                        onDragEnd={({data}) => {
+                            props.setSectionData(props.data.name, data);
+                            props.handleScrollEnabled(true);
+                        }}
+                        activationDistance={50}
+                    />
+                </View>
             </View>
         </View>
     );
@@ -330,6 +333,7 @@ const EventList = (props) => {
                 }
                 keyExtractor={(item, index) => item.key}
                 scrollEnabled={scrollEnabled}
+                nestedScrollEnabled={false}
                 showVerticalScrollIndicator={false}
             />
         </View>
@@ -392,19 +396,19 @@ const Field = (props) => {
             justifyContent: 'space-between',
             width: '100%',
             height: '10%',
-            marginBottom: 5
+            marginBottom: 5,
         },
         main_text: {
-            height: '100%',
             fontFamily: 'Proxima Nova Bold',
             fontSize: 20,
-            textAlignVertical: 'center',
             color: props.theme.s4,
         }
     });
     return (
         <View style={[defaultStyle.container, props.containerStyle]}>
-            <Text style={[defaultStyle.main_text, props.textStyle]}>{props.text}</Text>
+            <View style={{ height: '100%', justifyContent: 'center' }}>
+                <Text style={[defaultStyle.main_text, props.textStyle]}>{props.text}</Text>
+            </View>
             {props.rightComponent}
         </View>
     );
@@ -570,21 +574,13 @@ const DropdownMenu = (props) => {
 const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, theme }) => {
     const [calendarModalVisible, setCalendarModalVisible] = useState(false);
 
-    const startSelection = () => {
-        setCalendarModalVisible(true);
-    };
-
-    const finishSelection = () => {
-        setCalendarModalVisible(false);
-    };
-
     return (
         <React.Fragment>
             <Field
                 theme={theme}
                 text='Due Date:'
                 rightComponent={
-                    <View style={styles.add_date_button}>
+                    <View style={styles.add_date_button_container}>
                         <Pressable
                             style={({ pressed }) => [{
                                 width: '100%',
@@ -597,7 +593,7 @@ const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, th
                                 alignItems: 'center',
                                 justifyContent: 'center',
                             }]}
-                            onPress={startSelection}
+                            onPress={() => setCalendarModalVisible(true)}
                         >
                             <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
                                 {getDateText(selectedDate.day, selectedDate.month, selectedDate.year)}
@@ -616,7 +612,7 @@ const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, th
                 animationType='fade'
                 transparent={true}
                 visible={calendarModalVisible}
-                onRequestClose={finishSelection}
+                onRequestClose={() => setCalendarModalVisible(false)}
             >
                 <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <View style={[styles.calendar_container, {backgroundColor: theme.s9}]}>
@@ -630,17 +626,85 @@ const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, th
                             isRefreshing={false}
                         />
                     </View>
-                    <View style={[styles.calendar_modal_back_button_container, {backgroundColor: theme.s9}]}>
+                    <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>
                         <Pressable
                             style={({ pressed }) => [
-                                styles.calendar_modal_back_button,
+                                styles.modal_back_button,
                                 {
                                     backgroundColor: pressed ? theme.s13 : theme.s1
                                 },
                             ]}
-                            onPress={finishSelection}
+                            onPress={() => setCalendarModalVisible(false)}
                         >
-                            <Text style={[styles.calendar_modal_back_button_text, {color: theme.s2}]}>Done</Text>
+                            <Text style={[styles.modal_back_button_text, {color: theme.s2}]}>Done</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+        </React.Fragment>
+    );
+}
+
+const TimeField = ({ theme }) => {
+    const [timeModalVisible, setTimeModalVisible] = useState(false);
+
+    return (
+        <React.Fragment>
+            <Field
+                theme={theme}
+                text='Due Time:'
+                rightComponent={
+                    <View style={styles.add_time_button_container}>
+                        <Pressable
+                            style={({ pressed }) => [{
+                                width: '100%',
+                                height: '75%',
+                                backgroundColor: pressed ? theme.s2 : theme.s1,
+                                borderWidth: 1.5,
+                                borderRadius: 30,
+                                borderColor: theme.s2,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }]}
+                            onPress={() => setTimeModalVisible(true)}
+                        >
+                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
+                                12:45 PM
+                            </Text>
+                            <Icon
+                                name='clock'
+                                type='feather'
+                                size={20}
+                                color={theme.s6}
+                            />
+                        </Pressable>
+                    </View>
+                }
+            />
+            <Modal
+                animationType='fade'
+                transparent={true}
+                visible={timeModalVisible}
+                onRequestClose={() => setTimeModalVisible(false)}
+            >
+                <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={[styles.time_container, {backgroundColor: theme.s9}]}>
+                        <TimePicker
+
+                        />
+                    </View>
+                    <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.modal_back_button,
+                                {
+                                    backgroundColor: pressed ? theme.s13 : theme.s1
+                                },
+                            ]}
+                            onPress={() => setTimeModalVisible(false)}
+                        >
+                            <Text style={[styles.modal_back_button_text, {color: theme.s2}]}>Done</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -860,12 +924,8 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                 handleChangeSelectedDate={handleEditEvent('selectedDate')}
                 theme={theme}
             />
-            <Field                      //TODO
+            <TimeField
                 theme={theme}
-                text='Due Time:'
-                rightComponent={
-                    null
-                }
             />
             <Field
                 theme={theme}
@@ -1287,7 +1347,7 @@ const styles = StyleSheet.create({
         bottom: 20,
         right: 15,
     },
-    add_date_button: {
+    add_date_button_container: {
         width: '60%',
         height: '100%',
         alignItems: 'center',
@@ -1302,21 +1362,34 @@ const styles = StyleSheet.create({
         paddingTop: 10,
         paddingBottom: 50,
     },
-    calendar_modal_back_button_container: {
+    add_time_button_container: {
+        width: '50%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    time_container: {
+        width: '100%',
+        height: '20%',
+        borderTopLeftRadius: 15,
+        borderTopRightRadius: 15,
+        padding: 5,
+    },
+    modal_back_button_container: {
         width: '100%',
         borderBottomLeftRadius: 15,
         borderBottomRightRadius: 15,
         alignItems: 'center',
         paddingBottom: 10,
     },
-    calendar_modal_back_button: {
+    modal_back_button: {
         width: '50%',
         borderRadius: 15,
         alignItems: 'center',
         justifyContent: 'center',
         padding: 8,
     },
-    calendar_modal_back_button_text: {
+    modal_back_button_text: {
         fontSize: 15,
         fontFamily: 'Proxima Nova Bold',
     },
