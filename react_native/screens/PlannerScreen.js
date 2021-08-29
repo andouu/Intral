@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useCallback, useRef } from 'rea
 import {createStackNavigator} from '@react-navigation/stack';
 import {
     FlatList,
+    ScrollView,
     View,
     Text,
     TouchableOpacity,
@@ -16,6 +17,7 @@ import {
     LayoutAnimation,
     LogBox,
     Keyboard,
+    StatusBar,
     Alert,
 } from 'react-native';
 import { Icon } from 'react-native-elements';
@@ -30,7 +32,8 @@ import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
-    Easing
+    Easing,
+    runOnJS,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -121,6 +124,26 @@ const getDateText = (day, month, year, addParentheses=false) => {
     return dateText;
 }
 
+const get12HourTimeText = (time24Hour, minuteString) => {
+    let timeText;
+    if (time24Hour >= 12) {
+        if (time24Hour === 12) timeText = '12:' + minuteString + ' PM';
+        else timeText = (time24Hour - 12).toString() + ':' + minuteString + ' PM';
+    } else {
+        if (time24Hour === 0) timeText = '12:' + minuteString + ' AM';
+        else timeText = time24Hour.toString() + ':' + minuteString + ' AM';
+    }
+    return timeText;
+}
+
+const randomHSL = () => {
+    return (
+        'hsla(' + 
+        ~~(360 * Math.random()) + 
+        ',70%,80%,1)'
+    );
+}
+
 const maxEventChars = 80;
 
 const bezierAnimCurve = Easing.bezier(0.5, 0.01, 0, 1);
@@ -203,7 +226,7 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
     return (
         <SwipeableItem
             renderUnderlayRight={({percentOpen, close}) => <UnderlayRight item={item} percentOpen={percentOpen} close={close} />}
-            snapPointsRight={[50, 100, 150]}
+            snapPointsRight={[150]}
             renderUnderlayLeft={({percentOpen, close}) => <UnderlayLeft item={item} percentOpen={percentOpen} close={close} />}
             snapPointsLeft={[55]}
             overSwipe={20}
@@ -232,13 +255,21 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                         sectionName: sectionData.name,
                         priority: item.data.priority,
                         description: item.data.text,
-                        dueDay: item.data.dueDay,
-                        dueMonth: item.data.dueMonth,
-                        dueYear: item.data.dueYear,
+                        startDate: {
+                            day: item.data.startDate.day,
+                            month: item.data.startDate.month,
+                            year: item.data.startDate.year,
+                        },
+                        endDate: {
+                            day: item.data.endDate.day,
+                            month: item.data.endDate.month,
+                            year: item.data.endDate.year,
+                        },
                     })}
                 >
                     <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text>
-                    <Text style={[styles.event_due_text, {color: theme.s4}]}>{'Due: ' + getDateText(item.data.dueDay, item.data.dueMonth, item.data.dueYear, true)}</Text>
+                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'Start: ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year, true)}</Text>
+                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'End: ' + getDateText(item.data.endDate.day, item.data.endDate.month, item.data.endDate.year, true)}</Text>
                 </TouchableOpacity>
             </View>
         </SwipeableItem>
@@ -274,9 +305,16 @@ const BorderedFlatList = (props) => {
                                         sectionName: props.data.name, 
                                         priority: newPriority,
                                         description: item.data.text,
-                                        dueDay: item.data.dueDay,
-                                        dueMonth: item.data.dueMonth,
-                                        dueYear: item.data.dueYear,
+                                        startDate: {
+                                            day: item.data.startDate.day,
+                                            month: item.data.startDate.month,
+                                            year: item.data.startDate.year,
+                                        },
+                                        endDate: {
+                                            day: item.data.endDate.day,
+                                            month: item.data.endDate.month,
+                                            year: item.data.endDate.year,
+                                        },
                                     }
                                 )}
                                 handleDelete={props.handleDelete}
@@ -395,7 +433,7 @@ const Field = (props) => {
             flexDirection: 'row',
             justifyContent: 'space-between',
             width: '100%',
-            height: '10%',
+            height: 65,
             marginBottom: 5,
         },
         main_text: {
@@ -438,7 +476,7 @@ const DropdownMenu = (props) => {
 
     const defaultStyle = StyleSheet.create({
         container: {
-            top: 7.5,
+            top: '3%',
             width: '50%',
             height: '80%',
             zIndex: dropdownZIndex,
@@ -571,14 +609,14 @@ const DropdownMenu = (props) => {
     );
 }
 
-const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, theme }) => {
+const DateField = ({ text, selectedDate, setSelectedDate, handleChangeSelectedDate, theme }) => {
     const [calendarModalVisible, setCalendarModalVisible] = useState(false);
 
     return (
         <React.Fragment>
             <Field
                 theme={theme}
-                text='Due Date:'
+                text={text}
                 rightComponent={
                     <View style={styles.add_date_button_container}>
                         <Pressable
@@ -645,75 +683,103 @@ const DateField = ({ selectedDate, setSelectedDate, handleChangeSelectedDate, th
     );
 }
 
-const TimeField = ({ theme }) => {
-    const [timeModalVisible, setTimeModalVisible] = useState(false);
-
+const TimeField = ({ text, time, setTimeModalOpen, timeModalOpacity, theme }) => { // separate from time picker modal
     return (
-        <React.Fragment>
-            <Field
-                theme={theme}
-                text='Due Time:'
-                rightComponent={
-                    <View style={styles.add_time_button_container}>
-                        <Pressable
-                            style={({ pressed }) => [{
-                                width: '100%',
-                                height: '75%',
-                                backgroundColor: pressed ? theme.s2 : theme.s1,
-                                borderWidth: 1.5,
-                                borderRadius: 30,
-                                borderColor: theme.s2,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }]}
-                            onPress={() => setTimeModalVisible(true)}
-                        >
-                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
-                                12:45 PM
-                            </Text>
-                            <Icon
-                                name='clock'
-                                type='feather'
-                                size={20}
-                                color={theme.s6}
-                            />
-                        </Pressable>
-                    </View>
-                }
-            />
-            <Modal
-                animationType='fade'
-                transparent={true}
-                visible={timeModalVisible}
-                onRequestClose={() => setTimeModalVisible(false)}
-            >
-                <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                    <View style={[styles.time_container, {backgroundColor: theme.s9}]}>
-                        <TimePicker
-
+        <Field
+            theme={theme}
+            text={text}
+            rightComponent={
+                <View style={styles.add_time_button_container}>
+                    <Pressable
+                        style={({ pressed }) => [{
+                            width: '100%',
+                            height: '75%',
+                            backgroundColor: pressed ? theme.s2 : theme.s1,
+                            borderWidth: 1.5,
+                            borderRadius: 30,
+                            borderColor: theme.s2,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }]}
+                        onPress={() => {
+                            setTimeModalOpen(true);
+                            timeModalOpacity.value = 1;
+                        }}
+                    >
+                        <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
+                            {get12HourTimeText(parseInt(time.substring(0, 2)), time.substring(2, 4))}
+                        </Text>
+                        <Icon
+                            name='clock'
+                            type='feather'
+                            size={20}
+                            color={theme.s6}
                         />
-                    </View>
-                    <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>
-                        <Pressable
-                            style={({ pressed }) => [
-                                styles.modal_back_button,
-                                {
-                                    backgroundColor: pressed ? theme.s13 : theme.s1
-                                },
-                            ]}
-                            onPress={() => setTimeModalVisible(false)}
-                        >
-                            <Text style={[styles.modal_back_button_text, {color: theme.s2}]}>Done</Text>
-                        </Pressable>
-                    </View>
+                    </Pressable>
                 </View>
-            </Modal>
-        </React.Fragment>
+            }
+        />
     );
 }
 
-const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, closeMenu, theme, editing, editData }) => {
+const TimeModal = ({ timeModalOpen, setTimeModalOpen, timeModalOpacity, time, setTime, theme }) => {
+    const transitionDuration = 300; //for opening and closing the modal
+
+    const timeModalAnimatedStyle = useAnimatedStyle(() => {
+        return {
+            opacity: withTiming(timeModalOpacity.value, { duration: transitionDuration, easing: Easing.in }),
+        };
+    });
+
+    return (
+        <View>
+            {timeModalOpen &&
+                <Animated.View style={[
+                    timeModalAnimatedStyle,
+                    {
+                        position: 'absolute',
+                        width: '100%',
+                        height: 600, // has to cover screen (600 to be safe with bigger phones) to disable user clicking
+                        zIndex: 10,
+                    },
+                ]}>
+                    <View style={{ width: '100%', height: '80%', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={[styles.time_container, {backgroundColor: theme.s9}]}>
+                            <TimePicker
+                                time={time}
+                                setTime={setTime}
+                            />
+                        </View>
+                        <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.modal_back_button,
+                                    {
+                                        backgroundColor: pressed ? theme.s13 : theme.s1
+                                    },
+                                ]}
+                                onPress={() => {
+                                    timeModalOpacity.value = 0;
+                                    setTimeout(() => {
+                                        setTimeModalOpen(false);
+                                    }, transitionDuration);
+                                }}
+                            >
+                                <Text style={[styles.modal_back_button_text, {color: theme.s2}]}>Done</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </Animated.View>
+            }
+        </View>
+    );
+}
+
+const DEFAULT_START_TIME = '0800'; //8:00 AM
+const DEFAULT_END_TIME = '1200'; //12:00 PM
+
+const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, setMenuAnimationFinished, closeMenu, theme, editing, editData }) => {
     const [eventToAdd, setEventToAdd] = useState({});
     const [charsLeft, setCharsLeft] = useState(maxEventChars);
     const [openMenus, setOpenMenus] = useState({
@@ -724,23 +790,36 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
     const menuHeight = useSharedValue(100);
     const animatedMenuStyle = useAnimatedStyle(() => {
         return {
-            top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}),
+            top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}, (finished) => {
+                runOnJS(setMenuAnimationFinished)(true);
+            }),
         }
     });
-    const [selectedDate, setSelectedDate] = useState({
+    const menuScrollViewRef = useRef();
+    const [selectedStartDate, setSelectedStartDate] = useState({
         day: dateToday.getDate(),
         month: dateToday.getMonth() + 1,
         year: dateToday.getFullYear()
     });
+    const [selectedEndDate, setSelectedEndDate] = useState({
+        day: dateToday.getDate(),
+        month: dateToday.getMonth() + 1,
+        year: dateToday.getFullYear()
+    });
+    const [startTime, setStartTime] = useState(DEFAULT_START_TIME); //military 24-hour time as string
+    const [startTimeModalOpen, setStartTimeModalOpen] = useState(false);
+    const startTimeModalOpacity = useSharedValue(0);
+    const [endTime, setEndTime] = useState(DEFAULT_END_TIME);
+    const [endTimeModalOpen, setEndTimeModalOpen] = useState(false);
+    const endTimeModalOpacity = useSharedValue(0);
 
     const handleDropdownOpen = (key, newValue) => {
-        let newOpenMenus = {...openMenus};
+        let newOpenMenus = { ...openMenus };
         if (!newValue) {
             newOpenMenus[key] = false;
             setOpenMenus(newOpenMenus);
             setOtherDropdownOpening(false);
-        } else
-        {
+        } else {
             let keys = Object.keys(newOpenMenus);
             let otherOpening = false;
             for (let i = 0; i < keys.length; i ++) {
@@ -778,13 +857,27 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                     });
                 }
                 break;
-            case 'selectedDate':
+            case 'selectedStartDate':
                 changeFunction = (newDay, newMonth, newYear) => {
                     setEventToAdd({
                         ...eventToAdd,
-                        dueDay: newDay,
-                        dueMonth: newMonth,
-                        dueYear: newYear,
+                        startDate: {
+                            day: newDay,
+                            month: newMonth,
+                            year: newYear,
+                        },
+                    });
+                }
+                break;
+            case 'selectedEndDate':
+                changeFunction = (newDay, newMonth, newYear) => {
+                    setEventToAdd({
+                        ...eventToAdd,
+                        endDate: {
+                            day: newDay,
+                            month: newMonth,
+                            year: newYear,
+                        },
                     });
                 }
                 break;
@@ -793,91 +886,88 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
     }
 
     const expandedHeight = 100;
+
+    const resetStates = () => {
+        setSelectedStartDate({
+            day: dateToday.getDate(),
+            month: dateToday.getMonth() + 1,
+            year: dateToday.getFullYear(),
+        });
+        setSelectedEndDate({
+            day: dateToday.getDate(),
+            month: dateToday.getMonth() + 1,
+            year: dateToday.getFullYear(),
+        });
+        setStartTime(DEFAULT_START_TIME);
+        setEndTime(DEFAULT_END_TIME);
+        setEventToAdd({
+            sectionName: sectionsData.sectionNames[0],
+            priority: priorityData[0],
+            description: '',
+            startDate: {
+                day: dateToday.getDate(),
+                month: dateToday.getMonth() + 1,
+                year: dateToday.getFullYear(),
+            },
+            endDate: {
+                day: dateToday.getDate(),
+                month: dateToday.getMonth() + 1,
+                year: dateToday.getFullYear(),
+            },
+        });
+        setCharsLeft(maxEventChars);
+    };
     
     useEffect(() => {
-        setOpenMenus({
+        setMenuAnimationFinished(false);
+        setOpenMenus({ // close all dropdowns regardless of opening or closing the add menu
             sectionName: false,
             priority: false,
         });
-        menuHeight.value = menuVisible ? 0 : expandedHeight;
-        if(!menuVisible) {
-            setTimeout(() => {
-                setSelectedDate({
-                    day: dateToday.getDate(),
-                    month: dateToday.getMonth() + 1,
-                    year: dateToday.getFullYear(),
-                });
-                setEventToAdd({
-                    sectionName: sectionsData.sectionNames[0],
-                    priority: priorityData[0],
-                    description: '',
-                    dueDay: dateToday.getDate(),
-                    dueMonth: dateToday.getMonth() + 1,
-                    dueYear: dateToday.getFullYear(),
-                });
-                setCharsLeft(maxEventChars);
-            }, 500);
-        } else {
+        if(menuVisible) {
+            menuHeight.value = 0;
+            menuScrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
             if (editing) {
-                setSelectedDate({
-                    day: editData.dueDay,
-                    month: editData.dueMonth,
-                    year: editData.dueYear,
+                setSelectedStartDate({
+                    day: editData.startDate.day,
+                    month: editData.startDate.month,
+                    year: editData.startDate.year,
+                });
+                setSelectedEndDate({
+                    day: editData.endDate.day,
+                    month: editData.endDate.month,
+                    year: editData.endDate.year,
                 });
                 setEventToAdd({
                     sectionName: editData.sectionName,
                     priority: editData.priority,
                     description: editData.description,
-                    dueDay: editData.dueDay,
-                    dueMonth: editData.dueMonth,
-                    dueYear: editData.dueYear,
+                    startDate: {
+                        day: editData.startDate.day,
+                        month: editData.startDate.month,
+                        year: editData.startDate.year,
+                    },
+                    endDate: {
+                        day: editData.endDate.day,
+                        month: editData.endDate.month,
+                        year: editData.endDate.year,
+                    },
                 });
+                setCharsLeft(maxEventChars - editData.description.length);
             } else {
-                setSelectedDate({
-                    day: dateToday.getDate(),
-                    month: dateToday.getMonth() + 1,
-                    year: dateToday.getFullYear(),
-                });
-                setEventToAdd({
-                    sectionName: sectionsData.sectionNames[0],
-                    priority: priorityData[0],
-                    description: '',
-                    dueDay: dateToday.getDate(),
-                    dueMonth: dateToday.getMonth() + 1,
-                    dueYear: dateToday.getFullYear(),
-                });
+                resetStates(); // repeated code for safety
             }
-            setCharsLeft(maxEventChars - (editing ? editData.description.length : 0));
+        } else {
+            menuHeight.value = expandedHeight;
+            setTimeout(resetStates, 500);
         }
     }, [menuVisible]);
 
-    useEffect(() => {
-        // only loads after re-render?
-        if (editing) {
-            setEventToAdd({
-                sectionName: editData.sectionName,
-                priority: editData.priority,
-                description: editData.description,
-                dueDay: editData.dueDay,
-                dueMonth: editData.dueMonth,
-                dueYear: editData.dueYear,
-            });
-        } else {
-            setEventToAdd({
-                sectionName: sectionsData.sectionNames[0],
-                priority: priorityData[0],
-                description: '',
-                dueDay: selectedDate.day,
-                dueMonth: selectedDate.month,
-                dueYear: selectedDate.year,
-            });
-        }
-    }, []);
-
     return (
-        <Animated.View style={[{width: '100%', height: '100%', position: 'absolute', backgroundColor: theme.s1}, animatedMenuStyle]}>
+        <Animated.View
+            style={[{width: '100%', height: '100%', position: 'absolute', backgroundColor: theme.s1}, animatedMenuStyle]}
+        >
             <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 45, width: '75%', color: theme.s6, marginBottom: 10}}>New Event:</Text>
-            <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5}} />
             {/* TODO: make the close button a custom component for reuse? */}
             <Pressable
                 style={({pressed}) => [
@@ -900,144 +990,196 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
             >
                 <MaterialDesignIcons name='close' size={30} color={theme.s4} style={{bottom: 0, right: 0}}/>
             </Pressable>
-            <Field
-                theme={theme}
-                text='Section Name:'
-                rightComponent={
-                    <DropdownMenu
-                        theme={theme}
-                        selectedItem={eventToAdd.sectionName}
-                        items={sectionsData.sectionNames}
-                        textStyle={{left: 10}}
-                        addNewBtnEnabled={true}
-                        handlePress={handleEditEvent('sectionName')}
-                        name='sectionName'
-                        dropdownOpen={openMenus.sectionName}
-                        handleDropdownOpen={handleDropdownOpen}
-                        otherDropdownOpening={otherDropdownOpening}
-                    />
-                }
-            />
-            <DateField
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                handleChangeSelectedDate={handleEditEvent('selectedDate')}
+            <View style={{borderBottomWidth: 2, borderBottomColor: theme.s4, marginBottom: 5}} />
+            {/* TODO:
+            Fix time modal absolute view scrolling bug.
+            Store and display startTime and endTime in events.
+            */}
+            <TimeModal
+                timeModalOpen={startTimeModalOpen}
+                setTimeModalOpen={setStartTimeModalOpen}
+                timeModalOpacity={startTimeModalOpacity}
+                time={startTime}
+                setTime={setStartTime}
                 theme={theme}
             />
-            <TimeField
+            <TimeModal
+                timeModalOpen={endTimeModalOpen}
+                setTimeModalOpen={setEndTimeModalOpen}
+                timeModalOpacity={endTimeModalOpacity}
+                
+                time={endTime}
+                setTime={setEndTime}
                 theme={theme}
             />
-            <Field
-                theme={theme}
-                text='Priority:'
-                rightComponent={
-                    <DropdownMenu 
-                        theme={theme}
-                        selectedItem={eventToAdd.priority}
-                        items={priorityData}
-                        containerStyle={{width: '30%'}}
-                        textStyle={{left: 5}}
-                        addNewBtnEnabled={false}
-                        handlePress={handleEditEvent('priority')}
-                        name='priority'
-                        dropdownOpen={openMenus.priority}
-                        handleDropdownOpen={handleDropdownOpen}
-                        otherDropdownOpening={otherDropdownOpening}
-                    />
-                }
-            />
-            <Field
-                theme={theme}
-                text='Description:'
-                containerStyle={{marginBottom: 0}}
-            />
-            <View
-                style={{
-                    width: '100%', 
-                    height: '17.5%',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 15,
-                    borderWidth: 1.5,
-                    borderColor: theme.s2,
-                    borderRadius: 30,
-                    marginBottom: 40,
-                    overflow: 'hidden',
-                }}
-            >
-                <TextInput
-                    scrollEnabled={false}
-                    multiline={true}
-                    maxLength={maxEventChars}
-                    textBreakStrategy='simple'
-                    placeholder='Tap to edit'
-                    placeholderTextColor={toRGBA(theme.s4, 0.5)}
-                    value={eventToAdd.description}
-                    onChangeText={text => {
-                        if (text.slice().split('').indexOf('\n') === -1) {
-                            setEventToAdd({
-                                ...eventToAdd,
-                                description: text,
-                            });
-                            setCharsLeft(maxEventChars - text.length);
-                        } else {
-                            Keyboard.dismiss();
-                        }
-                    }}
-                    style={[styles.event_text, {width: '95%', height: '100%', marginRight: 15,borderRadius: 15, color: theme.s6}]}
+            <ScrollView showsVerticalScrollIndicator={false} ref={menuScrollViewRef}>
+                <Field
+                    theme={theme}
+                    text='Section Name:'
+                    rightComponent={
+                        <DropdownMenu
+                            theme={theme}
+                            selectedItem={eventToAdd.sectionName}
+                            items={sectionsData.sectionNames}
+                            textStyle={{left: 10}}
+                            addNewBtnEnabled={true}
+                            handlePress={handleEditEvent('sectionName')}
+                            name='sectionName'
+                            dropdownOpen={openMenus.sectionName}
+                            handleDropdownOpen={handleDropdownOpen}
+                            otherDropdownOpening={otherDropdownOpening}
+                        />
+                    }
                 />
-                <Text style={{position: 'absolute', right: 8, top: '60%', color: theme.s4}}>{charsLeft}</Text>
-            </View>
-            <Pressable
-                style={({pressed}) => [
-                    {
-                        width: 100,
-                        height: 40,
-                        alignSelf: 'flex-end',
-                        borderRadius: 30,
-                        borderWidth: 1.5,
-                        borderColor: theme.s2,
+                <Field
+                    theme={theme}
+                    text='Priority:'
+                    rightComponent={
+                        <DropdownMenu 
+                            theme={theme}
+                            selectedItem={eventToAdd.priority}
+                            items={priorityData}
+                            containerStyle={{width: '30%'}}
+                            textStyle={{left: 5}}
+                            addNewBtnEnabled={false}
+                            handlePress={handleEditEvent('priority')}
+                            name='priority'
+                            dropdownOpen={openMenus.priority}
+                            handleDropdownOpen={handleDropdownOpen}
+                            otherDropdownOpening={otherDropdownOpening}
+                        />
+                    }
+                />
+                <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5}} />
+                <DateField
+                    text='Start Date:'
+                    selectedDate={selectedStartDate}
+                    setSelectedDate={setSelectedStartDate}
+                    handleChangeSelectedDate={handleEditEvent('selectedStartDate')}
+                    theme={theme}
+                />
+                <TimeField
+                    text='Start Time:'
+                    time={startTime}
+                    setTimeModalOpen={setStartTimeModalOpen}
+                    timeModalOpacity={startTimeModalOpacity}
+                    theme={theme}
+                />
+                <DateField
+                    text='End Date:'
+                    selectedDate={selectedEndDate}
+                    setSelectedDate={setSelectedEndDate}
+                    handleChangeSelectedDate={handleEditEvent('selectedEndDate')}
+                    theme={theme}
+                />
+                <TimeField
+                    text='End Time:'
+                    time={endTime}
+                    setTimeModalOpen={setEndTimeModalOpen}
+                    timeModalOpacity={endTimeModalOpacity}
+                    theme={theme}
+                />
+                <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5}} />
+                <Field
+                    theme={theme}
+                    text='Description:'
+                    containerStyle={{marginBottom: 0}}
+                />
+                <View
+                    style={{
+                        width: '100%', 
+                        height: 150,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: pressed ? theme.s2 : 'transparent',
-                    },
-                ]}
-                onPress={() => {
-                    if(eventToAdd.description.trim() !== '') {
-                        if(editing) {
-                            handleChange(
-                                editData.sectionName,                           // editData.sectionName is the previous section of the current eventToAdd
-                                editData.key,                                   // key is only used for lookup and should not be changed.
-                                {
-                                    sectionName: eventToAdd.sectionName, 
-                                    priority: eventToAdd.priority,
-                                    description: eventToAdd.description,
-                                    dueDay: eventToAdd.dueDay,
-                                    dueMonth: eventToAdd.dueMonth,
-                                    dueYear: eventToAdd.dueYear,
+                        padding: 15,
+                        borderWidth: 1.5,
+                        borderColor: theme.s2,
+                        borderRadius: 30,
+                        marginBottom: 40,
+                        overflow: 'hidden',
+                    }}
+                >
+                    <TextInput
+                        scrollEnabled={false}
+                        multiline={true}
+                        maxLength={maxEventChars}
+                        textBreakStrategy='simple'
+                        placeholder='Tap to edit'
+                        placeholderTextColor={toRGBA(theme.s4, 0.5)}
+                        value={eventToAdd.description}
+                        onChangeText={text => {
+                            if (text.slice().split('').indexOf('\n') === -1) {
+                                setEventToAdd({
+                                    ...eventToAdd,
+                                    description: text,
+                                });
+                                setCharsLeft(maxEventChars - text.length);
+                            } else {
+                                Keyboard.dismiss();
+                            }
+                        }}
+                        style={[styles.event_text, { width: '95%', height: '100%', marginRight: 15, borderRadius: 15, color: theme.s6 }]}
+                    />
+                    <Text style={{ position: 'absolute', right: 8, top: '60%', color: theme.s4 }}>{charsLeft}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end', height: 40, marginBottom: 50 }}>
+                    <Pressable
+                        style={({pressed}) => [
+                            {
+                                width: 100,
+                                height: 40,
+                                borderRadius: 30,
+                                borderWidth: 1.5,
+                                borderColor: theme.s2,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: pressed ? theme.s2 : 'transparent',
+                            },
+                        ]}
+                        onPress={() => {
+                            if(eventToAdd.description.trim() !== '') {
+                                if(editing) {
+                                    handleChange(
+                                        editData.sectionName,                           // editData.sectionName is the previous section of the current eventToAdd
+                                        editData.key,                                   // key is only used for lookup and should not be changed.
+                                        {
+                                            sectionName: eventToAdd.sectionName, 
+                                            priority: eventToAdd.priority,
+                                            description: eventToAdd.description,
+                                            startDate: {
+                                                day: eventToAdd.startDate.day,
+                                                month: eventToAdd.startDate.month,
+                                                year: eventToAdd.startDate.year,
+                                            },
+                                            endDate: {
+                                                day: eventToAdd.endDate.day,
+                                                month: eventToAdd.endDate.month,
+                                                year: eventToAdd.endDate.year,
+                                            },
+                                        }
+                                    );
+                                    Keyboard.dismiss();
+                                    closeMenu();
+                                } else {
+                                    handleAdd(
+                                        eventToAdd.sectionName,
+                                        eventToAdd.priority,
+                                        eventToAdd.description,
+                                        eventToAdd.startDate,
+                                        eventToAdd.endDate,
+                                    );
+                                    Keyboard.dismiss();
+                                    closeMenu();
                                 }
-                            );
-                            Keyboard.dismiss();
-                            closeMenu();
-                        } else {
-                            handleAdd(
-                                eventToAdd.sectionName,
-                                eventToAdd.priority,
-                                eventToAdd.description,
-                                eventToAdd.dueDay,
-                                eventToAdd.dueMonth,
-                                eventToAdd.dueYear,
-                            );
-                            Keyboard.dismiss();
-                            closeMenu();
-                        }
-                    } else {
-                        Alert.alert('mhmahmawj you can\'t have an empty description');
-                    }
-                }}
-            >
-                <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 18, color: theme.s6}}>{editing ? 'Finish' : 'Add'}</Text>
-            </Pressable>
+                            } else {
+                                Alert.alert('mhmahmawj you can\'t have an empty description');
+                            }
+                        }}
+                    >
+                        <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 18, color: theme.s6}}>Done</Text>
+                    </Pressable>
+                </View>
+            </ScrollView>
         </Animated.View>
     );
 }
@@ -1047,8 +1189,9 @@ const PlannerPage = ({ navigation }) => {
     const theme = themeContext.themeData.swatch;
 
     const [isLoading, setIsLoading] = useState(true);
-    const [buttonVisible, setButtonVisible] = useState(true);
-    const [menuData, setMenuData] = useState({visible: false, isEditing: false, editData: {}});
+    const [addButtonVisible, setAddButtonVisible] = useState(true);
+    const [addMenuData, setAddMenuData] = useState({ visible: false, isEditing: false, editData: {} });
+    const [addMenuAnimationFinished, setAddMenuAnimationFinished] = useState(true);
 
     const [events, setEvents] = useState([]);
     const [sectionsData, setSectionsData] = useState({});
@@ -1062,18 +1205,19 @@ const PlannerPage = ({ navigation }) => {
                 let eventSections, sectionNames = [];
                 if (events.length === 0) {
                     eventSections = [];
-                    parsed.map((item, index) => { // TODO: refactor to use for loop, no reason to map and create another array
-                        let cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
+                    for (let i = 0; i < parsed.length; i++) {
+                        const item = parsed[i];
+                        const cleanTitle = item.Title.substr(0, item.Title.indexOf('(')).trim();
                         eventSections.push({
                             // TODO: get color from async storage
                             key: getRandomKey(10),
                             color: '',
-                            index: index,
+                            index: i,
                             name: cleanTitle,
                             data: []
                         });
                         sectionNames.push(cleanTitle);
-                    });
+                    }
                 } else {
                     eventSections = events.slice();
                     parsed.map((item, index) => {
@@ -1091,7 +1235,7 @@ const PlannerPage = ({ navigation }) => {
                 setIsLoading(false);
             }
         } catch(err) {
-            console.log(err)
+            console.log(err);
         }
     };
 
@@ -1118,11 +1262,6 @@ const PlannerPage = ({ navigation }) => {
     }, []);
 
     const handleAdd = async (sectionName, initData) => {
-        function randomHSL() {
-            return "hsla(" + ~~(360 * Math.random()) + "," +
-                "70%,"+
-                "80%,1)"
-        }
         try {
             let newEvents = events.slice();
             let randomKey = getRandomKey(10);
@@ -1137,9 +1276,16 @@ const PlannerPage = ({ navigation }) => {
                     text: initData.description,
                     priority: initData.priority,
                     charsLeft: maxEventChars - initData.description.length,
-                    dueDay: initData.dueDay,
-                    dueMonth: initData.dueMonth,
-                    dueYear: initData.dueYear,
+                    startDate: {
+                        day: initData.startDate.day,
+                        month: initData.startDate.month,
+                        year: initData.startDate.year,
+                    },
+                    endDate: {
+                        day: initData.endDate.day,
+                        month: initData.endDate.month,
+                        year: initData.endDate.year,
+                    },
                 }
             });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
@@ -1184,18 +1330,32 @@ const PlannerPage = ({ navigation }) => {
                 ...eventObj.data,
                 priority: newData.priority,
                 text: newData.description,
-                dueDay: newData.dueDay,
-                dueMonth: newData.dueMonth,
-                dueYear: newData.dueYear,
+                startDate: {
+                    day: newData.startDate.day,
+                    month: newData.startDate.month,
+                    year: newData.startDate.year,
+                },
+                endDate: {
+                    day: newData.endDate.day,
+                    month: newData.endDate.month,
+                    year: newData.endDate.year,
+                },
             }
             if(newData.sectionName !== prevSectionName) {
                 let newSection = eventCopy.find(elem => elem.name === newData.sectionName).name;
                 handleAdd(newSection, {
                     priority: eventObj.data.priority,
                     description: eventObj.data.text,
-                    dueDay: eventObj.data.dueDay,
-                    dueMonth: eventObj.data.dueMonth,
-                    dueYear: eventObj.data.dueYear,
+                    startDate: {
+                        day: eventObj.data.startDate.day,
+                        month: eventObj.data.startDate.month,
+                        year: eventObj.data.startDate.year,
+                    },
+                    endDate: {
+                        day: eventObj.data.endDate.day,
+                        month: eventObj.data.endDate.month,
+                        year: eventObj.data.endDate.year,
+                    },
                 });
                 section.data.splice(eventObjIdx, 1);
             }
@@ -1207,8 +1367,10 @@ const PlannerPage = ({ navigation }) => {
     }
 
     const handleMenuOpen = (isEditing=false, editData={}) => {
-        setMenuData({visible: buttonVisible, isEditing: isEditing, editData: editData});
-        setButtonVisible(!buttonVisible);
+        if (addMenuAnimationFinished) {
+            setAddMenuData({visible: addButtonVisible, isEditing: isEditing, editData: editData});
+            setAddButtonVisible(!addButtonVisible);
+        }
     }
 
     const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
@@ -1231,6 +1393,11 @@ const PlannerPage = ({ navigation }) => {
 
     return ( 
         <View style = {[styles.container, {backgroundColor: theme.s1}]}>
+            <StatusBar
+                animated={false}
+                backgroundColor={theme.s1}
+                hidden={false}
+            />
             <View style={styles.options_bar}>
                 <View style={[styles.menu_button, {borderColor: toRGBA(theme.s4, 0.5)}]}>
                     <MaterialDesignIcons.Button 
@@ -1264,25 +1431,25 @@ const PlannerPage = ({ navigation }) => {
                     theme={theme}
                     sectionsData={sectionsData}
                     priorityData={priorityData}
-                    handleAdd={(prevSectionName, priority, description, dueDay, dueMonth, dueYear) => {
+                    handleAdd={(prevSectionName, priority, description, startDate, endDate) => {
                         handleAdd(prevSectionName, initData={
                             description: description,
                             priority: priority,
-                            dueDay: dueDay,
-                            dueMonth: dueMonth,
-                            dueYear: dueYear,
+                            startDate: startDate,
+                            endDate: endDate,
                         });
                     }}
                     handleChange={handleEventEdit}
-                    editing={menuData.isEditing}
-                    editData={menuData.editData}
-                    menuVisible={menuData.visible}
+                    editing={addMenuData.isEditing}
+                    editData={addMenuData.editData}
+                    menuVisible={addMenuData.visible}
+                    setMenuAnimationFinished={setAddMenuAnimationFinished}
                     closeMenu={handleMenuOpen}
                 />
             </View>
             <AddButton 
                 theme={theme} 
-                buttonVisible={buttonVisible} 
+                buttonVisible={addButtonVisible}
                 handleOpen={handleMenuOpen}
             /> 
         </View>
@@ -1332,7 +1499,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontFamily: 'Proxima Nova Bold',
     },
-    event_due_text: {
+    event_end_text: {
         marginTop: 5,
         fontSize: 12,
         fontFamily: 'Proxima Nova Thin',
@@ -1370,7 +1537,7 @@ const styles = StyleSheet.create({
     },
     time_container: {
         width: '100%',
-        height: '20%',
+        height: 200,
         borderTopLeftRadius: 15,
         borderTopRightRadius: 15,
         padding: 5,
