@@ -4,6 +4,8 @@ import {
     View,
     Text,
     Pressable,
+    ScrollView,
+    Dimensions,
 } from 'react-native';
 import { toRGBA } from './utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
@@ -221,7 +223,6 @@ export const SmallPressableCalendar = (props) => {
     }
     let numDays = getDaysOfMonth(month, year);
     let firstDayOfMonth = dayOfWeek(1, month, year);
-    console.log(firstDayOfMonth);
     for (let i = 0; i < firstDayOfMonth; i++) {
         dayBoxes.push(
             <DayBox key={i} day={null} />
@@ -259,10 +260,134 @@ export const SmallPressableCalendar = (props) => {
     )
 }
 
-export const ScrollingCalendar = () => {
-    return (
-        <View style={{flex: 1, backgroundColor: 'red'}}>
+const HourBoxes = ({ theme, eventData, axis, boxSize, scrollPosition }) => {
+    let theBoxes = [];
+    for(let hour = 0; hour < 24; hour++) {
+        let isHighlighted;
+        if(axis === 'vertical') {
+            isHighlighted = (scrollPosition.y >= hour * boxSize.height) && (scrollPosition.y < (hour + 1) * boxSize.height);
+        }
+        theBoxes.push(
+            <View 
+                key={hour} 
+                style={[
+                    styles.hourBox, 
+                    { 
+                        width: boxSize.width,
+                        height: boxSize.height,
+                        backgroundColor: toRGBA(theme.s13, 0.25), 
+                        borderRightColor: axis === 'horizontal' ? theme.s4 : 'transparent', 
+                        borderBottomColor: axis === 'vertical' ? theme.s4 : 'transparent', 
+                    }   
+                ]}
+            >
+                <View 
+                    style={[
+                        styles.hourBoxLeftDecorator, 
+                        { 
+                            width: axis === 'vertical' ? 30 : '100%', 
+                            height: axis === 'vertical' ? '100%' : 40,
+                            backgroundColor: toRGBA(theme.s2, isHighlighted ? 0.5 : 0.25) 
+                        }
+                    ]}
+                >
+                    <Text style={[styles.hourText, { color: toRGBA(theme.s6, 0.75) }]}>
+                        { hour % 12 === 0 ? 12 : hour - Math.floor(hour / 12) * 12 }{(hour <= 11) ? 'AM' : 'PM'}
+                    </Text>
+                </View>
+            </View>
+        );
+    }
+    return theBoxes;
+}
 
+const HourIndicator = ({ theme, axis }) => {
+    return (
+        <View 
+            style={[
+                styles.hourIndicatorLine, 
+                { 
+                    width: axis === 'vertical' ? '100%' : 1, 
+                    height: axis === 'vertical' ? 1 : '100%', 
+                    borderColor: theme.s5, 
+                }
+            ]}
+        >
+            <View 
+                style={[
+                    styles.hourIndicatorKnob, 
+                    { 
+                        top: axis === 'vertical' ? -5 : -10, 
+                        left: axis === 'vertical' ? -10 : -5, 
+                        backgroundColor: theme.s5
+                    }
+              ]}
+            />
+        </View>
+    );
+}
+
+export const ScrollingCalendar = ({ theme }) => {
+    const [axis, setAxis] = useState('vertical');
+    const [scrollPositon, setScrollPosition] = useState({
+        x: 0,
+        y: 0
+    });
+    const [hourBoxSize, setHourBoxSize] = useState({
+        width: Dimensions.get('window').width - 15,
+        height: 120
+    });
+
+    const handleScroll = (event) => {
+        const xPosition = event.nativeEvent.contentOffset.x;
+        const yPosition = event.nativeEvent.contentOffset.y;
+        setScrollPosition({ x: xPosition, y: yPosition });
+    }
+
+    useEffect(() => {
+        setHourBoxSize({
+            width: axis === 'vertical' ? Dimensions.get('window').width - 15 : 140,
+            height: axis === 'vertical' ? 120 : '100%'
+        });
+    }, [axis]);
+    
+    return (
+        <View>
+            <HourIndicator theme={theme} axis={axis} />
+            <Pressable
+                style={({pressed}) => [
+                    {
+                        opacity: pressed ? 0.5 : 1,
+                    },
+                    styles.dayViewRotateButton
+                ]}
+                onPressOut={() => {
+                    if(axis === 'vertical') setAxis('horizontal');
+                    else setAxis('vertical');
+                }}
+            >
+                <MaterialDesignIcons name={axis === 'vertical' ? 'rotate-right' : 'rotate-left'} size={25} color={theme.s4} />
+            </Pressable>
+            <ScrollView 
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                horizontal={axis !== 'vertical'} 
+                containerStyle={[
+                    { 
+                        width: axis === 'vertical' 
+                            ? '100%' 
+                            : hourBoxSize.width * 24,
+                        height: axis === 'vertical' 
+                            ? hourBoxSize.height * 24 
+                            : '100%',
+                        backgroundColor: 'red'
+                    }
+                ]}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+            >
+                <HourBoxes theme={theme} axis={axis} boxSize={hourBoxSize} scrollPosition={scrollPositon} />
+            </ScrollView>
         </View>
     );
 }
@@ -356,5 +481,37 @@ const styles = StyleSheet.create({
         padding: 5, 
         paddingTop: 0,
     },
+    dayViewRotateButton: {
+        position: 'absolute',
+        top: -50,
+        right: 0,
+        width: 25,
+        height: 25,
+    },
+    hourBox: {
+        borderRightWidth: StyleSheet.hairlineWidth,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    hourBoxLeftDecorator: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    hourText: {
+        fontFamily: 'Proxima Nova Bold',
+        fontSize: 8.5,
+    },
+    hourIndicatorLine: {
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        zIndex: 1,
+        borderTopWidth: 1, 
+        borderLeftWidth: 1, 
+    },
+    hourIndicatorKnob: {
+        position: 'absolute',
+        width: 10, 
+        height: 10, 
+        borderRadius: 15,
+    }
 });
-

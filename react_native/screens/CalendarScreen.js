@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
     StyleSheet,
     View,
@@ -189,8 +189,24 @@ const CalendarScreen = ({ navigation }) => {
             break;
     }
 
+    let calendarBoxes = useMemo(() => {
+        let boxes = [];
+        let boxSize = Dimensions.get('window').width / 2 - 20;
+        for(let currMonth = 0; currMonth < 12; currMonth++) {
+            boxes.push(
+                <SmallPressableCalendar key={currMonth} month={currMonth + 1} year={dateToday.getFullYear()} boxSize={boxSize} theme={theme} />
+            );
+        }
+        return (
+            <ScrollView contentContainerStyle={styles.calendarYearViewContainer}>
+                { boxes }
+            </ScrollView>
+        )
+    }, []);
+
     let CalendarComponent = ({ viewTypeIdx }) => {
         let viewType = viewTypes[viewTypeIdx];
+        
         switch(viewType) {
             case 'month':
                 return (
@@ -199,35 +215,25 @@ const CalendarScreen = ({ navigation }) => {
                     </View>
                 );
             case 'year':
-                let calendarBoxes = [];
-                let boxSize = Dimensions.get('window').width / 2 - 20;
-                for(let month = 1; month <= 12; month++) {
-                    calendarBoxes.push(
-                        <SmallPressableCalendar key={month} month={month} year={selectedDate.year} boxSize={boxSize} theme={theme} />
-                    );
-                }
                 return (
-                    <ScrollView contentContainerStyle={styles.calendarYearViewContainer}>
-                        {calendarBoxes}
-                    </ScrollView>
+                    calendarBoxes
                 );
             case 'day':
                 return (
-                    <View style={{width: '100%', height: '100%', backgroundColor: 'blue'}}>
-
-                    </View>
+                    <ScrollingCalendar theme={theme} />
                 );
             default:
                 return null;
         }
     }
+    
+    let MemoizedCalendarComponent = React.memo(CalendarComponent);
 
     const handleViewChange = () => {
         if(selectedView != viewTypes.length - 1)
             setSelectedView(selectedView + 1);
         else
             setSelectedView(0);
-        console.log(viewTypes[selectedView]);
     }
 
     useEffect(() => {
@@ -241,7 +247,7 @@ const CalendarScreen = ({ navigation }) => {
                 <Animated.View style={[styles.header_text, {left: 0, width: '100%'}, /* animatedMainHeaderStyle */]}>
                     <Text style={[styles.header_text, {color: theme.s6, marginBottom: 0}]}>Your Calendar:</Text>
                 </Animated.View>
-                <CalendarComponent viewTypeIdx={selectedView} />     
+                <MemoizedCalendarComponent viewTypeIdx={selectedView} />     
                 {viewTypes[selectedView] == 'month' &&                  // BUG: shows expanded event list for a split second before rendering correctly
                     <View style={{width: '100%', height: '100%'}}> 
                         <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
