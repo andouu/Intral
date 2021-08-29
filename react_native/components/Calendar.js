@@ -265,7 +265,9 @@ const HourBoxes = ({ theme, eventData, axis, boxSize, scrollPosition }) => {
     for(let hour = 0; hour < 24; hour++) {
         let isHighlighted;
         if(axis === 'vertical') {
-            isHighlighted = (scrollPosition.y >= hour * boxSize.height) && (scrollPosition.y < (hour + 1) * boxSize.height);
+            isHighlighted = (scrollPosition.y + boxSize.height > hour * boxSize.height) && (scrollPosition.y + boxSize.height <= (hour + 1) * boxSize.height);
+        } else {
+            isHighlighted = (scrollPosition.x + boxSize.width > hour * boxSize.width) && (scrollPosition.x + boxSize.width <= (hour + 1) * boxSize.width);
         }
         theBoxes.push(
             <View 
@@ -301,12 +303,14 @@ const HourBoxes = ({ theme, eventData, axis, boxSize, scrollPosition }) => {
     return theBoxes;
 }
 
-const HourIndicator = ({ theme, axis }) => {
+const HourIndicator = ({ theme, axis, boxSize }) => {    // Only for aesthetics right now
     return (
         <View 
             style={[
                 styles.hourIndicatorLine, 
-                { 
+                {
+                    top: axis === 'vertical' ? boxSize.height : 0,
+                    left: axis === 'vertical' ? 0 : boxSize.width,
                     width: axis === 'vertical' ? '100%' : 1, 
                     height: axis === 'vertical' ? 1 : '100%', 
                     borderColor: theme.s5, 
@@ -347,13 +351,13 @@ export const ScrollingCalendar = ({ theme }) => {
     useEffect(() => {
         setHourBoxSize({
             width: axis === 'vertical' ? Dimensions.get('window').width - 15 : 140,
-            height: axis === 'vertical' ? 120 : '100%'
+            height: axis === 'vertical' ? 140 : '100%'
         });
     }, [axis]);
     
     return (
         <View>
-            <HourIndicator theme={theme} axis={axis} />
+            <HourIndicator theme={theme} axis={axis} boxSize={hourBoxSize} />
             <Pressable
                 style={({pressed}) => [
                     {
