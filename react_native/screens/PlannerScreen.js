@@ -124,7 +124,9 @@ const getDateText = (day, month, year, addParentheses=false) => {
     return dateText;
 }
 
-const get12HourTimeText = (time24Hour, minuteString) => {
+const get12HourTimeText = (time24String) => {
+    const time24Hour = parseInt(time24String.substring(0, 2));
+    const minuteString = time24String.substring(2, 4);
     let timeText;
     if (time24Hour >= 12) {
         if (time24Hour === 12) timeText = '12:' + minuteString + ' PM';
@@ -260,16 +262,18 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                             month: item.data.startDate.month,
                             year: item.data.startDate.year,
                         },
+                        startTime: item.data.startTime,
                         endDate: {
                             day: item.data.endDate.day,
                             month: item.data.endDate.month,
                             year: item.data.endDate.year,
                         },
+                        endTime: item.data.endTime,
                     })}
                 >
                     <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text>
-                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'Start: ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year, true)}</Text>
-                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'End: ' + getDateText(item.data.endDate.day, item.data.endDate.month, item.data.endDate.year, true)}</Text>
+                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'Start: ' + get12HourTimeText(item.data.startTime) + ', ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year, true)}</Text>
+                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'End: ' + get12HourTimeText(item.data.endTime) + ', ' + getDateText(item.data.endDate.day, item.data.endDate.month, item.data.endDate.year, true)}</Text>
                 </TouchableOpacity>
             </View>
         </SwipeableItem>
@@ -310,11 +314,13 @@ const BorderedFlatList = (props) => {
                                             month: item.data.startDate.month,
                                             year: item.data.startDate.year,
                                         },
+                                        startTime: item.data.startTime,
                                         endDate: {
                                             day: item.data.endDate.day,
                                             month: item.data.endDate.month,
                                             year: item.data.endDate.year,
                                         },
+                                        endTime: item.data.endTime,
                                     }
                                 )}
                                 handleDelete={props.handleDelete}
@@ -609,7 +615,7 @@ const DropdownMenu = (props) => {
     );
 }
 
-const DateField = ({ text, selectedDate, setSelectedDate, handleChangeSelectedDate, theme }) => {
+const DateField = ({ text, selectedDate, setSelectedDate, theme }) => {
     const [calendarModalVisible, setCalendarModalVisible] = useState(false);
 
     return (
@@ -657,10 +663,7 @@ const DateField = ({ text, selectedDate, setSelectedDate, handleChangeSelectedDa
                         <Calendar
                             dateToday={dateToday}
                             selectedDate={selectedDate}
-                            setSelectedDate={(newDate) => {
-                                setSelectedDate(newDate);
-                                handleChangeSelectedDate(newDate.day, newDate.month, newDate.year);
-                            }}
+                            setSelectedDate={setSelectedDate}
                             isRefreshing={false}
                         />
                     </View>
@@ -708,7 +711,7 @@ const TimeField = ({ text, time, setTimeModalOpen, timeModalOpacity, theme }) =>
                         }}
                     >
                         <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
-                            {get12HourTimeText(parseInt(time.substring(0, 2)), time.substring(2, 4))}
+                            {get12HourTimeText(time)}
                         </Text>
                         <Icon
                             name='clock'
@@ -776,11 +779,28 @@ const TimeModal = ({ timeModalOpen, setTimeModalOpen, timeModalOpacity, time, se
     );
 }
 
+//military 24-hour time as string
 const DEFAULT_START_TIME = '0800'; //8:00 AM
 const DEFAULT_END_TIME = '1200'; //12:00 PM
 
 const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisible, setMenuAnimationFinished, closeMenu, theme, editing, editData }) => {
-    const [eventToAdd, setEventToAdd] = useState({});
+    const [eventToAdd, setEventToAdd] = useState({
+        sectionName: sectionsData.sectionNames[0],
+        priority: priorityData[0],
+        description: '',
+        startDate: {
+            day: dateToday.getDate(),
+            month: dateToday.getMonth() + 1,
+            year: dateToday.getFullYear(),
+        },
+        startTime: DEFAULT_START_TIME,
+        endDate: {
+            day: dateToday.getDate(),
+            month: dateToday.getMonth() + 1,
+            year: dateToday.getFullYear(),
+        },
+        endTime: DEFAULT_END_TIME,
+    });
     const [charsLeft, setCharsLeft] = useState(maxEventChars);
     const [openMenus, setOpenMenus] = useState({
         sectionName: false,
@@ -796,20 +816,8 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
         }
     });
     const menuScrollViewRef = useRef();
-    const [selectedStartDate, setSelectedStartDate] = useState({
-        day: dateToday.getDate(),
-        month: dateToday.getMonth() + 1,
-        year: dateToday.getFullYear()
-    });
-    const [selectedEndDate, setSelectedEndDate] = useState({
-        day: dateToday.getDate(),
-        month: dateToday.getMonth() + 1,
-        year: dateToday.getFullYear()
-    });
-    const [startTime, setStartTime] = useState(DEFAULT_START_TIME); //military 24-hour time as string
     const [startTimeModalOpen, setStartTimeModalOpen] = useState(false);
     const startTimeModalOpacity = useSharedValue(0);
-    const [endTime, setEndTime] = useState(DEFAULT_END_TIME);
     const [endTimeModalOpen, setEndTimeModalOpen] = useState(false);
     const endTimeModalOpacity = useSharedValue(0);
 
@@ -857,27 +865,43 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                     });
                 }
                 break;
-            case 'selectedStartDate':
-                changeFunction = (newDay, newMonth, newYear) => {
+            case 'startDate':
+                changeFunction = (newDate) => {
                     setEventToAdd({
                         ...eventToAdd,
                         startDate: {
-                            day: newDay,
-                            month: newMonth,
-                            year: newYear,
+                            day: newDate.day,
+                            month: newDate.month,
+                            year: newDate.year,
                         },
                     });
                 }
                 break;
-            case 'selectedEndDate':
-                changeFunction = (newDay, newMonth, newYear) => {
+            case 'startTime':
+                changeFunction = (newTime) => {
+                    setEventToAdd({
+                        ...eventToAdd,
+                        startTime: newTime,
+                    });
+                }
+                break;
+            case 'endDate':
+                changeFunction = (newDate) => {
                     setEventToAdd({
                         ...eventToAdd,
                         endDate: {
-                            day: newDay,
-                            month: newMonth,
-                            year: newYear,
+                            day: newDate.day,
+                            month: newDate.month,
+                            year: newDate.year,
                         },
+                    });
+                }
+                break;
+            case 'endTime':
+                changeFunction = (newTime) => {
+                    setEventToAdd({
+                        ...eventToAdd,
+                        endTime: newTime,
                     });
                 }
                 break;
@@ -888,18 +912,6 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
     const expandedHeight = 100;
 
     const resetStates = () => {
-        setSelectedStartDate({
-            day: dateToday.getDate(),
-            month: dateToday.getMonth() + 1,
-            year: dateToday.getFullYear(),
-        });
-        setSelectedEndDate({
-            day: dateToday.getDate(),
-            month: dateToday.getMonth() + 1,
-            year: dateToday.getFullYear(),
-        });
-        setStartTime(DEFAULT_START_TIME);
-        setEndTime(DEFAULT_END_TIME);
         setEventToAdd({
             sectionName: sectionsData.sectionNames[0],
             priority: priorityData[0],
@@ -909,11 +921,13 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                 month: dateToday.getMonth() + 1,
                 year: dateToday.getFullYear(),
             },
+            startTime: DEFAULT_START_TIME,
             endDate: {
                 day: dateToday.getDate(),
                 month: dateToday.getMonth() + 1,
                 year: dateToday.getFullYear(),
             },
+            endTime: DEFAULT_END_TIME,
         });
         setCharsLeft(maxEventChars);
     };
@@ -928,16 +942,6 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
             menuHeight.value = 0;
             menuScrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
             if (editing) {
-                setSelectedStartDate({
-                    day: editData.startDate.day,
-                    month: editData.startDate.month,
-                    year: editData.startDate.year,
-                });
-                setSelectedEndDate({
-                    day: editData.endDate.day,
-                    month: editData.endDate.month,
-                    year: editData.endDate.year,
-                });
                 setEventToAdd({
                     sectionName: editData.sectionName,
                     priority: editData.priority,
@@ -947,11 +951,13 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                         month: editData.startDate.month,
                         year: editData.startDate.year,
                     },
+                    startTime: editData.startTime,
                     endDate: {
                         day: editData.endDate.day,
                         month: editData.endDate.month,
                         year: editData.endDate.year,
                     },
+                    endTime: editData.endTime,
                 });
                 setCharsLeft(maxEventChars - editData.description.length);
             } else {
@@ -991,25 +997,20 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                 <MaterialDesignIcons name='close' size={30} color={theme.s4} style={{bottom: 0, right: 0}}/>
             </Pressable>
             <View style={{borderBottomWidth: 2, borderBottomColor: theme.s4, marginBottom: 5}} />
-            {/* TODO:
-            Fix time modal absolute view scrolling bug.
-            Store and display startTime and endTime in events.
-            */}
             <TimeModal
                 timeModalOpen={startTimeModalOpen}
                 setTimeModalOpen={setStartTimeModalOpen}
                 timeModalOpacity={startTimeModalOpacity}
-                time={startTime}
-                setTime={setStartTime}
+                time={eventToAdd.startTime}
+                setTime={handleEditEvent('startTime')}
                 theme={theme}
             />
             <TimeModal
                 timeModalOpen={endTimeModalOpen}
                 setTimeModalOpen={setEndTimeModalOpen}
                 timeModalOpacity={endTimeModalOpacity}
-                
-                time={endTime}
-                setTime={setEndTime}
+                time={eventToAdd.endTime}
+                setTime={handleEditEvent('endTime')}
                 theme={theme}
             />
             <ScrollView showsVerticalScrollIndicator={false} ref={menuScrollViewRef}>
@@ -1053,28 +1054,26 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                 <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5}} />
                 <DateField
                     text='Start Date:'
-                    selectedDate={selectedStartDate}
-                    setSelectedDate={setSelectedStartDate}
-                    handleChangeSelectedDate={handleEditEvent('selectedStartDate')}
+                    selectedDate={eventToAdd.startDate}
+                    setSelectedDate={handleEditEvent('startDate')}
                     theme={theme}
                 />
                 <TimeField
                     text='Start Time:'
-                    time={startTime}
+                    time={eventToAdd.startTime}
                     setTimeModalOpen={setStartTimeModalOpen}
                     timeModalOpacity={startTimeModalOpacity}
                     theme={theme}
                 />
                 <DateField
                     text='End Date:'
-                    selectedDate={selectedEndDate}
-                    setSelectedDate={setSelectedEndDate}
-                    handleChangeSelectedDate={handleEditEvent('selectedEndDate')}
+                    selectedDate={eventToAdd.endDate}
+                    setSelectedDate={handleEditEvent('endDate')}
                     theme={theme}
                 />
                 <TimeField
                     text='End Time:'
-                    time={endTime}
+                    time={eventToAdd.endTime}
                     setTimeModalOpen={setEndTimeModalOpen}
                     timeModalOpacity={endTimeModalOpacity}
                     theme={theme}
@@ -1151,11 +1150,13 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                                                 month: eventToAdd.startDate.month,
                                                 year: eventToAdd.startDate.year,
                                             },
+                                            startTime: eventToAdd.startTime,
                                             endDate: {
                                                 day: eventToAdd.endDate.day,
                                                 month: eventToAdd.endDate.month,
                                                 year: eventToAdd.endDate.year,
                                             },
+                                            endTime: eventToAdd.endTime,
                                         }
                                     );
                                     Keyboard.dismiss();
@@ -1166,7 +1167,9 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
                                         eventToAdd.priority,
                                         eventToAdd.description,
                                         eventToAdd.startDate,
+                                        eventToAdd.startTime,
                                         eventToAdd.endDate,
+                                        eventToAdd.endTime,
                                     );
                                     Keyboard.dismiss();
                                     closeMenu();
@@ -1281,11 +1284,13 @@ const PlannerPage = ({ navigation }) => {
                         month: initData.startDate.month,
                         year: initData.startDate.year,
                     },
+                    startTime: initData.startTime,
                     endDate: {
                         day: initData.endDate.day,
                         month: initData.endDate.month,
                         year: initData.endDate.year,
                     },
+                    endTime: initData.endTime,
                 }
             });
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
@@ -1335,11 +1340,13 @@ const PlannerPage = ({ navigation }) => {
                     month: newData.startDate.month,
                     year: newData.startDate.year,
                 },
+                startTime: newData.startTime,
                 endDate: {
                     day: newData.endDate.day,
                     month: newData.endDate.month,
                     year: newData.endDate.year,
                 },
+                endTime: newData.endTime,
             }
             if(newData.sectionName !== prevSectionName) {
                 let newSection = eventCopy.find(elem => elem.name === newData.sectionName).name;
@@ -1351,11 +1358,13 @@ const PlannerPage = ({ navigation }) => {
                         month: eventObj.data.startDate.month,
                         year: eventObj.data.startDate.year,
                     },
+                    startTime: eventObj.data.startTime,
                     endDate: {
                         day: eventObj.data.endDate.day,
                         month: eventObj.data.endDate.month,
                         year: eventObj.data.endDate.year,
                     },
+                    endTime: eventObj.data.endTime,
                 });
                 section.data.splice(eventObjIdx, 1);
             }
@@ -1431,12 +1440,14 @@ const PlannerPage = ({ navigation }) => {
                     theme={theme}
                     sectionsData={sectionsData}
                     priorityData={priorityData}
-                    handleAdd={(prevSectionName, priority, description, startDate, endDate) => {
+                    handleAdd={(prevSectionName, priority, description, startDate, startTime, endDate, endTime) => {
                         handleAdd(prevSectionName, initData={
                             description: description,
                             priority: priority,
                             startDate: startDate,
+                            startTime: startTime,
                             endDate: endDate,
+                            endTime: endTime,
                         });
                     }}
                     handleChange={handleEventEdit}
