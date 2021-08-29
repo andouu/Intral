@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
     StyleSheet,
     View,
@@ -6,6 +6,7 @@ import {
     Pressable,
     ScrollView,
     Dimensions,
+    ActivityIndicator,
 } from 'react-native';
 import { toRGBA } from './utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
@@ -260,14 +261,12 @@ export const SmallPressableCalendar = (props) => {
     )
 }
 
-const HourBoxes = ({ theme, eventData, axis, boxSize, scrollPosition }) => {
+const HourBoxes = ({ theme, axis, boxSize, dateToday }) => {
     let theBoxes = [];
     for(let hour = 0; hour < 24; hour++) {
         let isHighlighted;
-        if(axis === 'vertical') {
-            isHighlighted = (scrollPosition.y + boxSize.height > hour * boxSize.height) && (scrollPosition.y + boxSize.height <= (hour + 1) * boxSize.height);
-        } else {
-            isHighlighted = (scrollPosition.x + boxSize.width > hour * boxSize.width) && (scrollPosition.x + boxSize.width <= (hour + 1) * boxSize.width);
+        if(dateToday.getHours() === hour) {
+            isHighlighted = true;
         }
         theBoxes.push(
             <View 
@@ -287,9 +286,9 @@ const HourBoxes = ({ theme, eventData, axis, boxSize, scrollPosition }) => {
                     style={[
                         styles.hourBoxLeftDecorator, 
                         { 
-                            width: axis === 'vertical' ? 30 : '100%', 
+                            width: axis === 'vertical' ? 40 : '100%', 
                             height: axis === 'vertical' ? '100%' : 40,
-                            backgroundColor: toRGBA(theme.s2, isHighlighted ? 0.5 : 0.25) 
+                            backgroundColor: toRGBA(theme.s2, isHighlighted ? 0.75 : 0.25) 
                         }
                     ]}
                 >
@@ -303,14 +302,19 @@ const HourBoxes = ({ theme, eventData, axis, boxSize, scrollPosition }) => {
     return theBoxes;
 }
 
-const HourIndicator = ({ theme, axis, boxSize }) => {    // Only for aesthetics right now
+const HourIndicator = ({ theme, axis, boxSize, dateToday }) => {    // Only for aesthetics right now
+    let hourBoxSize = (axis === 'vertical') ? boxSize.height : boxSize.width;
+    let hour = dateToday.getHours();
+    let minute = dateToday.getMinutes();
+    let dist = hour * hourBoxSize + minute * hourBoxSize / 60;
+
     return (
         <View 
             style={[
                 styles.hourIndicatorLine, 
                 {
-                    top: axis === 'vertical' ? boxSize.height : 0,
-                    left: axis === 'vertical' ? 0 : boxSize.width,
+                    top: axis === 'vertical' ? dist : 0,
+                    left: axis === 'vertical' ? 0 : dist,
                     width: axis === 'vertical' ? '100%' : 1, 
                     height: axis === 'vertical' ? 1 : '100%', 
                     borderColor: theme.s5, 
@@ -321,8 +325,8 @@ const HourIndicator = ({ theme, axis, boxSize }) => {    // Only for aesthetics 
                 style={[
                     styles.hourIndicatorKnob, 
                     { 
-                        top: axis === 'vertical' ? -5 : -10, 
-                        left: axis === 'vertical' ? -10 : -5, 
+                        top: -5,
+                        left: -5, 
                         backgroundColor: theme.s5
                     }
               ]}
@@ -331,15 +335,196 @@ const HourIndicator = ({ theme, axis, boxSize }) => {    // Only for aesthetics 
     );
 }
 
+const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
+    let result = ''
+    let characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let charlen = characters.length;
+    for(let i = 0; i < length; i ++) {
+        result += characters.charAt(Math.floor(Math.random() * charlen));
+    }
+    return result;
+};
+
+/**
+ * Renders the eventboxes for the scrolling calendar.
+ * 
+ * @param {object} theme: theme object
+ * @param {object} boxSize: { width, height }
+ * @param {string} axis: 'horizontal' or 'vertical'
+ * @param {number} decoratorSize: size of each hour box decorator (hour textbox)
+ * @returns {array} array of React Components
+ */
+const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
+    let theBoxes = []; // array of React Components to return
+    let eventDataCopy = eventData.slice();
+    let sortedData = eventDataCopy.sort((firstElem, secondElem) => {
+        if (firstElem.startTime < secondElem.startTime)
+            return -1;
+        else if (firstElem.startTime > secondElem.startTime)
+            return 1;
+
+        // else the element starting times must be equal, so have the longer event take precedence
+        if(firstElem.endTime > secondElem.endTime)
+            return -1;
+        else if(firstElem.endTime < secondElem.endTime)
+            return 1;
+        else
+            return 0;
+    });
+
+    let earliestPerHour = [new Array(24).fill(0)];
+    let numRows = 1;
+    let numEvents = sortedData.length;
+
+    const boxMargin = 15;
+    for(let currRow = 0; currRow < numRows; currRow++) {
+        let toErase = [];
+        for(let currEvent = 0; currEvent < numEvents; currEvent++) {
+            let startHour, endHour, startMinute, endMinute;
+            let xStart, yStart, xEnd, yEnd;
+            let extensionSize = 45;
+            let dividend = (axis === 'vertical') ? boxSize.height : boxSize.width;
+
+            startHour = Number(sortedData[currEvent].startTime.substr(0, 2));
+            endHour = Number(sortedData[currEvent].endTime.substr(0, 2));
+            startMinute = Number(sortedData[currEvent].startTime.substr(2, 2));
+            endMinute = Number(sortedData[currEvent].endTime.substr(2, 2));
+
+            if(earliestPerHour[currRow][startHour] <= startMinute) {
+                const randomKey = getRandomKey(10);
+
+                if(axis === 'horizontal') {
+                    xStart = startHour * dividend + dividend / 60 * startMinute;
+                    xEnd = endHour * dividend + dividend / 60 * endMinute;
+                    yStart = decoratorSize + boxMargin + currRow * boxMargin + currRow * extensionSize;
+                    yEnd = yStart + extensionSize;
+                } else {
+                    xStart = decoratorSize + boxMargin + currRow * boxMargin + currRow * extensionSize;
+                    xEnd = xStart + extensionSize;
+                    yStart = startHour * dividend + dividend / 60 * startMinute;
+                    yEnd = endHour * dividend + dividend / 60 * endMinute;
+                }
+                //TODO: On eventbox press, open a modal showing the details of the event
+                theBoxes.push(
+                    <View 
+                        key={randomKey} 
+                        style={{ 
+                            justifyContent: 'center',
+                            padding: 10,
+                            position: 'absolute', 
+                            top: yStart, 
+                            left: xStart,
+                            width: xEnd - xStart, 
+                            height: yEnd - yStart,
+                            borderRadius: 0,
+                            borderTopWidth: axis === 'vertical' ? 5 : 0,
+                            borderLeftWidth: axis === 'vertical' ? 0 : 5,
+                            borderColor: sortedData[currEvent].color,
+                            backgroundColor: toRGBA(sortedData[currEvent].color, 0.5), 
+                        }}
+                    >
+                        <Text 
+                            style={[
+                                styles.eventBoxText, 
+                                { 
+                                    alignSelf: axis === 'vertical' ? 'center' : null,
+                                    width: axis === 'vertical' ? yEnd - yStart - 20 : null,
+                                    height: axis === 'vertical' ? 'auto' : null,
+                                    transform: [{rotateZ: axis === 'vertical' ? '90deg' : '0deg'}], 
+                                    color: toRGBA(theme.s6, 0.8),
+                                }
+                            ]}
+                            numberOfLines={1}
+                        >
+                            { sortedData[currEvent].name }
+                        </Text>
+                    </View>
+                );
+                
+
+                toErase.push(sortedData[currEvent]);
+                if(endHour > startHour) {
+                    for(let currHourUntilEnd = startHour; currHourUntilEnd < endHour; currHourUntilEnd++) {
+                        earliestPerHour[currRow][currHourUntilEnd] = 60;
+                    }
+                }
+                earliestPerHour[currRow][endHour] = endMinute;
+            }
+        }
+        for(let itemToErase = 0; itemToErase < toErase.length; itemToErase++) {
+            let indexToErase = sortedData.findIndex(compElem => compElem.name === toErase[itemToErase].name);
+            sortedData.splice(indexToErase, 1);
+            numEvents--;
+        }
+        if(numEvents > 0) {
+            numRows++;
+            earliestPerHour.push(new Array(24).fill(0));
+        }
+    }
+
+    return theBoxes;
+}
+
+const tempData = [
+    {
+        name: 'Event 1',
+        startTime: '0000',
+        endTime: '0100',
+        color: 'rgb(1,112,255)',
+    },
+    {
+        name: 'Event 2',
+        startTime: '0030',
+        endTime: '0300',
+        color: 'rgb(255,59,59)',
+    },
+    {
+        name: 'Reading before sleep',
+        startTime: '2200',
+        endTime: '2300',
+        color: 'rgb(119,51,255)',
+    },
+    {
+        name: 'School',
+        startTime: '0800',
+        endTime: '1530',
+        color: 'rgb(89,138,197)',
+    },
+    {
+        name: 'Tennis',
+        startTime: '0220',
+        endTime: '0403',
+        color: 'rgb(89,138,197)',
+    },
+    {
+        name: 'Be awake',
+        startTime: '0130',
+        endTime: '0300',
+        color: 'rgb(89,138,197)',
+    },
+    {
+        name: 'Be awake 2',
+        startTime: '0200',
+        endTime: '0400',
+        color: 'rgb(89,138,197)',
+    },
+    {
+        name: 'Period 1',
+        startTime: '0800',
+        endTime: '0855',
+        color: 'rgb(201,155,59)',
+    },
+];
+
 export const ScrollingCalendar = ({ theme }) => {
-    const [axis, setAxis] = useState('vertical');
+    const [axis, setAxis] = useState('horizontal');
     const [scrollPositon, setScrollPosition] = useState({
         x: 0,
         y: 0
     });
     const [hourBoxSize, setHourBoxSize] = useState({
-        width: Dimensions.get('window').width - 15,
-        height: 120
+        width: 140,
+        height: '100%'
     });
 
     const handleScroll = (event) => {
@@ -348,16 +533,19 @@ export const ScrollingCalendar = ({ theme }) => {
         setScrollPosition({ x: xPosition, y: yPosition });
     }
 
-    useEffect(() => {
+    const handleRotate = () => {
+        prevAxis = axis;
         setHourBoxSize({
-            width: axis === 'vertical' ? Dimensions.get('window').width - 15 : 140,
-            height: axis === 'vertical' ? 140 : '100%'
+            width: prevAxis === 'vertical' ? 140 : Dimensions.get('window').width - 15,
+            height: prevAxis === 'vertical' ? '100%' : 140 
         });
-    }, [axis]);
-    
+        setAxis(axis === 'horizontal' ? 'vertical' : 'horizontal');
+    }
+
+    let dateToday = new Date();
+
     return (
         <View>
-            <HourIndicator theme={theme} axis={axis} boxSize={hourBoxSize} />
             <Pressable
                 style={({pressed}) => [
                     {
@@ -365,32 +553,34 @@ export const ScrollingCalendar = ({ theme }) => {
                     },
                     styles.dayViewRotateButton
                 ]}
-                onPressOut={() => {
-                    if(axis === 'vertical') setAxis('horizontal');
-                    else setAxis('vertical');
+                onPress={() => {
+                    handleRotate();
                 }}
             >
                 <MaterialDesignIcons name={axis === 'vertical' ? 'rotate-right' : 'rotate-left'} size={25} color={theme.s4} />
             </Pressable>
-            <ScrollView 
+            <ScrollView
+                // contentOffset={{ x: axis === 'vertical' ? 0 : hourBoxSize.width * 8, y: axis === 'vertical' ? hourBoxSize.height * 8 : 0 }} 
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
                 horizontal={axis !== 'vertical'} 
                 containerStyle={[
                     { 
+                        overflow: 'visible',
                         width: axis === 'vertical' 
                             ? '100%' 
                             : hourBoxSize.width * 24,
-                        height: axis === 'vertical' 
-                            ? hourBoxSize.height * 24 
-                            : '100%',
-                        backgroundColor: 'red'
+                        height: axis === 'vertical'
+                            ? hourBoxSize.height * 24
+                            : hourBoxSize.height * 24,
                     }
                 ]}
                 showsVerticalScrollIndicator={false}
                 showsHorizontalScrollIndicator={false}
             >
-                <HourBoxes theme={theme} axis={axis} boxSize={hourBoxSize} scrollPosition={scrollPositon} />
+                <HourIndicator theme={theme} axis={axis} boxSize={hourBoxSize} dateToday={dateToday} />
+                <HourBoxes theme={theme} axis={axis} boxSize={hourBoxSize} scrollPosition={scrollPositon} dateToday={dateToday} />
+                <EventBoxes theme={theme} axis={axis} boxSize={hourBoxSize} decoratorSize={40} eventData={tempData} />
             </ScrollView>
         </View>
     );
@@ -504,8 +694,8 @@ const styles = StyleSheet.create({
         fontFamily: 'Proxima Nova Bold',
         fontSize: 8.5,
     },
-    hourIndicatorLine: {
-        position: 'absolute', 
+    hourIndicatorLine: { 
+        position: 'absolute',
         top: 0, 
         left: 0, 
         zIndex: 1,
@@ -517,5 +707,9 @@ const styles = StyleSheet.create({
         width: 10, 
         height: 10, 
         borderRadius: 15,
-    }
+    },
+    eventBoxText: {
+        fontFamily: 'ProximaNova-Regular',
+        fontSize: 16,
+    },
 });
