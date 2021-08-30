@@ -65,63 +65,31 @@ const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Fri
 
 const dateToday = new Date();
 
-const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
-    let t = [ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 ];
-    y -= (m < 3) ? 1 : 0;
-    return Math.round(( y + y/4 - y/100 + y/400 + t[m - 1] + d) % 7) % 7;
-}
-
-const dayHasPast = (y1, m1, d1, y2, m2, d2) => {
-    if (y1 == y2) {
-        if (m1 == m2) {
-            if (d1 < d2) return true;
-        } else if (m1 < m2) return true;
-    } else if (y1 < y2) return true;
-    return false;
-}
-
-const getDateText = (day, month, year, addParentheses=false) => {
-    let selectedDayOfWeek = dayOfWeek(day, month, year);
-    const wordDayOfWeek = daysOfWeek[selectedDayOfWeek];
-    let dateText = wordDayOfWeek.substr(0, 3) + ', ' + 
+const getDateText = (day, month, year) => {
+    const selectedDate = new Date(year, month - 1, day);
+    const dateDif = Math.floor((selectedDate - dateToday) / (1000 * 60 * 60 * 24)) + 1;
+    const wordDayOfWeek = daysOfWeek[selectedDate.getDay()];
+    const shortenedWordDayOfWeek = wordDayOfWeek.substr(0, 3);
+    let dateText = shortenedWordDayOfWeek + ', ' + 
         monthDict[month - 1] + ' ' + 
         day + ', ' + 
         year;
-    const todayDay = dateToday.getDate();
-    const todayMonth = dateToday.getMonth() + 1;
-    const todayYear = dateToday.getFullYear();
-    if (!dayHasPast(year, month, day, todayYear, todayMonth, todayDay)) { //selected date > today
-        let parentheses = ' (' + dateText + ')';
-
-        if (day == todayDay && month == todayMonth && year == todayYear) {
+    let alertText = '';
+    if (dateDif >= 0) {
+        if (dateDif === 0) {
             dateText = 'Today';
-        }
-        else if (day == todayDay + 1 && month == todayMonth && year == todayYear) {
+            alertText = 'TDA';
+        } else if (dateDif === 1) {
             dateText = 'Tomorrow';
-        } else {
-            let todayDayOfWeek = dayOfWeek(todayDay, todayMonth, todayYear);
-            todayDayOfWeek = ((todayDayOfWeek - 1) + 7) % 7; //makes Monday first day of week
-            let todayFirstDayOfWeek = new Date(todayYear, todayMonth - 1, todayDay);
-            todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() - todayDayOfWeek);
-            
-            let selectedFirstDayOfWeek = new Date(year, month - 1, day);
-            selectedDayOfWeek = ((selectedDayOfWeek - 1) + 7) % 7;
-            selectedFirstDayOfWeek.setDate(selectedFirstDayOfWeek.getDate() - selectedDayOfWeek);
-            
-            if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
-                dateText = wordDayOfWeek;
-            } else {
-                todayFirstDayOfWeek.setDate(todayFirstDayOfWeek.getDate() + 7); //next week's first day of week
-                if (selectedFirstDayOfWeek.getDate() == todayFirstDayOfWeek.getDate() && selectedFirstDayOfWeek.getMonth() == todayFirstDayOfWeek.getMonth() && selectedFirstDayOfWeek.getFullYear() == todayFirstDayOfWeek.getFullYear()) {
-                    dateText = 'Next ' + wordDayOfWeek;
-                } else parentheses = '';
-            }
+            alertText = 'TMR';
+        } else if (dateDif <= 7) {
+            dateText = wordDayOfWeek;
+            alertText = shortenedWordDayOfWeek.toUpperCase();
+        } else if (dateDif <= 14) {
+            dateText = 'Next ' + wordDayOfWeek;
         }
-        
-        if (addParentheses) return dateText + parentheses;
     }
-
-    return dateText;
+    return {text: dateText, alertText: alertText};
 }
 
 const get12HourTimeText = (time24String) => {
@@ -150,11 +118,14 @@ const maxEventChars = 80;
 
 const bezierAnimCurve = Easing.bezier(0.5, 0.01, 0, 1);
 
-const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleChangePriority, handleDelete, handleScrollEnabled }) => {
+const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionData, handleMenuOpen, handleDelete, handleScrollEnabled }) => {
     const isLast = index === dataSize - 1;
 
     const priorityColors = [theme.s13, theme.s9, theme.s1];
     let priorityColor = priorityColors[item.data.priority - 1];
+
+    const { text, alertText } = getDateText(item.data.endDate.day, item.data.endDate.month, item.data.endDate.year);
+    const alertColor = (alertText === 'TDA' || alertText === 'TMR') ? theme.s11 : theme.s10;
 
     const UnderlayRight = ({ item, percentOpen, open, close }) => {
         return (
@@ -164,42 +135,19 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                     {
                         borderBottomWidth: !isLast ? 1 : 0, 
                         borderBottomColor: theme.s2,
-                        backgroundColor: theme.s3,
+                        backgroundColor: toRGBA(theme.s8, 0.5),
                     },
                 ]}
             >
-                <View style={{width: 50, height: '100%', backgroundColor: theme.s4, alignItems: 'center', justifyContent: 'center'}}>
-                    <Icon
-                        name='chevron-down'
-                        type='feather'
-                        size={30}
-                        color={theme.s1}
-                        onPress={() => {close(); handleChangePriority(3);}}
-                    />
-                </View>
-                <View style={{width: 50, height: '100%', backgroundColor: theme.s8, alignItems: 'center', justifyContent: 'center'}}>
-                    <Icon
-                        name='chevron-up'
-                        type='feather'
-                        size={30}
-                        color={theme.s1}
-                        onPress={() => {close(); handleChangePriority(2);}}
-                    />
-                </View>
-                <View style={{width: 50, height: '100%', backgroundColor: theme.s3, alignItems: 'center', justifyContent: 'center'}}>
-                    <Icon
-                        name='chevrons-up'
-                        type='feather'
-                        size={30}
-                        color={theme.s1}
-                        onPress={() => {close(); handleChangePriority(1);}}
-                    />
+                <View style={{width: 200, height: '100%', alignItems: 'center', justifyContent: 'center'}}>
+                    <Text style={[styles.event_underlay_text, { color: toRGBA(theme.s6, 0.8), marginBottom: 10, }]}>{get12HourTimeText(item.data.startTime) + ' ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year).text}</Text>
+                    <Text style={[styles.event_underlay_text, { color: toRGBA(theme.s6, 0.8) }]}>{get12HourTimeText(item.data.endTime) + ' ' + text}</Text>
                 </View>
             </Animated.View>
         );
     }
 
-    const UnderlayLeft = ({ item, percentOpen, open, close }) => {//TODO: change to archive, have archived section
+    const UnderlayLeft = ({ item, percentOpen, open, close }) => { // TODO: change to archive, have archived section
         return (
             <Animated.View 
                 style={[
@@ -228,7 +176,7 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
     return (
         <SwipeableItem
             renderUnderlayRight={({percentOpen, close}) => <UnderlayRight item={item} percentOpen={percentOpen} close={close} />}
-            snapPointsRight={[150]}
+            snapPointsRight={[200]}
             renderUnderlayLeft={({percentOpen, close}) => <UnderlayLeft item={item} percentOpen={percentOpen} close={close} />}
             snapPointsLeft={[55]}
             overSwipe={20}
@@ -272,8 +220,17 @@ const DraggableItem = ({ theme, item, index, drag, isActive, dataSize, sectionDa
                     })}
                 >
                     <Text style={[styles.event_text, {color: theme.s6}]}>{item.data.text}</Text>
-                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'Start: ' + get12HourTimeText(item.data.startTime) + ', ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year, true)}</Text>
-                    <Text style={[styles.event_end_text, {color: theme.s4}]}>{'End: ' + get12HourTimeText(item.data.endTime) + ', ' + getDateText(item.data.endDate.day, item.data.endDate.month, item.data.endDate.year, true)}</Text>
+                    {alertText !== '' &&
+                        <View style={{ position: 'absolute', right: 15, }}>
+                            <Icon
+                                name='alert-circle'
+                                type='feather'
+                                size={20}
+                                color={alertColor}
+                            />
+                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: alertColor }}>{alertText}</Text>
+                        </View>
+                    }
                 </TouchableOpacity>
             </View>
         </SwipeableItem>
@@ -302,27 +259,6 @@ const BorderedFlatList = (props) => {
                                 isActive={isActive} 
                                 dataSize={props.data.data.length} 
                                 handleMenuOpen={props.handleMenuOpen}
-                                handleChangePriority={(newPriority) => props.handleEventEdit(
-                                    props.data.name,
-                                    item.key,
-                                    {
-                                        sectionName: props.data.name, 
-                                        priority: newPriority,
-                                        description: item.data.text,
-                                        startDate: {
-                                            day: item.data.startDate.day,
-                                            month: item.data.startDate.month,
-                                            year: item.data.startDate.year,
-                                        },
-                                        startTime: item.data.startTime,
-                                        endDate: {
-                                            day: item.data.endDate.day,
-                                            month: item.data.endDate.month,
-                                            year: item.data.endDate.year,
-                                        },
-                                        endTime: item.data.endTime,
-                                    }
-                                )}
                                 handleDelete={props.handleDelete}
                                 handleScrollEnabled={props.handleScrollEnabled}
                             />
@@ -640,7 +576,7 @@ const DateField = ({ text, selectedDate, setSelectedDate, theme }) => {
                             onPress={() => setCalendarModalVisible(true)}
                         >
                             <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
-                                {getDateText(selectedDate.day, selectedDate.month, selectedDate.year)}
+                                {getDateText(selectedDate.day, selectedDate.month, selectedDate.year).text}
                             </Text>
                             <Icon
                                 name='calendar'
@@ -846,67 +782,12 @@ const AddMenu = ({ sectionsData, priorityData, handleAdd, handleChange, menuVisi
         }
     }
 
-    const handleEditEvent = (type) => {
-        let changeFunction;
-        switch(type) {
-            case 'sectionName':
-                changeFunction = (newSectionName) => {
-                    setEventToAdd({
-                        ...eventToAdd,
-                        sectionName: newSectionName,
-                    });
-                }
-                break;
-            case 'priority':
-                changeFunction = (newPriority) => {
-                    setEventToAdd({
-                        ...eventToAdd,
-                        priority: newPriority,
-                    });
-                }
-                break;
-            case 'startDate':
-                changeFunction = (newDate) => {
-                    setEventToAdd({
-                        ...eventToAdd,
-                        startDate: {
-                            day: newDate.day,
-                            month: newDate.month,
-                            year: newDate.year,
-                        },
-                    });
-                }
-                break;
-            case 'startTime':
-                changeFunction = (newTime) => {
-                    setEventToAdd({
-                        ...eventToAdd,
-                        startTime: newTime,
-                    });
-                }
-                break;
-            case 'endDate':
-                changeFunction = (newDate) => {
-                    setEventToAdd({
-                        ...eventToAdd,
-                        endDate: {
-                            day: newDate.day,
-                            month: newDate.month,
-                            year: newDate.year,
-                        },
-                    });
-                }
-                break;
-            case 'endTime':
-                changeFunction = (newTime) => {
-                    setEventToAdd({
-                        ...eventToAdd,
-                        endTime: newTime,
-                    });
-                }
-                break;
-        }
-        return changeFunction;
+    const handleEditEvent = (key) => {
+        return (newProperty) => {
+            let newEventToAdd = { ...eventToAdd };
+            newEventToAdd[key] = newProperty;
+            setEventToAdd(newEventToAdd);
+        };
     }
 
     const expandedHeight = 100;
@@ -1506,14 +1387,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'flex-end',
     },
+    event_underlay_text: {
+        fontSize: 12,
+        fontFamily: 'ProximaNova-Regular',
+    },
     event_text: {
         fontSize: 18,
         fontFamily: 'Proxima Nova Bold',
-    },
-    event_end_text: {
-        marginTop: 5,
-        fontSize: 12,
-        fontFamily: 'Proxima Nova Thin',
     },
     add_button: {
         width: 60,
