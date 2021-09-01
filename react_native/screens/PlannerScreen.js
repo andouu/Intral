@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext, useCallback, useRef } from 'rea
 import {createStackNavigator} from '@react-navigation/stack';
 import {
     FlatList,
-    ScrollView,
     View,
     Text,
     TouchableOpacity,
@@ -24,6 +23,8 @@ import { Icon } from 'react-native-elements';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import SwipeableItem from 'react-native-swipeable-item/src';
 import DraggableFlatList from 'react-native-draggable-flatlist';
+import ScrollableMenu from '../components/ScrollableMenu';
+import ThemedButton from '../components/ThemedButton';
 import Calendar from '../components/Calendar';
 import TimePicker from '../components/TimePicker';
 import { ThemeContext } from '../components/themeContext';
@@ -33,7 +34,9 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
     Easing,
-    runOnJS,
+    add,
+    sub,
+    multiply,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -67,46 +70,54 @@ const dateToday = new Date();
 
 const getDateText = (day, month, year) => {
     const selectedDate = new Date(year, month - 1, day);
-    const dateDif = Math.floor((selectedDate - dateToday) / (1000 * 60 * 60 * 24)) + 1;
+    const dayDif = Math.floor((selectedDate - dateToday) / (1000 * 60 * 60 * 24)) + 1; //+ 1 because selectedDate has time 00:00:00
     const wordDayOfWeek = daysOfWeek[selectedDate.getDay()];
     const shortenedWordDayOfWeek = wordDayOfWeek.substr(0, 3);
     let dateText = shortenedWordDayOfWeek + ', ' + 
         monthDict[month - 1] + ' ' + 
         day + ', ' + 
         year;
-    let alertText = '';
-    if (dateDif >= 0) {
-        if (dateDif === 0) {
+    if (dayDif >= 0) {
+        if (dayDif === 0) {
             dateText = 'Today';
-            alertText = 'TDA';
-        } else if (dateDif === 1) {
+        } else if (dayDif === 1) {
             dateText = 'Tomorrow';
-            alertText = 'TMR';
-        } else if (dateDif <= 7) {
+        } else if (dayDif <= 7) {
             dateText = wordDayOfWeek;
-            alertText = shortenedWordDayOfWeek.toUpperCase();
-        } else {
-            if (dateDif <= 14) {
-                dateText = 'Next ' + wordDayOfWeek;
-            }
-            alertText = 'FTR'
+        } else if (dayDif <= 14) {
+            dateText = 'Next ' + wordDayOfWeek;
         }
     }
-    return {text: dateText, alertText: alertText};
+    return dateText;
 }
 
-const get12HourTimeText = (time24String) => {
+const get12HourTimeText = (time24String, showMinute=true) => {
     const time24Hour = parseInt(time24String.substring(0, 2));
-    const minuteString = time24String.substring(2, 4);
+    const minuteString = showMinute ? (':' + time24String.substring(2, 4) + ' ') : '';
     let timeText;
     if (time24Hour >= 12) {
-        if (time24Hour === 12) timeText = '12:' + minuteString + ' PM';
-        else timeText = (time24Hour - 12).toString() + ':' + minuteString + ' PM';
+        if (time24Hour === 12) timeText = '12' + minuteString + 'PM';
+        else timeText = (time24Hour - 12).toString() + minuteString + 'PM';
     } else {
-        if (time24Hour === 0) timeText = '12:' + minuteString + ' AM';
-        else timeText = time24Hour.toString() + ':' + minuteString + ' AM';
+        if (time24Hour === 0) timeText = '12' + minuteString + 'AM';
+        else timeText = time24Hour.toString() + minuteString + 'AM';
     }
     return timeText;
+}
+
+const getAlertInfo = (date, time24String, theme) => { // returns PST if time past, 12-hour time if within 24 hours, TMR if tomorrow, or FTR otherwise
+    const hour = parseInt(time24String.substring(0, 2));
+    const selectedDate = new Date(date.year, date.month - 1, date.day, hour, parseInt(time24String.substring(2, 4)));
+    const hourDif = Math.floor((selectedDate - dateToday) / (1000 * 60 * 60));
+    if (hourDif < 0) return { alertText: 'PST', alertColor: theme.s10 };
+    else if (hourDif < 24) return { alertText: get12HourTimeText(time24String, showMinute=false), alertColor: theme.s11 };
+    else {
+        const selectedDateNoTime = new Date(date.year, date.month - 1, date.day);
+        const dayDif = Math.floor((selectedDateNoTime - dateToday) / (1000 * 60 * 60 * 24)) + 1;
+        if (dayDif === 1) return { alertText: 'TMR', alertColor: theme.s11 };
+        else if (dayDif < 7) return { alertText: daysOfWeek[selectedDateNoTime.getDay()].substring(0, 3).toUpperCase(), alertColor: theme.s4 };
+    }
+    return { alertText: 'FTR', alertColor: '' };
 }
 
 const randomHSL = () => {
@@ -117,7 +128,9 @@ const randomHSL = () => {
     );
 }
 
-const maxEventChars = 80;
+const MAIN_CONTAINER_LEFT_RIGHT_PADDING = 15;
+
+const MAX_EVENT_CHARS = 80;
 
 const bezierAnimCurve = Easing.bezier(0.5, 0.01, 0, 1);
 
@@ -127,14 +140,8 @@ const DraggableItem = (props) => {
     const priorityColors = [props.theme.s13, props.theme.s9, props.theme.s1];
     let priorityColor = priorityColors[props.item.data.priority - 1];
 
-    let { text, alertText } = getDateText(props.item.data.endDate.day, props.item.data.endDate.month, props.item.data.endDate.year);
-    if (alertText === 'TDA') {
-        const curHour = dateToday.getHours();
-        const endHour = parseInt(props.item.data.endTime.substring(0, 2));
-        if (endHour == curHour && dateToday.getMinutes() > parseInt(props.item.data.endTime.substring(2, 4))) alertText = '';
-        else if (curHour > endHour) alertText = '';
-    }
-    const alertColor = alertText === '' ? props.theme.s10 : ((alertText === 'TDA' || alertText === 'TMR') ? props.theme.s11 : props.theme.s4);
+    const endDateText = getDateText(props.item.data.endDate.day, props.item.data.endDate.month, props.item.data.endDate.year);
+    const { alertText, alertColor } = getAlertInfo(props.item.data.endDate, props.item.data.endTime, props.theme);
 
     const UnderlayRight = ({ item, percentOpen, open, close }) => {
         return (
@@ -144,14 +151,33 @@ const DraggableItem = (props) => {
                     {
                         borderBottomWidth: !isLast ? 1 : 0, 
                         borderBottomColor: props.theme.s2,
-                        opacity: percentOpen,
-                        backgroundColor: toRGBA(props.theme.s8, 0.5),
+                        backgroundColor: priorityColor,
+                        transform: [
+                            { translateX: sub(multiply(percentOpen, 200), 200) }
+                        ],
                     },
                 ]}
             >
-                <View style={{width: 200, height: '100%', alignItems: 'center', justifyContent: 'center'}}>
-                    <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8), marginBottom: 10, }]}>{get12HourTimeText(item.data.startTime) + ' ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year).text}</Text>
-                    <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8) }]}>{get12HourTimeText(item.data.endTime) + ' ' + text}</Text>
+                <View style={{
+                    width: 200,
+                    height: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    <View style={{
+                        borderRadius: 15,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 8,
+                        borderLeftWidth: 1,
+                        borderRightWidth: 1,
+                        borderColor: props.theme.s8,
+                    }}>
+                        <View style={{ borderRadius: 15, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8), marginBottom: 10, }]}>{get12HourTimeText(item.data.startTime) + ' ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year)}</Text>
+                            <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8) }]}>{get12HourTimeText(item.data.endTime) + ' ' + endDateText}</Text>
+                        </View>
+                    </View>
                 </View>
             </Animated.View>
         );
@@ -210,7 +236,7 @@ const DraggableItem = (props) => {
                         props.handleScrollEnabled(false);
                         props.drag();
                     }}
-                    onPress={() => props.handleMenuOpen(true, {
+                    onPress={() => props.handleAddMenuOpen(true, {
                         key: props.item.key,
                         sectionName: props.sectionData.name,
                         priority: props.item.data.priority,
@@ -229,27 +255,23 @@ const DraggableItem = (props) => {
                         endTime: props.item.data.endTime,
                     })}
                 >
-                    <Text style={[styles.event_text, {color: props.theme.s6}]}>{props.item.data.text}</Text>
+                    <View style={{ paddingRight: alertText !== 'FTR' ? 45 : 0 }}>
+                        <Text style={[styles.event_text, {color: props.theme.s6}]}>{props.item.data.text}</Text>
+                    </View>
                     {alertText !== 'FTR' &&
                         <View style={{ position: 'absolute', right: 15, width: 45, alignItems: 'center', justifyContent: 'center' }}>
                             <Icon
-                                name={alertText === '' ? 'check-circle' : 'alert-circle'}
+                                name={alertText === 'PST' ? 'check-circle' : 'alert-circle'}
                                 type='feather'
                                 size={20}
                                 color={alertColor}
                             />
-                            {alertText !== '' && <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: alertColor }}>{alertText}</Text>}
+                            {alertText !== 'PST' && <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: alertColor }}>{alertText}</Text>}
                         </View>
                     }
                 </TouchableOpacity>
             </View>
         </SwipeableItem>
-    );
-}
-
-const SectionHeader = (props) => {
-    return (
-        <Text style={[ styles.event_text, { color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15 }] }>{ props.name }:</Text>
     );
 }
 
@@ -260,14 +282,9 @@ const BorderedFlatList = (props) => {
 
     return (
         <View style={{ width: '100%', marginBottom: 20 }}>
-            <SectionHeader
-                name={props.data.name}
-                color={props.data.color}
-                handleChangeName={() => console.log('name change')}
-                handleChangeColor={() => console.log('color change')}
-                handleDeleteSection={() => console.log('section delete')}
-                theme={props.theme}
-            />
+            <TouchableOpacity onPress={() => props.handleOpenEditSectionMenu(props.data.name, props.data.color, props.data.index)}>
+                <Text style={[ styles.event_text, { color: props.theme.s6, alignSelf: 'flex-start', fontSize: 27.5, marginBottom: 15 }] }>{props.data.name}:</Text>
+            </TouchableOpacity>
             <View style={{ borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 11 }}>
                 <View style={{ borderRadius: 11, overflow: 'hidden' }}>
                     <DraggableFlatList 
@@ -281,7 +298,7 @@ const BorderedFlatList = (props) => {
                                 drag={drag} 
                                 isActive={isActive} 
                                 dataSize={props.data.data.length} 
-                                handleMenuOpen={props.handleMenuOpen}
+                                handleAddMenuOpen={props.handleAddMenuOpen}
                                 handleDelete={props.handleDelete}
                                 handleScrollEnabled={props.handleScrollEnabled}
                             />
@@ -299,8 +316,55 @@ const BorderedFlatList = (props) => {
     );
 }
 
+/**
+ * @param {*} props
+ * Required:
+ * - theme = theme object
+ * - text = left text
+ * - rightComponent = component to render on right side of the field
+ * ---
+ * Optional:
+ * - containerStyle = custom style of field
+ * - textStyle = custom style of text
+ */
+const Field = (props) => {
+    const defaultStyle = StyleSheet.create({
+        container: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            width: '100%',
+            height: 65,
+            marginBottom: 5,
+        },
+        main_text: {
+            fontFamily: 'Proxima Nova Bold',
+            fontSize: 20,
+            color: props.theme.s4,
+        }
+    });
+    return (
+        <View style={[defaultStyle.container, props.containerStyle]}>
+            <View style={{ height: '100%', justifyContent: 'center' }}>
+                <Text style={[defaultStyle.main_text, props.textStyle]}>{props.text}</Text>
+            </View>
+            {props.rightComponent}
+        </View>
+    );
+}
+
+const ThinDivider = ({ theme }) => {
+    return (
+        <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.s4, marginBottom: 5 }} />
+    );
+}
+
 const EventList = (props) => {
     const [scrollEnabled, setScrollEnabled] = useState(true);
+    const [editSectionMenuData, setEditSectionMenuData] = useState({
+        name: '',
+        color: '',
+        index: -1,
+    });
     
     const checkEventsEmpty = () => {
         for (let i = 0; i < props.sortedEvents.length; i ++) {
@@ -328,7 +392,18 @@ const EventList = (props) => {
                         theme={props.theme} 
                         data={item} 
                         setSectionData={props.setSectionData}
-                        handleMenuOpen={props.handleMenuOpen}
+                        handleAddMenuOpen={props.handleAddMenuOpen}
+                        handleOpenEditSectionMenu={(editSectionName, editSectionColor, editSectionIndex) => {
+                            if (props.editMenuAnimationFinished) {
+                                props.setEditMenuAnimationFinished(false);
+                                setEditSectionMenuData({
+                                    name: editSectionName,
+                                    color: editSectionColor,
+                                    index: editSectionIndex,
+                                });
+                                props.setEditSectionMenuOpen(true);
+                            }
+                        }}
                         handleEventEdit={props.handleEventEdit}
                         handleDelete={props.handleDelete}
                         handleScrollEnabled={setScrollEnabled} 
@@ -339,6 +414,88 @@ const EventList = (props) => {
                 nestedScrollEnabled={false}
                 showVerticalScrollIndicator={false}
             />
+            <ScrollableMenu
+                headerText='Edit Section:'
+                menuVisible={props.editSectionMenuOpen}
+                bezierAnimCurve={bezierAnimCurve}
+                handleCloseMenu={() => {
+                    if (props.editMenuAnimationFinished) {
+                        props.setEditMenuAnimationFinished(false);
+                        Keyboard.dismiss();
+                        props.setEditSectionMenuOpen(false);
+                    }
+                }}
+                setMenuAnimationFinished={() => props.setEditMenuAnimationFinished(true)}
+            >
+                <Field
+                    theme={props.theme}
+                    text='Name:'
+                    rightComponent={
+                        <View style={{ width: '60%', height: '100%', justifyContent: 'center' }}>
+                            <ThemedButton
+                                text={editSectionMenuData.name}
+                                sideComponent={
+                                    <Icon
+                                        name='type'
+                                        type='feather'
+                                        size={20}
+                                        color={props.theme.s4}
+                                    />
+                                }
+                                widthPct={100}
+                                heightPct={75}
+                                onPress={() => console.log('opening name change input')}
+                            />
+                        </View>
+                    }
+                />
+                <View>
+                    <Field
+                        theme={props.theme}
+                        text='Color:'
+                    />
+                    <Animated.View style={{ position: 'absolute', right: 0, width: '60%', height: 65, justifyContent: 'center' }}>
+                        <Pressable
+                            style={({ pressed }) => [{
+                                width: '100%',
+                                height: '75%',
+                                borderWidth: 1.5,
+                                borderRadius: 30,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: pressed ? toRGBA(props.theme.s2, 0.7) : props.theme.s1,
+                                borderColor: props.theme.s2,
+                            }]}
+                            onPress={() => console.log('opening color picker')}
+                        >
+                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, marginRight: 10 }}>
+                                {editSectionMenuData.color}
+                            </Text>
+                            <MaterialDesignIcons 
+                                name='palette' 
+                                size={20}
+                                color={props.theme.s4}
+                            />
+                        </Pressable>
+                    </Animated.View>
+                </View>
+                <Field
+                    theme={props.theme}
+                    text='Change Section Order:'
+                />
+                <Text style={[styles.event_text, { color: props.theme.s6 }]}>Insert draggable flatlist here, where current section has index {editSectionMenuData.index}</Text>
+                <ThinDivider theme={props.theme} />
+                <View style={{ width: '100%', height: 50, alignItems: 'center', marginTop: 30 }}>
+                    <ThemedButton
+                        text='Delete This Section'
+                        color={props.theme.s11}
+                        widthPct={60}
+                        heightPct={100}
+                        onPress={() => console.log('Section ' + editSectionMenuData.name + ' deleted.')}
+                    />
+                </View>
+            </ScrollableMenu>
         </View>
     );
 }
@@ -381,41 +538,6 @@ const AddButton = ({ theme, buttonVisible, handleOpen }) => {
     );
 }
 
-/**
- * @param {*} props
- * Required:
- * - theme = theme object
- * - text = left text
- * - rightComponent = component to render on right side of the field
- * ---
- * Optional:
- * - containerStyle = custom style of field
- * - textStyle = custom style of text
- */
-const Field = (props) => {
-    const defaultStyle = StyleSheet.create({
-        container: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            width: '100%',
-            height: 65,
-            marginBottom: 5,
-        },
-        main_text: {
-            fontFamily: 'Proxima Nova Bold',
-            fontSize: 20,
-            color: props.theme.s4,
-        }
-    });
-    return (
-        <View style={[defaultStyle.container, props.containerStyle]}>
-            <View style={{ height: '100%', justifyContent: 'center' }}>
-                <Text style={[defaultStyle.main_text, props.textStyle]}>{props.text}</Text>
-            </View>
-            {props.rightComponent}
-        </View>
-    );
-}
 /**
  * @param {*} props
  * Required:
@@ -477,7 +599,7 @@ const DropdownMenu = (props) => {
         }
     }, [props.dropdownOpen]);
 
-    const DropdownBox = ({ name, showCheck=false }) => {
+    const DropdownBox = ({ name, showCheck=false, customIcon }) => {
         return (
             <Pressable
                 style={({pressed}) => [
@@ -513,6 +635,7 @@ const DropdownMenu = (props) => {
                         color={props.theme.s4}
                     />
                 </View>}
+                {customIcon}
             </Pressable>
         );
     }
@@ -522,17 +645,7 @@ const DropdownMenu = (props) => {
     return (
         <React.Fragment>
             <Animated.View style={[defaultStyle.container, props.containerStyle, animatedDropdownStyle]}>
-                <Pressable
-                    style={({pressed}) => [
-                        {
-                            flex: 1,
-                            alignItems: 'flex-end',
-                            justifyContent: 'flex-start',
-                            backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : 'transparent',
-                        }
-                    ]}
-                    onPress={() => props.handleDropdownOpen(props.name, !props.dropdownOpen)}
-                >
+                <DropdownBox name={props.selectedItem} customIcon={
                     <MaterialDesignIcons 
                         name={props.dropdownOpen ? 'chevron-up' : 'chevron-down'} 
                         size={22} 
@@ -544,37 +657,36 @@ const DropdownMenu = (props) => {
                             zIndex: 10,
                         }}
                     />
-                    <DropdownBox name={props.selectedItem}/>
-                    {dropdownBoxes}
-                    {props.addNewBtnEnabled &&
-                        <Pressable 
-                            style={({pressed}) => [
-                                {
-                                    width: '100%', 
-                                    height: collapsedHeight,
-                                    borderBottomWidth: StyleSheet.hairlineWidth, 
-                                    borderBottomColor: props.theme.s2,
-                                    zIndex: 3,
-                                    backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : props.theme.s9
-                                }
-                            ]}
-                            onPress={() => {
-                                props.handleDropdownOpen(props.name, !props.dropdownOpen);
-                                setAddName('');
-                                setAddModalVisible(true);
-                            }}
-                        >
-                            <View style={{ width: '85%', height: '100%', flexDirection: 'row', justifyContent: 'center' }}>
-                                <View style={{ flex: 3, alignItems: 'flex-end', justifyContent: 'center' }}>
-                                    <MaterialDesignIcons name='plus' size={20} color={props.theme.s4} style={{ marginRight: 5 }} />
-                                </View>
-                                <View style={{ flex: 4, alignItems: 'flex-start', justifyContent: 'center' }}>
-                                    <Text style={[{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, marginLeft: 5 }]}>Add New</Text>
-                                </View>
+                } />
+                {dropdownBoxes}
+                {props.addNewBtnEnabled &&
+                    <Pressable 
+                        style={({pressed}) => [
+                            {
+                                width: '100%', 
+                                height: collapsedHeight,
+                                borderBottomWidth: StyleSheet.hairlineWidth, 
+                                borderBottomColor: props.theme.s2,
+                                zIndex: 3,
+                                backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : props.theme.s9
+                            }
+                        ]}
+                        onPress={() => {
+                            props.handleDropdownOpen(props.name, false);
+                            setAddName('');
+                            setAddModalVisible(true);
+                        }}
+                    >
+                        <View style={{ width: '85%', height: '100%', flexDirection: 'row', justifyContent: 'center' }}>
+                            <View style={{ flex: 3, alignItems: 'flex-end', justifyContent: 'center' }}>
+                                <MaterialDesignIcons name='plus' size={20} color={props.theme.s4} style={{ marginRight: 5 }} />
                             </View>
-                        </Pressable>
-                    }
-                </Pressable>
+                            <View style={{ flex: 4, alignItems: 'flex-start', justifyContent: 'center' }}>
+                                <Text style={[{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, marginLeft: 5 }]}>Add New</Text>
+                            </View>
+                        </View>
+                    </Pressable>
+                }
             </Animated.View>
             {props.addNewBtnEnabled &&
                 <Modal
@@ -583,7 +695,14 @@ const DropdownMenu = (props) => {
                     visible={addModalVisible}
                     onRequestClose={() => setAddModalVisible(false)}
                 >
-                    <View style={{ top: 300, }}>
+                    <View style={{
+                        width: '100%',
+                        top: Dimensions.get('window').height / 2.5,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingLeft: MAIN_CONTAINER_LEFT_RIGHT_PADDING,
+                        paddingRight: MAIN_CONTAINER_LEFT_RIGHT_PADDING,
+                    }}>
                         <View style={[styles.dropdown_add_input_container, { backgroundColor: props.theme.s9 }]}>
                             <TextInput
                                 textBreakStrategy='simple'
@@ -606,8 +725,10 @@ const DropdownMenu = (props) => {
                                 ]}
                                 onPress={() => {
                                     const trimmedAddName = addName.trim();
-                                    props.handleAddNew(trimmedAddName);
-                                    props.handlePress(trimmedAddName);
+                                    if (trimmedAddName !== '') {
+                                        props.handleAddNew(trimmedAddName);
+                                        props.handlePress(trimmedAddName);
+                                    }
                                     setAddModalVisible(false);
                                 }}
                             >
@@ -630,31 +751,21 @@ const DateField = ({ text, selectedDate, setSelectedDate, theme }) => {
                 theme={theme}
                 text={text}
                 rightComponent={
-                    <View style={styles.add_date_button_container}>
-                        <Pressable
-                            style={({ pressed }) => [{
-                                width: '100%',
-                                height: '75%',
-                                backgroundColor: pressed ? theme.s2 : theme.s1,
-                                borderWidth: 1.5,
-                                borderRadius: 30,
-                                borderColor: theme.s2,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }]}
+                    <View style={{ width: '60%', height: '100%', justifyContent: 'center' }}>
+                        <ThemedButton
+                            text={getDateText(selectedDate.day, selectedDate.month, selectedDate.year)}
+                            sideComponent={
+                                <Icon
+                                    name='calendar'
+                                    type='feather'
+                                    size={20}
+                                    color={theme.s6}
+                                />
+                            }
+                            widthPct={100}
+                            heightPct={75}
                             onPress={() => setCalendarModalVisible(true)}
-                        >
-                            <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
-                                {getDateText(selectedDate.day, selectedDate.month, selectedDate.year).text}
-                            </Text>
-                            <Icon
-                                name='calendar'
-                                type='feather'
-                                size={20}
-                                color={theme.s6}
-                            />
-                        </Pressable>
+                        />
                     </View>
                 }
             />
@@ -664,7 +775,14 @@ const DateField = ({ text, selectedDate, setSelectedDate, theme }) => {
                 visible={calendarModalVisible}
                 onRequestClose={() => setCalendarModalVisible(false)}
             >
-                <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{
+                    width: '100%',
+                    height: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingLeft: MAIN_CONTAINER_LEFT_RIGHT_PADDING,
+                    paddingRight: MAIN_CONTAINER_LEFT_RIGHT_PADDING,                    
+                }}>
                     <View style={[styles.calendar_container, {backgroundColor: theme.s9}]}>
                         <Calendar
                             dateToday={dateToday}
@@ -698,34 +816,24 @@ const TimeField = ({ text, time, setTimeModalOpen, timeModalOpacity, theme }) =>
             theme={theme}
             text={text}
             rightComponent={
-                <View style={styles.add_time_button_container}>
-                    <Pressable
-                        style={({ pressed }) => [{
-                            width: '100%',
-                            height: '75%',
-                            backgroundColor: pressed ? theme.s2 : theme.s1,
-                            borderWidth: 1.5,
-                            borderRadius: 30,
-                            borderColor: theme.s2,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }]}
+                <View style={{ width: '50%', height: '100%', justifyContent: 'center' }}>
+                    <ThemedButton
+                        text={get12HourTimeText(time)}
+                        sideComponent={
+                            <Icon
+                                name='clock'
+                                type='feather'
+                                size={20}
+                                color={theme.s6}
+                            />
+                        }
+                        widthPct={100}
+                        heightPct={75}
                         onPress={() => {
                             setTimeModalOpen(true);
                             timeModalOpacity.value = 1;
                         }}
-                    >
-                        <Text style={{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: theme.s6, marginRight: 10 }}>
-                            {get12HourTimeText(time)}
-                        </Text>
-                        <Icon
-                            name='clock'
-                            type='feather'
-                            size={20}
-                            color={theme.s6}
-                        />
-                    </Pressable>
+                    />
                 </View>
             }
         />
@@ -749,35 +857,35 @@ const TimeModal = ({ timeModalOpen, setTimeModalOpen, timeModalOpacity, time, se
                     {
                         position: 'absolute',
                         width: '100%',
-                        height: 600, // has to cover screen (600 to be safe with bigger phones) to disable user clicking
+                        height: Dimensions.get('window').height / 1.8, // account for bottom nav bar and top header
                         zIndex: 10,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     },
                 ]}>
-                    <View style={{ width: '100%', height: '80%', alignItems: 'center', justifyContent: 'center' }}>
-                        <View style={[styles.time_container, {backgroundColor: theme.s9}]}>
-                            <TimePicker
-                                time={time}
-                                setTime={setTime}
-                            />
-                        </View>
-                        <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>
-                            <Pressable
-                                style={({ pressed }) => [
-                                    styles.modal_back_button,
-                                    {
-                                        backgroundColor: pressed ? theme.s13 : theme.s1
-                                    },
-                                ]}
-                                onPress={() => {
-                                    timeModalOpacity.value = 0;
-                                    setTimeout(() => {
-                                        setTimeModalOpen(false);
-                                    }, transitionDuration);
-                                }}
-                            >
-                                <Text style={[styles.modal_back_button_text, {color: theme.s2}]}>Done</Text>
-                            </Pressable>
-                        </View>
+                    <View style={[styles.time_container, {backgroundColor: theme.s9}]}>
+                        <TimePicker
+                            time={time}
+                            setTime={setTime}
+                        />
+                    </View>
+                    <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.modal_back_button,
+                                {
+                                    backgroundColor: pressed ? theme.s13 : theme.s1
+                                },
+                            ]}
+                            onPress={() => {
+                                timeModalOpacity.value = 0;
+                                setTimeout(() => {
+                                    setTimeModalOpen(false);
+                                }, transitionDuration);
+                            }}
+                        >
+                            <Text style={[styles.modal_back_button_text, {color: theme.s2}]}>Done</Text>
+                        </Pressable>
                     </View>
                 </Animated.View>
             }
@@ -790,6 +898,7 @@ const DEFAULT_START_TIME = '0800'; //8:00 AM
 const DEFAULT_END_TIME = '1200'; //12:00 PM
 
 const AddMenu = (props) => {
+    const [menuHeaderText, setMenuHeaderText] = useState('New Event:');
     const [eventToAdd, setEventToAdd] = useState({
         sectionName: props.sectionsData.sectionNames[0],
         priority: props.priorityData[0],
@@ -807,47 +916,38 @@ const AddMenu = (props) => {
         },
         endTime: DEFAULT_END_TIME,
     });
-    const [charsLeft, setCharsLeft] = useState(maxEventChars);
-    const [openMenus, setOpenMenus] = useState({
+    const [charsLeft, setCharsLeft] = useState(MAX_EVENT_CHARS);
+    const [openDropdownMenus, setOpenDropdownMenus] = useState({
         sectionName: false,
         priority: false,
     });
     const [otherDropdownOpening, setOtherDropdownOpening] = useState(false);
-    const menuHeight = useSharedValue(100);
-    const animatedMenuStyle = useAnimatedStyle(() => {
-        return {
-            top: withTiming(menuHeight.value + '%', {duration: 500, easing: Easing.in(bezierAnimCurve)}, (finished) => {
-                runOnJS(props.setMenuAnimationFinished)(true);
-            }),
-        }
-    });
-    const menuScrollViewRef = useRef();
     const [startTimeModalOpen, setStartTimeModalOpen] = useState(false);
     const startTimeModalOpacity = useSharedValue(0);
     const [endTimeModalOpen, setEndTimeModalOpen] = useState(false);
     const endTimeModalOpacity = useSharedValue(0);
 
     const handleDropdownOpen = (key, newValue) => {
-        let newOpenMenus = { ...openMenus };
+        let newOpenDropdownMenus = { ...openDropdownMenus };
         if (!newValue) {
-            newOpenMenus[key] = false;
-            setOpenMenus(newOpenMenus);
+            newOpenDropdownMenus[key] = false;
+            setOpenDropdownMenus(newOpenDropdownMenus);
             setOtherDropdownOpening(false);
         } else {
-            let keys = Object.keys(newOpenMenus);
+            let keys = Object.keys(newOpenDropdownMenus);
             let otherOpening = false;
             for (let i = 0; i < keys.length; i ++) {
                 let curKey = keys[i];
                 if (curKey === key) {
-                    newOpenMenus[key] = true;
+                    newOpenDropdownMenus[key] = true;
                 } else {
-                    if (newOpenMenus[curKey]) {
+                    if (newOpenDropdownMenus[curKey]) {
                         otherOpening = true;
-                        newOpenMenus[curKey] = false;
+                        newOpenDropdownMenus[curKey] = false;
                     }
                 }
             }
-            setOpenMenus(newOpenMenus);
+            setOpenDropdownMenus(newOpenDropdownMenus);
             setOtherDropdownOpening(otherOpening);
         }
     }
@@ -860,9 +960,8 @@ const AddMenu = (props) => {
         };
     }
 
-    const expandedHeight = 100;
-
     const resetStates = () => {
+        setMenuHeaderText('New Event:');
         setEventToAdd({
             sectionName: props.sectionsData.sectionNames[0],
             priority: props.priorityData[0],
@@ -880,19 +979,18 @@ const AddMenu = (props) => {
             },
             endTime: DEFAULT_END_TIME,
         });
-        setCharsLeft(maxEventChars);
+        setCharsLeft(MAX_EVENT_CHARS);
     };
     
     useEffect(() => {
         props.setMenuAnimationFinished(false);
-        setOpenMenus({ // close all dropdowns regardless of opening or closing the add menu
+        setOpenDropdownMenus({ // close all dropdowns regardless of opening or closing the add menu
             sectionName: false,
             priority: false,
         });
         if(props.menuVisible) {
-            menuHeight.value = 0;
-            menuScrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
             if (props.editing) {
+                setMenuHeaderText('Edit Event:');
                 setEventToAdd({
                     sectionName: props.editData.sectionName,
                     priority: props.editData.priority,
@@ -910,232 +1008,205 @@ const AddMenu = (props) => {
                     },
                     endTime: props.editData.endTime,
                 });
-                setCharsLeft(maxEventChars - props.editData.description.length);
+                setCharsLeft(MAX_EVENT_CHARS - props.editData.description.length);
             } else {
                 resetStates(); // repeated code for safety
             }
         } else {
-            menuHeight.value = expandedHeight;
             setTimeout(resetStates, 500);
         }
     }, [props.menuVisible]);
 
     return (
-        <Animated.View
-            style={[{width: '100%', height: '100%', position: 'absolute', backgroundColor: props.theme.s1}, animatedMenuStyle]}
+        <ScrollableMenu
+            headerText={menuHeaderText}
+            nonScrollingComponent={
+                <React.Fragment>
+                    <TimeModal
+                        timeModalOpen={startTimeModalOpen}
+                        setTimeModalOpen={setStartTimeModalOpen}
+                        timeModalOpacity={startTimeModalOpacity}
+                        time={eventToAdd.startTime}
+                        setTime={handleEditEvent('startTime')}
+                        theme={props.theme}
+                    />
+                    <TimeModal
+                        timeModalOpen={endTimeModalOpen}
+                        setTimeModalOpen={setEndTimeModalOpen}
+                        timeModalOpacity={endTimeModalOpacity}
+                        time={eventToAdd.endTime}
+                        setTime={handleEditEvent('endTime')}
+                        theme={props.theme}
+                    />
+                </React.Fragment>
+            }
+            menuVisible={props.menuVisible}
+            bezierAnimCurve={bezierAnimCurve}
+            handleCloseMenu={() => {
+                Keyboard.dismiss();
+                props.closeMenu();
+            }}
+            setMenuAnimationFinished={props.setMenuAnimationFinished}
         >
-            <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 45, width: '75%', color: props.theme.s6, marginBottom: 10}}>New Event:</Text>
-            {/* TODO: make the close button a custom component for reuse? */}
-            <Pressable
-                style={({pressed}) => [
-                    {
-                        width: 40,
-                        height: 40,
-                        position: 'absolute', 
-                        top: 2, 
-                        right: -5,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: 30,
-                        backgroundColor: pressed ? toRGBA(props.theme.s4, 0.5) : 'transparent'
-                    }
-                ]}
-                onPress={() => {
-                    Keyboard.dismiss();
-                    props.closeMenu();
-                }}
-            >
-                <MaterialDesignIcons name='close' size={30} color={props.theme.s4} style={{bottom: 0, right: 0}}/>
-            </Pressable>
-            <View style={{borderBottomWidth: 2, borderBottomColor: props.theme.s4, marginBottom: 5}} />
-            <TimeModal
-                timeModalOpen={startTimeModalOpen}
+            <Field
+                theme={props.theme}
+                text='Section Name:'
+                rightComponent={
+                    <DropdownMenu
+                        theme={props.theme}
+                        selectedItem={eventToAdd.sectionName}
+                        items={props.sectionsData.sectionNames}
+                        textStyle={{ left: 10 }}
+                        addNewBtnEnabled={true}
+                        handleAddNew={props.handleAddSection}
+                        handlePress={handleEditEvent('sectionName')}
+                        name='sectionName'
+                        dropdownOpen={openDropdownMenus.sectionName}
+                        handleDropdownOpen={handleDropdownOpen}
+                        otherDropdownOpening={otherDropdownOpening}
+                    />
+                }
+            />
+            <Field
+                theme={props.theme}
+                text='Priority:'
+                rightComponent={
+                    <DropdownMenu 
+                        theme={props.theme}
+                        selectedItem={eventToAdd.priority}
+                        items={props.priorityData}
+                        containerStyle={{ width: '30%' }}
+                        textStyle={{ left: 5 }}
+                        addNewBtnEnabled={false}
+                        handlePress={handleEditEvent('priority')}
+                        name='priority'
+                        dropdownOpen={openDropdownMenus.priority}
+                        handleDropdownOpen={handleDropdownOpen}
+                        otherDropdownOpening={otherDropdownOpening}
+                    />
+                }
+            />
+            <ThinDivider theme={props.theme} />
+            <DateField
+                text='Start Date:'
+                selectedDate={eventToAdd.startDate}
+                setSelectedDate={handleEditEvent('startDate')}
+                theme={props.theme}
+            />
+            <TimeField
+                text='Start Time:'
+                time={eventToAdd.startTime}
                 setTimeModalOpen={setStartTimeModalOpen}
                 timeModalOpacity={startTimeModalOpacity}
-                time={eventToAdd.startTime}
-                setTime={handleEditEvent('startTime')}
                 theme={props.theme}
             />
-            <TimeModal
-                timeModalOpen={endTimeModalOpen}
+            <DateField
+                text='End Date:'
+                selectedDate={eventToAdd.endDate}
+                setSelectedDate={handleEditEvent('endDate')}
+                theme={props.theme}
+            />
+            <TimeField
+                text='End Time:'
+                time={eventToAdd.endTime}
                 setTimeModalOpen={setEndTimeModalOpen}
                 timeModalOpacity={endTimeModalOpacity}
-                time={eventToAdd.endTime}
-                setTime={handleEditEvent('endTime')}
                 theme={props.theme}
             />
-            <ScrollView showsVerticalScrollIndicator={false} ref={menuScrollViewRef}>
-                <Field
-                    theme={props.theme}
-                    text='Section Name:'
-                    rightComponent={
-                        <DropdownMenu
-                            theme={props.theme}
-                            selectedItem={eventToAdd.sectionName}
-                            items={props.sectionsData.sectionNames}
-                            textStyle={{ left: 10 }}
-                            addNewBtnEnabled={true}
-                            handleAddNew={props.handleAddSection}
-                            handlePress={handleEditEvent('sectionName')}
-                            name='sectionName'
-                            dropdownOpen={openMenus.sectionName}
-                            handleDropdownOpen={handleDropdownOpen}
-                            otherDropdownOpening={otherDropdownOpening}
-                        />
-                    }
-                />
-                <Field
-                    theme={props.theme}
-                    text='Priority:'
-                    rightComponent={
-                        <DropdownMenu 
-                            theme={props.theme}
-                            selectedItem={eventToAdd.priority}
-                            items={props.priorityData}
-                            containerStyle={{ width: '30%' }}
-                            textStyle={{ left: 5 }}
-                            addNewBtnEnabled={false}
-                            handlePress={handleEditEvent('priority')}
-                            name='priority'
-                            dropdownOpen={openMenus.priority}
-                            handleDropdownOpen={handleDropdownOpen}
-                            otherDropdownOpening={otherDropdownOpening}
-                        />
-                    }
-                />
-                <View style={{borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: props.theme.s4, marginBottom: 5}} />
-                <DateField
-                    text='Start Date:'
-                    selectedDate={eventToAdd.startDate}
-                    setSelectedDate={handleEditEvent('startDate')}
-                    theme={props.theme}
-                />
-                <TimeField
-                    text='Start Time:'
-                    time={eventToAdd.startTime}
-                    setTimeModalOpen={setStartTimeModalOpen}
-                    timeModalOpacity={startTimeModalOpacity}
-                    theme={props.theme}
-                />
-                <DateField
-                    text='End Date:'
-                    selectedDate={eventToAdd.endDate}
-                    setSelectedDate={handleEditEvent('endDate')}
-                    theme={props.theme}
-                />
-                <TimeField
-                    text='End Time:'
-                    time={eventToAdd.endTime}
-                    setTimeModalOpen={setEndTimeModalOpen}
-                    timeModalOpacity={endTimeModalOpacity}
-                    theme={props.theme}
-                />
-                <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: props.theme.s4, marginBottom: 5 }} />
-                <Field
-                    theme={props.theme}
-                    text='Description:'
-                    containerStyle={{ marginBottom: 0 }}
-                />
-                <View
-                    style={{
-                        width: '100%', 
-                        height: 150,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 15,
-                        borderWidth: 1.5,
-                        borderColor: props.theme.s2,
-                        borderRadius: 30,
-                        marginBottom: 40,
-                        overflow: 'hidden',
+            <ThinDivider theme={props.theme} />
+            <Field
+                theme={props.theme}
+                text='Description:'
+                containerStyle={{ marginBottom: 0 }}
+            />
+            <View
+                style={{
+                    width: '100%', 
+                    height: 150,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 15,
+                    borderWidth: 1.5,
+                    borderColor: props.theme.s2,
+                    borderRadius: 30,
+                    marginBottom: 40,
+                    overflow: 'hidden',
+                }}
+            >
+                <TextInput
+                    scrollEnabled={false}
+                    multiline={true}
+                    maxLength={MAX_EVENT_CHARS}
+                    textBreakStrategy='simple'
+                    placeholder='Tap to edit'
+                    placeholderTextColor={toRGBA(props.theme.s4, 0.5)}
+                    value={eventToAdd.description}
+                    onChangeText={text => {
+                        if (text.slice().split('').indexOf('\n') === -1) {
+                            setEventToAdd({
+                                ...eventToAdd,
+                                description: text,
+                            });
+                            setCharsLeft(MAX_EVENT_CHARS - text.length);
+                        } else {
+                            Keyboard.dismiss();
+                        }
                     }}
-                >
-                    <TextInput
-                        scrollEnabled={false}
-                        multiline={true}
-                        maxLength={maxEventChars}
-                        textBreakStrategy='simple'
-                        placeholder='Tap to edit'
-                        placeholderTextColor={toRGBA(props.theme.s4, 0.5)}
-                        value={eventToAdd.description}
-                        onChangeText={text => {
-                            if (text.slice().split('').indexOf('\n') === -1) {
-                                setEventToAdd({
-                                    ...eventToAdd,
-                                    description: text,
-                                });
-                                setCharsLeft(maxEventChars - text.length);
-                            } else {
+                    style={[styles.event_text, { width: '95%', height: '100%', marginRight: 15, borderRadius: 15, color: props.theme.s6 }]}
+                />
+                <Text style={{ position: 'absolute', right: 8, top: '60%', color: props.theme.s4 }}>{charsLeft}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', height: 40, marginBottom: 50 }}>
+                <ThemedButton
+                    text='Done'
+                    widthPct={30}
+                    heightPct={100}
+                    onPress={() => {
+                        if(eventToAdd.description.trim() !== '') {
+                            if(props.editing) {
+                                props.handleChange(
+                                    props.editData.sectionName,                           // editData.sectionName is the previous section of the current eventToAdd
+                                    props.editData.key,                                   // key is only used for lookup and should not be changed.
+                                    {
+                                        sectionName: eventToAdd.sectionName, 
+                                        priority: eventToAdd.priority,
+                                        description: eventToAdd.description,
+                                        startDate: {
+                                            day: eventToAdd.startDate.day,
+                                            month: eventToAdd.startDate.month,
+                                            year: eventToAdd.startDate.year,
+                                        },
+                                        startTime: eventToAdd.startTime,
+                                        endDate: {
+                                            day: eventToAdd.endDate.day,
+                                            month: eventToAdd.endDate.month,
+                                            year: eventToAdd.endDate.year,
+                                        },
+                                        endTime: eventToAdd.endTime,
+                                    }
+                                );
                                 Keyboard.dismiss();
-                            }
-                        }}
-                        style={[styles.event_text, { width: '95%', height: '100%', marginRight: 15, borderRadius: 15, color: props.theme.s6 }]}
-                    />
-                    <Text style={{ position: 'absolute', right: 8, top: '60%', color: props.theme.s4 }}>{charsLeft}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end', height: 40, marginBottom: 50 }}>
-                    <Pressable
-                        style={({ pressed }) => [
-                            {
-                                width: 100,
-                                height: 40,
-                                borderRadius: 30,
-                                borderWidth: 1.5,
-                                borderColor: props.theme.s2,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                backgroundColor: pressed ? props.theme.s2 : 'transparent',
-                            },
-                        ]}
-                        onPress={() => {
-                            if(eventToAdd.description.trim() !== '') {
-                                if(props.editing) {
-                                    props.handleChange(
-                                        props.editData.sectionName,                           // editData.sectionName is the previous section of the current eventToAdd
-                                        props.editData.key,                                   // key is only used for lookup and should not be changed.
-                                        {
-                                            sectionName: eventToAdd.sectionName, 
-                                            priority: eventToAdd.priority,
-                                            description: eventToAdd.description,
-                                            startDate: {
-                                                day: eventToAdd.startDate.day,
-                                                month: eventToAdd.startDate.month,
-                                                year: eventToAdd.startDate.year,
-                                            },
-                                            startTime: eventToAdd.startTime,
-                                            endDate: {
-                                                day: eventToAdd.endDate.day,
-                                                month: eventToAdd.endDate.month,
-                                                year: eventToAdd.endDate.year,
-                                            },
-                                            endTime: eventToAdd.endTime,
-                                        }
-                                    );
-                                    Keyboard.dismiss();
-                                    props.closeMenu();
-                                } else {
-                                    props.handleAdd(
-                                        eventToAdd.sectionName,
-                                        eventToAdd.priority,
-                                        eventToAdd.description,
-                                        eventToAdd.startDate,
-                                        eventToAdd.startTime,
-                                        eventToAdd.endDate,
-                                        eventToAdd.endTime,
-                                    );
-                                    Keyboard.dismiss();
-                                    props.closeMenu();
-                                }
+                                props.closeMenu();
                             } else {
-                                Alert.alert('mhmahmawj you can\'t have an empty description');
+                                props.handleAdd(
+                                    eventToAdd.sectionName,
+                                    eventToAdd.priority,
+                                    eventToAdd.description,
+                                    eventToAdd.startDate,
+                                    eventToAdd.startTime,
+                                    eventToAdd.endDate,
+                                    eventToAdd.endTime,
+                                );
+                                Keyboard.dismiss();
+                                props.closeMenu();
                             }
-                        }}
-                    >
-                        <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 18, color: props.theme.s6}}>Done</Text>
-                    </Pressable>
-                </View>
-            </ScrollView>
-        </Animated.View>
+                        } else {
+                            Alert.alert('mhmahmawj you can\'t have an empty description');
+                        }
+                    }}
+                />
+            </View>
+        </ScrollableMenu>
     );
 }
 
@@ -1147,6 +1218,9 @@ const PlannerPage = ({ navigation }) => {
     const [addButtonVisible, setAddButtonVisible] = useState(true);
     const [addMenuData, setAddMenuData] = useState({ visible: false, isEditing: false, editData: {} });
     const [addMenuAnimationFinished, setAddMenuAnimationFinished] = useState(true);
+
+    const [editSectionMenuOpen, setEditSectionMenuOpen] = useState(false);
+    const [editMenuAnimationFinished, setEditMenuAnimationFinished] = useState(true);
 
     const [events, setEvents] = useState([]);
     const [sectionsData, setSectionsData] = useState({});
@@ -1230,7 +1304,7 @@ const PlannerPage = ({ navigation }) => {
                 data: {
                     text: initData.description,
                     priority: initData.priority,
-                    charsLeft: maxEventChars - initData.description.length,
+                    charsLeft: MAX_EVENT_CHARS - initData.description.length,
                     startDate: {
                         day: initData.startDate.day,
                         month: initData.startDate.month,
@@ -1351,10 +1425,12 @@ const PlannerPage = ({ navigation }) => {
         }
     }
 
-    const handleMenuOpen = (isEditing=false, editData={}) => {
+    const handleAddMenuOpen = (isEditing=false, editData={}) => {
         if (addMenuAnimationFinished) {
-            setAddMenuData({ visible: addButtonVisible, isEditing: isEditing, editData: editData });
-            setAddButtonVisible(!addButtonVisible);
+            if (!(addButtonVisible && editSectionMenuOpen)) {
+                setAddMenuData({ visible: addButtonVisible, isEditing: isEditing, editData: editData });
+                setAddButtonVisible(!addButtonVisible);
+            }
         }
     }
 
@@ -1404,7 +1480,15 @@ const PlannerPage = ({ navigation }) => {
             <View style={styles.main_container}>
                 <EventList
                     sortedEvents={events}
-                    handleMenuOpen={handleMenuOpen}
+                    editSectionMenuOpen={editSectionMenuOpen}
+                    setEditSectionMenuOpen={(open) => {
+                        if (!(open && addMenuData.visible)) {
+                            setEditSectionMenuOpen(open);
+                        }
+                    }}
+                    editMenuAnimationFinished={editMenuAnimationFinished}
+                    setEditMenuAnimationFinished={setEditMenuAnimationFinished}
+                    handleAddMenuOpen={handleAddMenuOpen}
                     handleEventEdit={handleEventEdit}
                     handleDelete={handleDelete}
                     setSectionData={handleUpdateSection}
@@ -1432,13 +1516,13 @@ const PlannerPage = ({ navigation }) => {
                     editData={addMenuData.editData}
                     menuVisible={addMenuData.visible}
                     setMenuAnimationFinished={setAddMenuAnimationFinished}
-                    closeMenu={handleMenuOpen}
+                    closeMenu={handleAddMenuOpen}
                 />
             </View>
-            <AddButton 
+            <AddButton
                 theme={theme} 
                 buttonVisible={addButtonVisible}
-                handleOpen={handleMenuOpen}
+                handleOpen={handleAddMenuOpen}
             /> 
         </View>
     );
@@ -1468,8 +1552,8 @@ const styles = StyleSheet.create({
     main_container: {
         flex: 1,
         alignItems: 'center',
-        paddingLeft: 15,
-        paddingRight: 15,
+        paddingLeft: MAIN_CONTAINER_LEFT_RIGHT_PADDING,
+        paddingRight: MAIN_CONTAINER_LEFT_RIGHT_PADDING,
     },
     event_right_underlay: { // right swipe underlay
         flex: 1,
@@ -1510,26 +1594,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    add_date_button_container: {
-        width: '60%',
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     calendar_container: {
         width: '100%',
-        height: '50%',
+        height: '45%',
         borderTopLeftRadius: 15,
         borderTopRightRadius: 15,
         padding: 5,
         paddingTop: 10,
         paddingBottom: 50,
-    },
-    add_time_button_container: {
-        width: '50%',
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     time_container: {
         width: '100%',

@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
-import {createStackNavigator} from '@react-navigation/stack';
+import React, { useState, useEffect, useContext } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    FlatList,
 } from 'react-native';
 import { ThemeContext } from './themeContext';
-import { toRGBA } from './utils';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -20,7 +17,6 @@ import Animated, {
 import {
     PanGestureHandler,
 } from 'react-native-gesture-handler';
-import { BackgroundImage } from 'react-native-elements/dist/config';
 
 const hours = ['12', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'];
 const minutes = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
@@ -101,7 +97,7 @@ const TimeItemScroller = ({ items, curTimeItem, setTimeItem, theme }) => { // se
     );
 }
 
-const TimePicker = ({ time, setTime, defaultTime }) => {
+const TimePicker = ({ time, setTime }) => {
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
 
