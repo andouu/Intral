@@ -1,6 +1,6 @@
 export const swatchDark = {
-    s1: 'rgb(8,10,15)',
-    s2: 'rgb(72,72,81)',
+    s1: 'rgb(8,10,15)', 
+    s2: 'rgb(72,72,81)', 
     s3: 'rgb(1,112,255)',
     s4: 'rgb(160,152,145)',
     s5: 'rgb(201,155,59)',
@@ -12,6 +12,7 @@ export const swatchDark = {
     s11: 'rgb(255,59,59)',
     s12: 'rgb(119,51,255)',
     s13: 'rgb(52,52,59)',
+    s14: 'rgb(0,47,107)',
 }
 
 export const hexToRgb = (hex) => {
