@@ -172,13 +172,14 @@ const GradebookHomeScreen = () => {
 
     const refreshClasses = async() => {  // async function to provide scope for await keyword
         try {
-            let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js]
+            let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
+            console.log(pull);
             let difference = [];
             if(classes !== []) {
                 let storedClasses = await AsyncStorage.getItem('classes');
                 let prev = JSON.parse(storedClasses); // parse storage pull
                 if (Array.isArray(prev)) {
-                    difference = findDifference(prev, /* pull */ dummyAddRemove);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
+                    difference = findDifference(prev, pull);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
                     // TODO replace above with let difference = findDifference(prev, pull); later
 
                     if(Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
@@ -191,7 +192,7 @@ const GradebookHomeScreen = () => {
                 }
             }
             if(difference !== [])
-                await AsyncStorage.setItem('classes', JSON.stringify(dummyAddRemove)); // temporary
+                await AsyncStorage.setItem('classes', JSON.stringify(pull)); // temporary
             setClasses(pull);
             setIsLoading(false);
         } catch(err) {
