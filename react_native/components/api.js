@@ -33,10 +33,11 @@ export const getGrades = async(username, password, quarter) => {                
             },
             body: JSON.stringify({
                 user: username,
-                passwd: password,
+                password: password,
                 qtr: quarter,
             })
         });
+        console.log(response);
         let json = await response.json(); // convert the response to a javascript object from a json string
         return json;
     } catch (err) {
