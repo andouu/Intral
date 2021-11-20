@@ -4,6 +4,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { getStudentInfo } from '../components/api.js';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 import GoogleIcon from 'react-native-vector-icons/MaterialIcons'
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import {
     StyleSheet,
     Dimensions,
@@ -153,8 +155,8 @@ const Card = ({ customStyle, outlined=false, children, theme, data=null }) => {
             {children ? React.Children.map(children, child => {
                 if(React.isValidElement(child)) {
                     return (
-                        React.cloneElement(child, {width: widthDP, height: customStyle.height, theme: theme, data: data})
-                    )
+                        React.cloneElement(child, { key: uuidv4(), width: widthDP, height: customStyle.height, theme: theme, data: data })
+                    );
                 }
             }) : null}
         </View>
