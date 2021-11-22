@@ -15,3 +15,7 @@ export const heightPctToDP = (heightPct, padding=0) => {
     const elemHeight = parseFloat(heightPct);
     return PixelRatio.roundToNearestPixel(screenHeight * elemHeight / 100);
 }
+
+export const capitalizeWord = (word) => {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+}

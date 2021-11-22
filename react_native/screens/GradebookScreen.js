@@ -1,26 +1,23 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { useIsFocused, useNavigation, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
-import dropDownImg from '../assets/images/icons8-expand-arrow.gif';
 import { ThemeContext } from '../components/themeContext';
-import { toRGBA, widthPctToDP, heightPctToDP } from '../components/utils';
+import { toRGBA, widthPctToDP } from '../components/utils';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
+import { findDifference } from '../components/api';
 import {
     ScrollView,
     View,
     Text,
-    TouchableOpacity,
     StyleSheet,
     Pressable,
     SafeAreaView,
     FlatList,
-    Image,
     Dimensions,
     RefreshControl,
     ActivityIndicator,
-    StatusBar,
 } from 'react-native';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { Rect, Text as TextSVG, Svg } from "react-native-svg";
@@ -32,26 +29,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const dummyGradeChanges  = require('../dummy data/gradeData') // dummy data for grade changes (class analysis)
-const dummyAdd = require('../dummy data/add');
-const dummyRemove = require('../dummy data/remove');
-const dummyAddRemove = require('../dummy data/addRemove');
 
 const credentials = require('../credentials.json'); // WARNING: temporary solution
 const username = credentials.username // should import username and password from a central location after authentication
 const password = credentials.password
-const screenWidth = Dimensions.get('window').width;
 let quarter = 1;
-
-const wait = (timeout) => {
-    return new Promise(resolve => setTimeout(resolve, timeout));
-}
-
-const validChanges = {        // to check for valid changes; we don't really care about gradebookID changes (if it even changes)
-    Type: 'Assignment Type',
-    DueDate: 'Due Date',
-    Points: 'Points',         // points over score because idk
-    Notes: 'Teacher Notes',
-}
+const screenWidth = Dimensions.get('window').width;
 
 function* percentageLabel() {
     yield* ['10', '20', '30', '40', '50', '60', '70', '80', '90', '100'];
@@ -69,7 +52,7 @@ const Header = ({ theme, type, data=null }) => {
                     right={type === 'graph' ? 0 : 4}
                     bottom={type === 'graph' ? 0 : 4}
                     hitSlop={{top: 0, left: 0, bottom: 0, right: 0}}
-                    borderRadius = {80}
+                    borderRadius={80}
                     name={type === 'graph' ? 'chart-line' : 'arrow-left'} // only takes two types for now, 'menu' and 'back' 
                     color={theme.s4} 
                     size={type === 'graph' ? 26 : 35}
@@ -89,109 +72,26 @@ const GradebookHomeScreen = () => {
 
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
-    
-    const findDifference = (original, newData) => {
-        let added = [];
-        let removed = [];
-        let changed = [];
-        for(let i=0; i<original.length; i++) { // loop through all the classes
-            let currAssignments = original[i].Marks.Mark.Assignments.Assignment.slice();     // make a copy of the current assignments
-            let compareAssignments = newData[i].Marks.Mark.Assignments.Assignment.slice();   // make a copy of the incoming assignments (to compare against)
-            let tmpAdded = []; // temporary array to hold the new assignments
-            let tmpChanged = []; // temporary array to hold the changed assignments
-            const len = compareAssignments.length;
-            for(let j=0; j<len; j++) {
-                let index = currAssignments.findIndex(item => item.Measure === compareAssignments[j].Measure); // check if the assignment in the compare array exists in the current assignments
-                if(index === -1) { // if it doesn't exist
-                    tmpAdded.push(compareAssignments[j]); // add it to the new assignments array
-                } else {
-                    let tmp = [];
-                    for(var key in compareAssignments[j]) {
-                        if(validChanges[key]) // check if the key is a change we're looking for
-                        {
-                            if(compareAssignments[j][key] !== currAssignments[index][key]) {
-                                tmp.push(validChanges[key]);
-                            }
-                        }
-                    }
-                    if(tmp.length > 0) { // check if there are any changes
-                        tmpChanged.push({ Measure: compareAssignments[j].Measure, changes: tmp });
-                    }
-                    currAssignments.splice(index, 1); // remove it from the current assignments copy. At the end of the loop, the removed assignments will be anything not removed from the copy.
-                }
-            }
-
-            if(tmpAdded.length > 0) { // if there are any added, removed, or changed assignments, add them to the return object, otherwise don't add anything.
-                added.push({ period: i, assignments: tmpAdded });
-            }
-            if(currAssignments.length > 0) {
-                removed.push({ period: i, assignments: currAssignments });
-            }
-            if(tmpChanged.length > 0) {
-                changed.push({ period: i, assignments: tmpChanged });
-            }
-        }
-
-        let result = {}; // the return object
-
-        if(added.length > 0) {               // if there are any added assignments or removed assignments, return them.
-            result.added = added;
-        }
-        if(removed.length > 0) {
-            result.removed = removed;
-        }
-        if(changed.length > 0) {
-            result.changed = changed;
-        }
-        
-        return result;
-    }
-    
-    const logDiff = (diff) => { // for debugging purposes (assignment differences)
-        for(let key in diff){
-            let arr = diff[key];
-            arr.forEach(item => {
-                console.log('Period ' + (item.period + 1) + ' ' + key.toString() + ' ' + item.assignments.length + ' assignments: ');
-                item.assignments.forEach(assignment => {
-                    if(key !== 'changed') {
-                        console.log(assignment.Measure);
-                    } else {
-                        let changeArray = assignment.changes;
-                        let fullMessage = '';
-                        fullMessage +=  assignment.Measure + ': ';
-                        for(let i=0; i<changeArray.length-1; i++) {
-                            fullMessage += changeArray[i] + ', ';
-                        }
-                        fullMessage += changeArray[changeArray.length-1];
-                        console.log(fullMessage)
-                    }
-                });
-            });
-        }
-    }
 
     const refreshClasses = async() => {  // async function to provide scope for await keyword
         try {
             let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
-            console.log(pull);
             let difference = [];
-            if(classes !== []) {
+            if (classes !== []) {
                 let storedClasses = await AsyncStorage.getItem('classes');
                 let prev = JSON.parse(storedClasses); // parse storage pull
                 if (Array.isArray(prev)) {
                     difference = findDifference(prev, pull);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
-                    // TODO replace above with let difference = findDifference(prev, pull); later
 
-                    if(Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
+                    if (Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
                         await AsyncStorage.setItem('gradebookChanges', JSON.stringify(difference));  // save the difference to storage
                         await AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: false }));   // set the notifs warning to show in profile page everytime there are new changes
-                        // send new push notifications here based on the differences
                     } else {
                         console.log('no changes');
                     }
                 }
             }
-            if(difference !== [])
+            if (difference !== [])
                 await AsyncStorage.setItem('classes', JSON.stringify(pull)); // temporary
             setClasses(pull);
             setIsLoading(false);

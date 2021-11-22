@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@notifee/react-native": "^4.0.0",
     "@react-native-async-storage/async-storage": "^1.15.5",
     "@react-native-community/masked-view": "^0.1.10",
     "@react-navigation/bottom-tabs": "^5.11.7",
@@ -21,6 +22,7 @@
     "prop-types": "^15.7.2",
     "react": "17.0.2",
     "react-native": "^0.64.2",
+    "react-native-background-timer": "^2.4.1",
     "react-native-chart-kit": "^6.11.0",
     "react-native-collapsible-list": "^2.2.2",
     "react-native-elements": "^3.4.2",

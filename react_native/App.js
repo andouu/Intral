@@ -10,12 +10,14 @@ import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRo
 import { createDrawerNavigator } from '@react-navigation/drawer';
 // WARNING: AsyncStorage is NOT SECURE BY ITSELF. Pair with other libraries such as react-native-keychain and etc. when storing sensitive data.
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import notifee, { AndroidGroupAlertBehavior } from '@notifee/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import BackgroundTimer from 'react-native-background-timer';
 import {
     View,
     ActivityIndicator,
     StatusBar,
-    StyleSheet,
+    Alert,
 } from 'react-native';
 import { swatchDark } from './components/themes';
 import MainStackScreen from './screens/MainStackScreen';
@@ -23,10 +25,109 @@ import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
 import { AuthContext } from './components/authContext';
 import { ThemeContext } from './components/themeContext';
+import { getGrades, findDifference, logDiff, noDiff } from './components/api';
+import { capitalizeWord } from './components/utils';
 
 /*Since we're using bottomTabNavigator, you have to create each screen as a stackNavigator, as a child under the tab navigator*/
 
 const Drawer = createDrawerNavigator();
+
+const credentials = require('./credentials.json'); // WARNING: temporary solution
+const username = credentials.username // should import username and password from a central location after authentication
+const password = credentials.password
+let quarter = 1;
+const dummyAdd = require('./dummy data/add.json');
+
+BackgroundTimer.runBackgroundTimer(async () => {
+    try {
+        let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
+        console.log(pull)
+        let difference = [];
+        let storedClasses = await AsyncStorage.getItem('classes');
+        let prev = JSON.parse(storedClasses); // parse storage pull
+        if (Array.isArray(prev)) {
+            difference = findDifference(prev, pull);  // compare to simulated data for added, removed, and modified (ie. pts. changed) assignments
+
+            if (Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
+                await AsyncStorage.setItem('gradebookChanges', JSON.stringify(difference));  // save the difference to storage
+                await AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: false }));   // set the notifs warning to show in profile page everytime there are new changes
+            } else {
+                console.log('no changes');
+            }
+        }
+        if (difference !== [] && !noDiff(difference) && difference) {
+            await AsyncStorage.setItem('classes', JSON.stringify(pull)); // temporary
+            handleDisplayNotif(difference);
+        }
+    } catch(err) {
+        console.error(err);
+    }
+}, 10000); // 300000ms = 5 min
+
+const handleDisplayNotif = async (diff) => {
+    await notifee.cancelDisplayedNotifications();
+    const channelId = await notifee.createChannel({
+        id: 'Updates',
+        name: 'Updates',
+    });        
+    await notifee.displayNotification({
+        title: 'Updates',
+        subtitle: 'Updates',
+        android: {
+            channelId,
+            groupSummary: true,
+            groupId: 'Updates',
+            pressAction: {
+                id: 'default',
+                launchActivity: 'default',
+            },
+            smallIcon: 'ic_stat_name',
+        }
+    });
+
+    for(let key in diff) {
+        let action = diff[key];
+        action.forEach(item => {
+            item.assignments.forEach(assignment => {
+                if (key !== 'changed') {
+                    notifee.displayNotification({
+                        title: assignment.Measure,
+                        body: 'Tap to see assignment details',
+                        subtitle: `Period ${item.period + 1} ${capitalizeWord(key)}`,
+                        android: {
+                            channelId,
+                            groupId: 'Updates',
+                            groupAlertBehavior: AndroidGroupAlertBehavior.SUMMARY,
+                            pressAction: {
+                                id: 'pep',
+                                launchActivity: 'default',
+                            },
+                            smallIcon: 'ic_stat_name',
+                        }
+                    });
+                } else {
+                    notifee.displayNotification({
+                        title: assignment.Measure,
+                        body: `${assignment.changes.join(', ')} changed for ${assignment.Measure}`,
+                        subtitle: `Period ${item.period + 1} Changed`,
+                        android: {
+                            channelId,
+                            groupId: 'Updates',
+                            groupAlertBehavior: AndroidGroupAlertBehavior.SUMMARY,
+                            pressAction: {
+                                id: 'pep',
+                                launchActivity: 'default',
+                            },
+                            smallIcon: 'ic_stat_name',
+                        }
+                    });
+                }
+            })
+        })
+    }
+
+    logDiff(diff);
+}
 
 const App = () => {
     // const [isLoading, setIsLoading] = useState(true);
@@ -104,17 +205,28 @@ const App = () => {
         },
     }), []);
 
-    useEffect(() => {
-        setTimeout(async() => {
-            let userToken;
-            userToken = null;
-            try {                                                     // TODO: Securely store userData in AsyncStorage with react-native-keychain, etc.
-                userToken = await AsyncStorage.getItem('userToken');
-            } catch(err) {
-                console.log(err);
-            }
-            dispatch({ type: 'REGISTER', token: userToken });
-        }, 0)
+    useEffect(async () => {
+        let userToken;
+        userToken = null;
+        try {                                                     // TODO: Securely store userData in AsyncStorage with react-native-keychain, etc.
+            userToken = await AsyncStorage.getItem('userToken');
+        } catch(err) {
+            console.log(err);
+        }
+        dispatch({ type: 'REGISTER', token: userToken });
+        const hasBatteryOptimization = await notifee.isBatteryOptimizationEnabled();
+        console.log(hasBatteryOptimization);
+        // if (hasBatteryOptimization) {
+        //     Alert.alert('Error', 'To make sure that you get notifications when grades are updated, please disable battery optimizations for Intral.', 
+        //     [
+        //         {
+        //             text: 'Open settings',
+        //             onPress: async () => await notifee.openBatteryOptimizationSettings(),
+        //         },
+        //     ],
+        //     { cancelable: false }
+        //     );
+        // }
     }, []);
 
     if(loginState.isLoading) {
