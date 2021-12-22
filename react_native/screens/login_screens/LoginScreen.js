@@ -12,9 +12,12 @@ import {
   Dimensions,
 } from 'react-native';
 import { AuthContext } from '../../components/authContext';
+import * as Keychain from 'react-native-keychain';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../../components/api';
 import { ThemeContext } from '../../components/themeContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { CheckBox } from 'react-native-elements';
 import Animated, {
     useSharedValue,
     withTiming,
@@ -23,7 +26,7 @@ import Animated, {
 import { toRGBA } from '../../components/themes';
 import { widthPctToDP } from '../../components/utils';
 
-const LoginScreen = ({ navigation }) => { 
+const LoginScreen = ({ navigation }) => {
     const [data, setData] = useState({
         username: '',
         password: '',
@@ -57,33 +60,25 @@ const LoginScreen = ({ navigation }) => {
 
     const { signIn } = useContext(AuthContext);
 
-    const verify = async(username, password) => {
-        let response = await login(username, password);
-
-        if(response.response === 'Success') {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    const handleLogin = async() => {
+    const handleLogin = async (saveCredentials) => {
         try {
             if(data.username.length === 0 || data.password.length === 0) {
-                Alert.alert('naughty naughty', 'Username or password cannot be empty.', [
-                    { text: 'Ok' }
-                ]);
+                Alert.alert('Alert', 'Username or password cannot be empty.');
+                return;
+            }
+            
+            await Keychain.resetGenericPassword(); // secure credentials storage
+            await Keychain.setGenericPassword(data.username, data.password);
+
+            let loggedIn = await login();
+            if (loggedIn.response !== 'Success') {
+                Alert.alert('Alert', 'Invalid username or password. Please try again!');
                 return;
             }
 
-            let loggedIn = await verify(data.username, data.password);
-            if(!loggedIn) {
-                Alert.alert('oh you naughty boy', 'Invalid username or password. Please try again!', [
-                    { text: 'Ok' }
-                ]);
-                return;
-            }
-            signIn(data.username);
+            AsyncStorage.setItem('saveCredentials', saveCredentials ? 'true' : 'false');
+
+            signIn();
         } catch(err) {
             console.log(err);
         }
@@ -92,6 +87,25 @@ const LoginScreen = ({ navigation }) => {
     const updateData = (key, value) => {
         setData({ ...data, [key]: value });
     }
+
+    useEffect(async () => {
+        try {
+            let saveCredentials = await AsyncStorage.getItem('saveCredentials');
+            if (saveCredentials && saveCredentials === 'true') {
+                const credentials = await Keychain.getGenericPassword();
+                if (credentials) {
+                    setData({
+                        ...data,
+                        username: credentials.username,
+                        password: credentials.password,
+                    });
+                }
+            }
+        } catch(err) {
+            console.log(err);
+        }
+    }, []);
+
     useEffect(() => {
         navigation.setOptions({ headerStyle: { backgroundColor: theme.s1, shadowColor: 'transparent' } });
     }, [])
@@ -105,15 +119,20 @@ const LoginScreen = ({ navigation }) => {
                 backgroundColor: theme.s1 //'#7FB685'
             }}
         >
-            <View style={{flex: 4, alignItems: 'center', justifyContent: 'center'}}>
-                <Animated.Text style={[{color: 'white', fontWeight: 'bold', fontSize: 55}, textStyle]}>Sign in</Animated.Text>
+            <View style={{ flex: 4, alignItems: 'center', justifyContent: 'center' }}>
+                <Animated.Text style={[{ color: 'white', fontWeight: 'bold', fontSize: 55 }, textStyle]}>Sign in</Animated.Text>
             </View>
             <Animated.View 
                 style={[
                     styles.card,
                 ]}
             >
-                <LoginField handleLogin={handleLogin} secureEntry={data.secureEntry} updateData={updateData} theme={theme} />
+                <LoginField
+                    data={data}
+                    handleLogin={handleLogin}
+                    updateData={updateData}
+                    theme={theme}
+                />
             </Animated.View>
         </LinearGradient>
     );
@@ -122,53 +141,65 @@ const LoginScreen = ({ navigation }) => {
 const eyeOpenImage = require('../../assets/images/Password_Eye_Open_Icon.png'); 
 const eyeClosedImage = require('../../assets/images/Password_Eye_Closed_Icon.png');
 
-const LoginField = ({ handleLogin, secureEntry, updateData, theme }) => {
+const LoginField = ({ data, handleLogin, updateData, theme }) => {
+    const [saveCredentials, setSaveCredentials] = useState(true);
+
     return (
-        <View style={{width: '100%', height: '60%', fontFamily: 'Proxima Nova Bold',  alignItems: 'flex-start', justifyContent: 'flex-start'}}>
+        <View style={{ width: '100%', height: '60%', fontFamily: 'Proxima Nova Bold', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
             <View style={styles.field}>
                 <Text style={styles.footer_text}>Username:</Text>
                 {/* Icon for username */}
-                <TextInput    
-                    autoCapitalize='none' 
-                    style={[{color:theme.s6, fontFamily: 'Proxima Nova Bold'}]}  
+                <TextInput
+                    autoCapitalize='none'
+                    style={[{color:theme.s6, fontFamily: 'Proxima Nova Bold'}]}
+                    value={data.username}
                     placeholder = 'Username'
-                    placeholderTextColor={theme.s4} 
+                    placeholderTextColor={theme.s4}
                     onChangeText={text => {
                         updateData('username', text);
                     }}
-                    secureTextEntry = {secureEntry}
                 />
             </View>
             <View style={styles.field}>
                 <Text style={styles.footer_text}>Password:</Text>
-                <View style={{width: '100%', height: 50, flexDirection: 'row'}}>
+                <View style={{width: '100%', flexDirection: 'row'}}>
                     <TextInput
                         autoCapitalize='none'
                         style={[styles.footer_input, {color:theme.s6}]}
+                        value={data.password}
                         placeholder = 'Password'
-                        placeholderTextColor={theme.s4} 
-                        onChangeText={text => {                        
+                        placeholderTextColor={theme.s4}
+                        onChangeText={text => {
                             updateData('password', text);
                         }}
-                        secureTextEntry = {secureEntry}
-                    /> 
-                    <TouchableOpacity style={styles.inputIcon} onPress={() => updateData('secureEntry', !secureEntry)}>
+                        secureTextEntry = {data.secureEntry}
+                    />
+                    <TouchableOpacity style={styles.inputIcon} onPress={() => updateData('secureEntry', !data.secureEntry)}>
                         <Image
-                            source={secureEntry ? eyeOpenImage : eyeClosedImage}
+                            source={data.secureEntry ? eyeOpenImage : eyeClosedImage}
                             resizeMode='contain'
                             style={styles.secureEntryIcon}
                         />
                     </TouchableOpacity>
                 </View>
             </View>
+            <CheckBox
+                containerStyle={{ backgroundColor: 'transparent', borderColor: 'transparent', padding: 0, marginLeft: 0 }}
+                title='Remember me'
+                checked={saveCredentials}
+                uncheckedColor={theme.s4}
+                checkedColor={theme.s6}
+                textStyle={{ color: saveCredentials ? theme.s6 : theme.s4, fontFamily: 'Proxima Nova Bold', top: -1.5 }}
+                onPress={() => setSaveCredentials(!saveCredentials)}
+            />
             <Pressable
                 style={({pressed}) => [{backgroundColor: pressed ? toRGBA(theme.s6, 0.5) : 'transparent', borderColor: theme.s6}, styles.logIn_button]}
-                onPressOut={() => handleLogin()}
+                onPressOut={() => handleLogin(saveCredentials)}
             >
                 {({pressed}) => (
                     <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 16, color: pressed ? theme.s1 : theme.s6}}>Login</Text>
                 )}
-            </Pressable>  
+            </Pressable>
         </View>
     );
 }
@@ -182,7 +213,6 @@ const styles = StyleSheet.create ({
         justifyContent: "center",
         padding: 15,
         color: 'rgb(1,112,255)',
-
     },
     logIn_button: {
         width: 70,
@@ -195,14 +225,13 @@ const styles = StyleSheet.create ({
         justifyContent: 'center',
     }, 
     card: {
-        flex: 6, 
+        flex: 8,
         borderTopLeftRadius: 10, 
         borderTopRightRadius: 10, 
         alignItems: 'center', 
         justifyContent: 'center', 
         paddingLeft: 25,
         paddingRight: 25,
-        paddingTop: 30,
     },
     field: {
         alignSelf: 'stretch',
@@ -218,8 +247,6 @@ const styles = StyleSheet.create ({
     },
     footer_input: {
         flex: 8,
-        top: 1.5,
-        marginLeft: 5,
         textAlignVertical: 'center',
         fontFamily: 'Proxima Nova Bold',
     },

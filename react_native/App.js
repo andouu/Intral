@@ -9,7 +9,8 @@ import React, {
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { createDrawerNavigator } from '@react-navigation/drawer';
 // WARNING: AsyncStorage is NOT SECURE BY ITSELF. Pair with other libraries such as react-native-keychain and etc. when storing sensitive data.
-import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Keychain from 'react-native-keychain';
 import notifee, { AndroidGroupAlertBehavior } from '@notifee/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import BackgroundTimer from 'react-native-background-timer';
@@ -41,7 +42,7 @@ const dummyAdd = require('./dummy data/add.json');
 BackgroundTimer.runBackgroundTimer(async () => {
     try {
         let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
-        console.log(pull)
+        // console.log(pull);
         let difference = [];
         let storedClasses = await AsyncStorage.getItem('classes');
         let prev = JSON.parse(storedClasses); // parse storage pull
@@ -55,14 +56,14 @@ BackgroundTimer.runBackgroundTimer(async () => {
                 console.log('no changes');
             }
         }
-        if (difference !== [] && !noDiff(difference) && difference) {
+        if (!noDiff(difference)) {
             await AsyncStorage.setItem('classes', JSON.stringify(pull)); // temporary
             handleDisplayNotif(difference);
         }
     } catch(err) {
         console.error(err);
     }
-}, 10000); // 300000ms = 5 min
+}, 300000); // 300000ms = 5 min
 
 const handleDisplayNotif = async (diff) => {
     await notifee.cancelDisplayedNotifications();
@@ -139,7 +140,7 @@ const App = () => {
 
     const themeValue = {
         themeData,
-        setTheme: (newTheme) => {setThemeData({ theme: newTheme, swatch: swatchDark })}
+        setTheme: (newTheme) => { setThemeData({ theme: newTheme, swatch: swatchDark }) }
     }
 
     const initialLoginState = {
@@ -183,7 +184,8 @@ const App = () => {
     const [loginState, dispatch] = useReducer(loginReducer, initialLoginState);
 
     const authContext = useMemo(() => ({
-        signIn: async(username) => {
+        signIn: async() => {
+            // user token
             let userToken;
             userToken = '69';
             try {
@@ -191,6 +193,18 @@ const App = () => {
             } catch(err) {
                 console.log(err);
             }
+            
+            // username
+            let username;
+            try {
+                const credentials = await Keychain.getGenericPassword();
+                if (credentials) {
+                    username = credentials.username;
+                }
+            } catch (err) {
+                console.log("Keychain could not be accessed. " + err);
+            }
+
             dispatch({ type: 'LOGIN', id: username, token: userToken });
         },
         signOut: async() => {
@@ -215,7 +229,7 @@ const App = () => {
         }
         dispatch({ type: 'REGISTER', token: userToken });
         const hasBatteryOptimization = await notifee.isBatteryOptimizationEnabled();
-        console.log(hasBatteryOptimization);
+        // console.log(hasBatteryOptimization);
         // if (hasBatteryOptimization) {
         //     Alert.alert('Error', 'To make sure that you get notifications when grades are updated, please disable battery optimizations for Intral.', 
         //     [
@@ -231,7 +245,7 @@ const App = () => {
 
     if(loginState.isLoading) {
         return (
-            <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+            <View style = {{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator size = 'large' color = 'black' />
             </View>
         );
