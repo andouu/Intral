@@ -24,7 +24,7 @@
     "react-native": "^0.64.2",
     "react-native-background-timer": "^2.4.1",
     "react-native-chart-kit": "^6.11.0",
-    "react-native-collapsible-list": "^2.2.2",
+    "react-native-draggable-flatlist": "^2.6.2",
     "react-native-elements": "^3.4.2",
     "react-native-gesture-handler": "^1.9.0",
     "react-native-get-random-values": "^1.7.1",
@@ -35,8 +35,9 @@
     "react-native-screens": "^2.17.1",
     "react-native-svg": "^12.1.1",
     "react-native-svg-charts": "^5.4.0",
-    "react-native-vector-icons": "^8.1.0",
     "uuidv4": "^6.2.12"
+    "react-native-swipeable-item": "^1.5.7",
+    "react-native-vector-icons": "^8.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",

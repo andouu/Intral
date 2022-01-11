@@ -7,6 +7,7 @@ import {
 } from 'react-native'
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import GradebookScreen from './GradebookScreen';
 import ProfileScreen from './ProfileScreen';
 import RemindersDrawer from './RemindersDrawer';
@@ -17,7 +18,7 @@ const tabIconSize = 35;
 
 const Tab = createBottomTabNavigator();
 
-const MainStackScreen = () => {
+const MainStackScreen = ({ navigation }) => {
     const themeContext = useContext(ThemeContext);
     const theme = themeContext.themeData.swatch;
 
@@ -56,13 +57,15 @@ const MainStackScreen = () => {
             <Tab.Screen 
                 name = "Reminders" 
                 component = { RemindersDrawer } 
-                options = {{
-                    tabBarIcon: (tintColor) => {
-                        return(
-                            <MaterialDesignIcons name='book' color={tintColor} size={tabIconSize - 5} /> // -5 because original size was too big
-                        );
-                    },
-                    tabBarLabel: 'Reminders'
+                options = {() => {
+                    return {
+                        tabBarIcon: (tintColor) => {
+                            return(
+                                <MaterialDesignIcons name='book' color={tintColor} size={tabIconSize - 5} /> // -5 because original size was too big
+                            );
+                        },
+                        tabBarLabel: 'Reminders',
+                    }
                 }}
             /> 
         </Tab.Navigator> 
