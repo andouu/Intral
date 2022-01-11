@@ -35,7 +35,7 @@
     "react-native-screens": "^2.17.1",
     "react-native-svg": "^12.1.1",
     "react-native-svg-charts": "^5.4.0",
-    "uuidv4": "^6.2.12"
+    "uuidv4": "^6.2.12",
     "react-native-swipeable-item": "^1.5.7",
     "react-native-vector-icons": "^8.1.0"
   },
