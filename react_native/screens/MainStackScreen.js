@@ -25,7 +25,7 @@ const MainStackScreen = ({ navigation }) => {
     return (
         <Tab.Navigator 
             initialRouteName='Personal' 
-            tabBar={props => <TabBar {...props} theme={theme} />}
+            tabBar={props => <TabBar {...props} themeData={themeContext.themeData} />}
             tabBarOptions={{
                 activeTintColor: theme.s8,
                 showIcon: true,
@@ -72,8 +72,10 @@ const MainStackScreen = ({ navigation }) => {
     )
 }
 
-const TabBar = ({ state, descriptors, navigation, theme }) => { // custom tab navigation bar
+const TabBar = ({ state, descriptors, navigation, themeData }) => { // custom tab navigation bar
     const focusedOptions = descriptors[state.routes[state.index].key].options;
+
+    const theme = themeData.swatch;
 
     if(focusedOptions.tabBarVisible === false) {
         return null;
@@ -81,49 +83,49 @@ const TabBar = ({ state, descriptors, navigation, theme }) => { // custom tab na
 
     return (
         <View style={{backgroundColor: theme.s1}}>
-        <View style={[styles.tabContainer, {backgroundColor: theme.s9}]}>
-            {state.routes.map((route, index) => {
-                const { options } = descriptors[route.key];
-                const isFocused = state.index === index;
+            <View style={[styles.tabContainer, {backgroundColor: themeData.navBarTransparent ? theme.s9 : theme.s1}]}>
+                {state.routes.map((route, index) => {
+                    const { options } = descriptors[route.key];
+                    const isFocused = state.index === index;
 
-                const iconColor = isFocused ? theme.s3 : theme.s4;
-                const icon = options.tabBarIcon(iconColor);
+                    const iconColor = isFocused ? theme.s3 : theme.s4;
+                    const icon = options.tabBarIcon(iconColor);
 
-                const onPress = () => {
-                    const event = navigation.emit({
-                        type: 'tabPress',
-                        target: route.key,
-                        canPreventDefault: true,
-                    });
+                    const onPress = () => {
+                        const event = navigation.emit({
+                            type: 'tabPress',
+                            target: route.key,
+                            canPreventDefault: true,
+                        });
 
-                    if(!isFocused && !event.defaultPrevented) {
-                        navigation.navigate(route.name);
-                    }
-                };
+                        if(!isFocused && !event.defaultPrevented) {
+                            navigation.navigate(route.name);
+                        }
+                    };
 
-                const onLongPress = () => {
-                    navigation.emit({
-                        type: 'tabLongPress',
-                        target: route.key,
-                    });
-                };
+                    const onLongPress = () => {
+                        navigation.emit({
+                            type: 'tabLongPress',
+                            target: route.key,
+                        });
+                    };
 
-                return (
-                    <Pressable
-                        key={index}
-                        accessibilityRole='button'
-                        accessibilityState={isFocused ? { selected: true } : {}}
-                        accessibilityLabel={options.tabBarAccessibilityLabel}
-                        testID={options.tabBarTestID}
-                        onPress={onPress}
-                        onLongPress={onLongPress}
-                        style={styles.tabButton}
-                    >
-                        {icon}
-                    </Pressable>
-                );
-            })}
-        </View>
+                    return (
+                        <Pressable
+                            key={index}
+                            accessibilityRole='button'
+                            accessibilityState={isFocused ? { selected: true } : {}}
+                            accessibilityLabel={options.tabBarAccessibilityLabel}
+                            testID={options.tabBarTestID}
+                            onPress={onPress}
+                            onLongPress={onLongPress}
+                            style={styles.tabButton}
+                        >
+                            {icon}
+                        </Pressable>
+                    );
+                })}
+            </View>
         </View>
     );
 }
@@ -132,8 +134,8 @@ const styles = StyleSheet.create({
     tabContainer: {
         width: '100%', 
         height: 70,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
+        borderTopLeftRadius: 25,
+        borderTopRightRadius: 25,
         flexDirection: 'row',
     },
     tabButton: {

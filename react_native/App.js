@@ -20,7 +20,7 @@ import {
     StatusBar,
     Alert,
 } from 'react-native';
-import { swatchDark } from './components/themes';
+import { colorways } from './components/themes';
 import MainStackScreen from './screens/MainStackScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import RootStackScreen from './screens/RootStackScreen';
@@ -134,13 +134,15 @@ const App = () => {
     // const [isLoading, setIsLoading] = useState(true);
     // const [userToken, setUserToken] = useState(null);
     const [themeData, setThemeData] = useState({
-        theme: 'dark',
-        swatch: swatchDark, // TODO: add lightmode
+        theme: 'Dark',
+        cardOutlined: true,
+        navBarTransparent: false,
+        swatch: colorways.Dark, // TODO: add more themes
     });
 
     const themeValue = {
         themeData,
-        setTheme: (newTheme) => { setThemeData({ theme: newTheme, swatch: swatchDark }) }
+        setTheme: (newTheme) => { setThemeData(newTheme); }
     }
 
     const initialLoginState = {
@@ -266,8 +268,8 @@ const App = () => {
                             card: themeData.swatch.s1,
                             background: themeData.swatch.s1,
                         }
-                    }
-                }>
+                    }}
+                >
                     {loginState.userToken !== null ? (
                         <Drawer.Navigator 
                             initialRouteName='Home'
