@@ -22,6 +22,7 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
+import { Divider } from 'react-native-elements/dist/divider/Divider';
 
 const Header = ({ navigation, theme, type }) => {
     return (
@@ -90,7 +91,7 @@ const HomeScreen = ({ navigation }) => {
                 >
                     Settings:
                 </Text>
-                <PressableCard 
+                {/* <PressableCard 
                     theme={theme} 
                     containerStyle={{
                         height: settingCardHeight
@@ -106,7 +107,7 @@ const HomeScreen = ({ navigation }) => {
                     <View style={styles.settings_icon}>
                         <MaterialDesignIcon name='radar' size={30} color={theme.s8} />
                     </View>
-                </PressableCard>
+                </PressableCard> */}
                 <PressableCard 
                     theme={theme} 
                     containerStyle={{
@@ -121,6 +122,23 @@ const HomeScreen = ({ navigation }) => {
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Cosmetic Settings</Text>
                     <View style={styles.settings_icon}>
                         <MaterialDesignIcon name='palette' size={30} color={theme.s11} />
+                    </View>
+                </PressableCard>
+                <DividerHeader text='Sign Out' theme={theme} />
+                <PressableCard
+                    theme={theme} 
+                    containerStyle={{
+                        height: settingCardHeight,
+                    }}
+                    pressableStyle={{
+                        paddingLeft: 15
+                    }}
+                    onPress={signOut}
+                    outlined={themeData.cardOutlined}
+                >
+                    <Text style={[ styles.settings_main_text, { color: theme.s11 } ]}>Sign Out</Text>
+                    <View style={styles.settings_icon}>
+                        <MaterialDesignIcon name='logout' size={30} color={theme.s11} />
                     </View>
                 </PressableCard>
             </View>
@@ -289,7 +307,7 @@ const CosmeticsScreen = ({ navigation }) => {
                         {themeBoxes.map(box => box)}
                     </Animated.View>
                 </PressableCard>
-                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
+                {/* <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Outlined cards: </Text>
                     <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
                         <Switch 
@@ -299,7 +317,7 @@ const CosmeticsScreen = ({ navigation }) => {
                             value={themeData.cardOutlined}
                         />
                     </View>
-                </Card>
+                </Card> */}
                 <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Transparent NavBar: </Text>
                     <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
@@ -312,8 +330,8 @@ const CosmeticsScreen = ({ navigation }) => {
                     </View>
                 </Card>
 
-                <DividerHeader text='Planner' theme={theme} />
-                {/* <PressableCard 
+                {/* <DividerHeader text='Planner' theme={theme} />
+                <PressableCard 
                     theme={theme} 
                     containerStyle={{
                         marginBottom: 10
@@ -334,8 +352,8 @@ const CosmeticsScreen = ({ navigation }) => {
                             color={theme.s4}
                         />
                     </View>
-                </PressableCard> */}
-                {/* <PressableCard 
+                </PressableCard>
+                <PressableCard 
                     theme={theme} 
                     containerStyle={{
                         marginBottom: 10
@@ -356,7 +374,7 @@ const CosmeticsScreen = ({ navigation }) => {
                             color={theme.s4}
                         />
                     </View>
-                </PressableCard> */}
+                </PressableCard>
                 <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Use relative dates:</Text>
                     <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
@@ -378,7 +396,7 @@ const CosmeticsScreen = ({ navigation }) => {
                             value={true}
                         />
                     </View>
-                </Card>
+                </Card> */}
             </View>
         </View>
     );
@@ -397,14 +415,14 @@ const SettingsScreen = ({ navigation }) => {
                     headerShown: false,
                 }}
             />
-            <SettingsStack.Screen 
+            {/* <SettingsStack.Screen 
                 name = 'Functions' 
                 component = { FunctionsScreen } 
                 options = {{
                     title: 'Functions Settings',
                     headerShown: false,
                 }}
-            />
+            /> */}
             <SettingsStack.Screen 
                 name = 'Cosmetics' 
                 component = { CosmeticsScreen } 

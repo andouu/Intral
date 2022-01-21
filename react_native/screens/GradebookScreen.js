@@ -27,13 +27,11 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
+import * as Keychain from 'react-native-keychain';
 
 const dummyGradeChanges  = require('../dummy data/gradeData') // dummy data for grade changes (class analysis)
 
-const credentials = require('../credentials.json'); // WARNING: temporary solution
-const username = credentials.username // should import username and password from a central location after authentication
-const password = credentials.password
-let quarter = 1;
+let quarter = 1; // TODO
 const screenWidth = Dimensions.get('window').width;
 
 function* percentageLabel() {
@@ -75,7 +73,9 @@ const GradebookHomeScreen = () => {
 
     const refreshClasses = async() => {  // async function to provide scope for await keyword
         try {
-            let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
+            const credentials = await Keychain.getGenericPassword();
+            if (!credentials) return;
+            let pull = await getGrades(credentials.username, credentials.password, quarter);  // pulls data from api asyncronously from api.js
             let difference = [];
             if (classes !== []) {
                 let storedClasses = await AsyncStorage.getItem('classes');
@@ -86,9 +86,9 @@ const GradebookHomeScreen = () => {
                     if (Object.keys(difference).length !== 0 && difference.constructor === Object) {  // check if there are any differences
                         await AsyncStorage.setItem('gradebookChanges', JSON.stringify(difference));  // save the difference to storage
                         await AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: false }));   // set the notifs warning to show in profile page everytime there are new changes
-                    } else {
+                    }/*  else {
                         console.log('no changes');
-                    }
+                    } */
                 }
             }
             if (difference !== [])
@@ -149,15 +149,16 @@ const GradeBoxes = ({ classes, theme }) => {
             teacher: period.Staff
         };
         return (
-            <PressableCard 
-                theme={theme} 
-                customStyle={{ height: 100, padding: 0}} 
+            <PressableCard
+                key={i}
+                theme={theme}
+                customStyle={{ height: 100, padding: 0}}
                 onPress={() => {
                     navigation.navigate('Class Details', {
                         periodNumber: i,
                         classInfo: classes[i],
                     });
-                }} 
+                }}
                 outlined
             >
                 <View style = {{flex: 1, flexDirection: 'row', justifyContent: 'center', paddingLeft: 15, paddingRight: 15}}>
@@ -622,7 +623,7 @@ const DropdownCard = ({theme, outlined, header='', periodNum=null}) => {
                 Period {index+1}: {shortenedName}
             </Text> */}
             <Animated.View style={[{width: '95%', height: 30, marginBottom: 10, justifyContent: 'center', backgroundColor: 'transparent'}, animatedHeaderStyle]}>
-                <Text style={[styles.info_subheader, {color: theme.s4, width: '87%', backgroundColor: 'transparent'}]}>{header}:</Text>
+                <Text style={[styles.info_subheader, {color: theme.s4, width: '87%', backgroundColor: 'transparent'}]}>{header}</Text>
                 <Pressable 
                     style={({pressed}) => [{
                         backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
@@ -674,7 +675,13 @@ const ClassAnalysesScreen = ({ route, navigation }) => {
             shortenedName = shortenedName.substring(0, 19).trim() + '...';
         }
         return(
-            <DropdownCard theme={theme} header={shortenedName} periodNum={index} outlined />
+            <DropdownCard
+                key={index}
+                theme={theme}
+                header={shortenedName}
+                periodNum={index}
+                outlined
+            />
         );
     });
 
@@ -817,7 +824,7 @@ const styles = StyleSheet.create({
     },
     info_subheader: {
         fontFamily: "Proxima Nova Bold",
-        fontSize: 30,
+        fontSize: 25,
         fontWeight: "300",
     },
     assignmentDescriptionWrapper: {

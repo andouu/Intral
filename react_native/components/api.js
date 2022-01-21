@@ -1,9 +1,7 @@
 import * as Keychain from 'react-native-keychain';
 
-const credentials = require('../credentials.json') // WARNING: temporary solution
-const serverip = credentials.serverip        // run ipconfig in a terminal and find your local ipv4 (should be something like 10.0.0.162). 
-const serverport = credentials.serverport    // NOTE: you HAVE to run the local server from the other git repo (intral-server) for pulling to work.
-const fullurl = `http://${serverip}:${serverport}/login/`;
+const serverip = "https://arcane-tundra-27876.herokuapp.com";
+const fullurl = `${serverip}/login/`;
 
 export const login = async() => {
     try {

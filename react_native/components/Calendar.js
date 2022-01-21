@@ -1,12 +1,11 @@
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext } from 'react';
 import {
     StyleSheet,
     View,
     Text,
     Pressable,
     ScrollView,
-    Dimensions,
-    ActivityIndicator,
+    Dimensions
 } from 'react-native';
 import { toRGBA } from './utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'

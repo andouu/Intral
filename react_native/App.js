@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { createDrawerNavigator } from '@react-navigation/drawer';
-// WARNING: AsyncStorage is NOT SECURE BY ITSELF. Pair with other libraries such as react-native-keychain and etc. when storing sensitive data.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import notifee, { AndroidGroupAlertBehavior } from '@notifee/react-native';
@@ -33,15 +32,14 @@ import { capitalizeWord } from './components/utils';
 
 const Drawer = createDrawerNavigator();
 
-const credentials = require('./credentials.json'); // WARNING: temporary solution
-const username = credentials.username // should import username and password from a central location after authentication
-const password = credentials.password
-let quarter = 1;
+let quarter = 1; // TODO ******************
 const dummyAdd = require('./dummy data/add.json');
 
 BackgroundTimer.runBackgroundTimer(async () => {
     try {
-        let pull = await getGrades(username, password, quarter);  // pulls data from api asyncronously from api.js
+        const credentials = await Keychain.getGenericPassword();
+        if (!credentials) return;
+        let pull = await getGrades(credentials.username, credentials.password, quarter);  // pulls data from api asyncronously from api.js
         // console.log(pull);
         let difference = [];
         let storedClasses = await AsyncStorage.getItem('classes');

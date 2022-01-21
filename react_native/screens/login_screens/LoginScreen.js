@@ -23,7 +23,7 @@ import Animated, {
     withTiming,
     useAnimatedStyle,
 } from 'react-native-reanimated';
-import { toRGBA } from '../../components/themes';
+import { toRGBA } from '../../components/utils';
 import { widthPctToDP } from '../../components/utils';
 
 const LoginScreen = ({ navigation }) => {

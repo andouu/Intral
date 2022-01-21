@@ -25,7 +25,7 @@ import SwipeableItem from 'react-native-swipeable-item/src';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import ScrollableMenu from '../components/ScrollableMenu';
 import ThemedButton from '../components/ThemedButton';
-import Calendar from '../components/Calendar';
+import { StaticCalendar } from '../components/Calendar';
 import TimePicker from '../components/TimePicker';
 import { ThemeContext } from '../components/themeContext';
 import { toRGBA } from '../components/utils';
@@ -34,7 +34,6 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
     Easing,
-    add,
     sub,
     multiply,
 } from 'react-native-reanimated';
@@ -551,7 +550,6 @@ const AddButton = ({ theme, buttonVisible, handleOpen }) => {
  * ---
  * Optional:
  * - containerStyle = custom style of menu
- * - decorator (obj) = left decorator for each box
  * - textStyle = custom style of text
  * - handlePress (function) = function to call for each button when it's pressed
  * - otherDropdownOpening (bool) = whether another dropdown is opening causing this dropdown to close (used to handle zIndex)
@@ -617,15 +615,8 @@ const DropdownMenu = (props) => {
                     props.handlePress(name);
                 }}
             >
-                <View style={{ width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row' }}>
-                    {props.decorator &&
-                        <View style={{flex: 1}}>
-                            {props.decorator}
-                        </View>
-                    }
-                    <View style={{ flex: 4, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={[{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, textAlign: 'center' }, props.textStyle]}>{name}</Text>
-                    </View>
+                <View style={{ width: '85%', height: '100%', alignSelf: 'flex-start', flexDirection: 'row', paddingRight: 10, justifyContent: 'center' }}>
+                    <Text style={[{ fontFamily: 'Proxima Nova Bold', fontSize: 15, color: props.theme.s6, textAlign: 'center', textAlignVertical: 'center' }, props.textStyle]}>{name}</Text>
                 </View>
                 {showCheck && <View style={{ position: 'absolute', right: 5, top: 11 }}>
                     <Icon
@@ -784,11 +775,10 @@ const DateField = ({ text, selectedDate, setSelectedDate, theme }) => {
                     paddingRight: MAIN_CONTAINER_LEFT_RIGHT_PADDING,                    
                 }}>
                     <View style={[styles.calendar_container, {backgroundColor: theme.s9}]}>
-                        <Calendar
+                        <StaticCalendar
                             dateToday={dateToday}
                             selectedDate={selectedDate}
                             setSelectedDate={setSelectedDate}
-                            isRefreshing={false}
                         />
                     </View>
                     <View style={[styles.modal_back_button_container, {backgroundColor: theme.s9}]}>

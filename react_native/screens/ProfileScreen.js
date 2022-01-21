@@ -6,6 +6,7 @@ import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons
 import GoogleIcon from 'react-native-vector-icons/MaterialIcons'
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import * as Keychain from 'react-native-keychain';
 import {
     StyleSheet,
     Dimensions,
@@ -30,11 +31,6 @@ const profPicSize = 50;
 function* yLabel() {                                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*
     yield* ['0.00', '1.00', '2.00', '3.00', '4.00']; // https://stackoverflow.com/questions/63905403/how-to-change-the-y-axis-values-from-numbers-to-strings-in-react-native-chart-ki
 }
-
-const credentials = require('../credentials.json') // WARNING: temporary solution
-
-const username = credentials.username // temporary for testing, authentication isn't up yet
-const password = credentials.password
 
 const widthPctToDP = (widthPct, padding=0) => { // https://gist.github.com/gleydson/0e778e834655d1ee177725d8b4b345d7
     const screenWidth = Dimensions.get('window').width - 2 * padding;
@@ -153,7 +149,7 @@ const Card = ({ customStyle, outlined=false, children, theme, data=null }) => {
     return (
         <View style={[cardStyle.card, customStyle]}>
             {children ? React.Children.map(children, child => {
-                if(React.isValidElement(child)) {
+                if (React.isValidElement(child)) {
                     return (
                         React.cloneElement(child, { key: uuidv4(), width: widthDP, height: customStyle.height, theme: theme, data: data })
                     );
@@ -317,7 +313,9 @@ const HomePage = () => {
     const refreshInfo = async() => {
         try {
             setIsRefreshing(true);
-            let info = await getStudentInfo(username, password);
+            const credentials = await Keychain.getGenericPassword();
+            if (!credentials) return;
+            let info = await getStudentInfo(credentials.username, credentials.password);
             if(!info.text) {
                 setStudentInfo(info);
                 setIsLoading(false);
@@ -346,7 +344,7 @@ const HomePage = () => {
         );
     }
 
-    let getChangeObjs = () => {
+    let getChangeObjs = () => { //TODO: make into a flatlist
         let objArr = [];
         for(let key in gradeChanges) {
             let arr = gradeChanges[key];
@@ -404,7 +402,7 @@ const HomePage = () => {
             <Header studentInfo={studentInfo} changes={gradeChanges} notifsSeen={notifsSeen} handleNotifsSeen={handleNotifsSeen} handleScroll={handleScroll} theme={theme} />
             <View style = {styles.main_container}>
                 <Text style={[styles.header_text, {color: theme.s6}]}>Hi {studentInfo.StudentInfo.FormattedName.split(' ')[0]}!</Text>
-                <Text style={[styles.cardHeader_text, {color: theme.s4}]}>
+                {/* <Text style={[styles.cardHeader_text, {color: theme.s4}]}>
                     Your GPA Growth Overview:{'  '}
                     <Text style={{color: pctColor}}>
                         {deltaChar}{gpaDelta}%
@@ -422,10 +420,10 @@ const HomePage = () => {
                     data={data}
                 >
                     <CustomLineChart />               
-                </Card>
+                </Card> */}
                 <Text style={[styles.cardHeader_text, {color: theme.s4}]}>Latest Updates:</Text>
                 <Card customStyle={{padding: 15, paddingTop: 10, paddingBottom: 10, minHeight: 400, borderColor: toRGBA(theme.s2, 1)}} outlined={true} theme={theme}>
-                    { changeObjs }
+                    { changeObjs /* TODO: make into a flatlist! the card container component is a bit tricky */}
                 </Card>
             </View>
         </ScrollView>
