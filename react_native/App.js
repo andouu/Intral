@@ -33,10 +33,10 @@ import { capitalizeWord } from './components/utils';
 const Drawer = createDrawerNavigator();
 
 let quarter = 1; // TODO ******************
-const dummyAdd = require('./dummy data/add.json');
 
 BackgroundTimer.runBackgroundTimer(async () => {
     try {
+        console.log('checking for gradebook changes...');
         const credentials = await Keychain.getGenericPassword();
         if (!credentials) return;
         let pull = await getGrades(credentials.username, credentials.password, quarter);  // pulls data from api asyncronously from api.js
@@ -52,6 +52,7 @@ BackgroundTimer.runBackgroundTimer(async () => {
                 await AsyncStorage.setItem('notifsSeen', JSON.stringify({ seen: false }));   // set the notifs warning to show in profile page everytime there are new changes
             } else {
                 console.log('no changes');
+                return;
             }
         }
         if (!noDiff(difference)) {
@@ -64,6 +65,7 @@ BackgroundTimer.runBackgroundTimer(async () => {
 }, 300000); // 300000ms = 5 min
 
 const handleDisplayNotif = async (diff) => {
+    if (noDiff(diff)) return;
     await notifee.cancelDisplayedNotifications();
     const channelId = await notifee.createChannel({
         id: 'Updates',
@@ -80,6 +82,7 @@ const handleDisplayNotif = async (diff) => {
                 id: 'default',
                 launchActivity: 'default',
             },
+            color: '#0170ff',
             smallIcon: 'ic_stat_name',
         }
     });
