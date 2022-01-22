@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createStackNavigator } from '@react-navigation/stack';
 import { getGrades } from '../components/api.js';
 import { ThemeContext } from '../components/themeContext';
-import { toRGBA, widthPctToDP } from '../components/utils';
+import { widthPctToDP, heightPctToDP, toRGBA } from '../components/utils';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { findDifference } from '../components/api';
 import {
@@ -19,17 +19,12 @@ import {
     RefreshControl,
     ActivityIndicator,
 } from 'react-native';
+import { DropdownCard } from '../components/card.js';
 import { BarChart, LineChart } from 'react-native-chart-kit';
-import { Rect, Text as TextSVG, Svg } from "react-native-svg";
-import Animated, {
-    useSharedValue,
-    withTiming,
-    useAnimatedStyle,
-    Easing,
-} from 'react-native-reanimated';
+import { Text as TextSVG, Svg } from "react-native-svg";
 import * as Keychain from 'react-native-keychain';
 
-const dummyGradeChanges  = require('../dummy data/gradeData') // dummy data for grade changes (class analysis)
+const dummyGradeChanges  = require('../dummy data/dummyGradeChanges') // dummy data for grade changes (class analysis)
 
 let quarter = 1; // TODO
 const screenWidth = Dimensions.get('window').width;
@@ -419,7 +414,7 @@ const AssignmentDetail = ({detail, data}) => {
     ); 
 }
 
-const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) => {
+const PressableCard = ({ customStyle, outlined=false, children, onPress, theme }) => {
     const getStyle = () => {
         return StyleSheet.create({
             card: {
@@ -440,34 +435,7 @@ const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) =
     const widthDP = widthPctToDP('100%', 0);
 
     return (
-        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
-            {children}
-        </Animated.View>
-    );
-}
-
-const PressableCard = ({ customStyle, outlined=false, children, onPress, animatedStyle, theme }) => {
-    const getStyle = () => {
-        return StyleSheet.create({
-            card: {
-                width: '100%',
-                height: 150,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: outlined ? 'transparent' : theme.s2,
-                borderRadius: 30,
-                borderWidth: outlined ? 1.5 : 0,
-                borderColor: outlined ? theme.s2 : 'transparent',
-                padding: 10,
-                marginBottom: 20,
-            },
-        });
-    }
-    const cardStyle = getStyle();
-    const widthDP = widthPctToDP('100%', 0);
-
-    return (
-        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
+        <View style={[cardStyle.card, customStyle]}>
             <Pressable
                 style={({pressed}) => [
                     styles.pressableCard_btn, {backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent'}
@@ -476,23 +444,11 @@ const PressableCard = ({ customStyle, outlined=false, children, onPress, animate
             >
                 {children}
             </Pressable>
-        </Animated.View>
+        </View>
     );
 }
 
-const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden }) => {
-    useEffect(() => {
-        chartOpacity.value = isHidden ? 0 : 1;
-    }, [isHidden]);
-
-    const chartOpacity = useSharedValue(0);
-
-    const animatedChartStyle = useAnimatedStyle(() => {
-        return {
-            opacity: withTiming(chartOpacity.value, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
-        }
-    });
-
+const CustomLineChart = ({ width, height, theme, data, yLabelIterator }) => {
     const chartConfig = {
         backgroundGradientFrom: theme.s1,
         backgroundGradientTo: theme.s1,
@@ -521,7 +477,7 @@ const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden 
     }
 
     return (
-        <Animated.View style={[{left: -20, width: '100%', alignItems: 'center', justifyContent: 'center'}, animatedChartStyle]}>
+        <View style={{ left: -20, width: '100%' }}>
             <LineChart
                 data={data}
                 fromZero={true}
@@ -542,7 +498,7 @@ const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden 
                     difference = (Math.abs(difference - 1) * 100).toFixed(2);
                     
                     return (
-                        <View>
+                        <View key={index}>
                             <Svg>
                                 <TextSVG
                                     x={x}
@@ -570,86 +526,11 @@ const CustomLineChart = ({ width, height, theme, data, yLabelIterator, isHidden 
                 }}
                 bezier // optional, but sexy 😎
             />
-        </Animated.View>
+        </View>
     )
 }
 
-const DropdownCard = ({theme, outlined, header='', periodNum=null}) => {
-    const [isHidden, setIsHidden] = useState(true);
-    const cardHeight = useSharedValue(55);
-    const headerTopMargin = useSharedValue(0);
-
-    const animatedCardStyle = useAnimatedStyle(() => {
-        return {
-            height: withTiming(cardHeight.value, {duration: 350, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
-        }
-    });
-
-    const animatedHeaderStyle = useAnimatedStyle(() => {
-        return {
-            marginTop: withTiming(headerTopMargin.value, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
-        }
-    });
-
-    function randomFloat(min, max) { // https://stackoverflow.com/questions/17726753/get-a-random-number-between-0-0200-and-0-120-float-numbers
-        return Math.random() * (max - min) + min;
-    }
-
-    let periodData = dummyGradeChanges[periodNum].gradeChanges;
-
-    const data = { // TODO: get actual GPAs per month/day
-        labels: ['', '', '', '', '', '', '', ''],
-        datasets: [{
-            data: periodData, 
-            color: (/* opacity = 1 */) => toRGBA(theme.s3, 1),
-            strokeWidth: 3 // optional
-        }],
-    };
-
-    function* pcts() {
-        yield* [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-    }
-
-    const yIt = pcts();
-
-    useEffect(() => { // TODO: get and store grade data from storage for charts (in parent)
-        cardHeight.value = isHidden ? 55 : 250;
-        headerTopMargin.value = isHidden ? 0 : 10;
-    }, [isHidden])
-
-    return (
-        <Card theme={theme} outlined={outlined} customStyle={{borderColor: theme.s2, justifyContent: 'flex-start'}} animatedStyle={animatedCardStyle}>
-            {/* <Text style={{fontFamily: 'Proxima Nova Bold', fontSize: 20, textAlign: 'center', textAlignVertical: 'center', color: theme.s4}}>
-                Period {index+1}: {shortenedName}
-            </Text> */}
-            <Animated.View style={[{width: '95%', height: 30, marginBottom: 10, justifyContent: 'center', backgroundColor: 'transparent'}, animatedHeaderStyle]}>
-                <Text style={[styles.info_subheader, {color: theme.s4, width: '87%', backgroundColor: 'transparent'}]}>{header}</Text>
-                <Pressable 
-                    style={({pressed}) => [{
-                        backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
-                        alignSelf: 'flex-end', 
-                        position: 'absolute', 
-                        height: 40, 
-                        width: 40,
-                        top: -3,
-                        borderRadius: 30,
-                    }]}
-                    onPress={() => {
-                        setIsHidden(!isHidden);
-                    }}
-                >
-                    <MaterialDesignIcon name={isHidden ? 'menu-down' : 'menu-up'} size={43} color={theme.s4} style={{right: 2, bottom: isHidden ? 2 : 5}} />
-                </Pressable>
-            </Animated.View>
-            <View style={{width: '100%', height: 195, padding: 15, alignItems: 'center', justifyContent: 'center'}}>
-                {/* Add charts here */}
-                <CustomLineChart width={310} height={180} theme={theme} data={data} yLabelIterator={yIt} isHidden={isHidden} />
-            </View>
-        </Card>
-    );
-}
-
-const ClassAnalysesScreen = ({ route, navigation }) => {
+const ClassAnalysesScreen = ({ route, navigation }) => { // TODO: get and store grade data from storage for charts
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const classInfo = route.params.data.classInfo;
@@ -659,7 +540,7 @@ const ClassAnalysesScreen = ({ route, navigation }) => {
     const theme = themeContext.themeData.swatch;
 
     const onRefresh = () => {
-        console.log('refreshing'); // TODO: get class data locally or from server
+        console.log('refreshing'); // TODO: get class data locally
     }
 
     useEffect(() => {
@@ -668,19 +549,46 @@ const ClassAnalysesScreen = ({ route, navigation }) => {
         }, 100);
     }, [isLoading])
 
-
+    function* pcts() {
+        yield* [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    }
     let classCards = classInfo.map((period, index) => {
         let shortenedName = period.Title.substr(0, period.Title.indexOf('(')).trim();
         if(shortenedName.length >= 19) {
             shortenedName = shortenedName.substring(0, 19).trim() + '...';
         }
+        const getCharts = (index) => { // chart analyses here
+            const yIt = pcts();
+            let periodData = dummyGradeChanges[index].gradeChanges;
+            const data = { // TODO: get actual GPAs per month/day
+                labels: ['', '', '', '', '', '', '', ''],
+                datasets: [{
+                    data: periodData, 
+                    color: () => toRGBA(theme.s3, 1), // opacity = 1
+                    strokeWidth: 3 // optional
+                }],
+            };
+            return (
+                <CustomLineChart
+                    width={widthPctToDP(100, 15)}
+                    height={180}
+                    theme={theme}
+                    data={data}
+                    yLabelIterator={yIt}
+                />
+            );
+        }
         return(
             <DropdownCard
                 key={index}
                 theme={theme}
-                header={shortenedName}
-                periodNum={index}
                 outlined
+                heightCollapsed={55}
+                heightExpanded={225}
+                headerComponent={
+                    <Text style={[ styles.info_subheader, { color: theme.s4, width: '100%', backgroundColor: 'transparent' } ]}>{shortenedName}</Text>
+                }
+                contentComponent={getCharts(index)}
             />
         );
     });

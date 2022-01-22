@@ -55,7 +55,7 @@ const SplashScreen = ({ navigation }) => {
       }}
     >
       <View style={{flex: 3, alignItems: 'center', justifyContent: 'center'}}>
-        <Animated.Text style={[{color: 'white', fontWeight: 'bold', fontSize: 55}, textStyle]}>Welcome</Animated.Text>
+        <Animated.Text style={[{color: 'white', fontWeight: 'bold', fontSize: 55}, textStyle]}>Intral</Animated.Text>
       </View>
       <Animated.View 
         style={[

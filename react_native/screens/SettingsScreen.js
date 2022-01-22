@@ -4,9 +4,8 @@ import { ThemeContext } from '../components/themeContext';
 import { AuthContext } from '../components/authContext';
 import { toRGBA } from '../components/utils';
 import { colorways } from '../components/themes';
-import { Card, PressableCard } from '../components/card';
+import { Card, PressableCard } from '../components/card'; // TODO: refactor dropdowns in here to use DropdownCard from ../components/card
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
-//import DropDownPicker from 'react-native-dropdown-picker'; for picking themes
 import {
     StyleSheet,
     View,
@@ -22,7 +21,6 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
-import { Divider } from 'react-native-elements/dist/divider/Divider';
 
 const Header = ({ navigation, theme, type }) => {
     return (
