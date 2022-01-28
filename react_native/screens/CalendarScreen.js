@@ -8,6 +8,7 @@ import {
     PixelRatio,
     TouchableOpacity,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 import { StaticCalendar, SmallPressableCalendar, ScrollingCalendar } from '../components/Calendar';
 import { toRGBA } from '../components/utils';
@@ -18,6 +19,7 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
@@ -130,15 +132,17 @@ const EListBtnGroup = (props) => {
 }
 
 const CalendarScreen = ({ navigation }) => {
+    const dateToday = new Date();
     const [eventListExpanded, setEventListExpanded] = useState(false);
     const [selectedView, setSelectedView] = useState(null);
-    const dateToday = new Date();
     const [selectedDate, setSelectedDate] = useState({
         day: dateToday.getDate(),
         month: dateToday.getMonth() + 1,
         year: dateToday.getFullYear()
     });
     const [range, setRange] = useState('Today');
+    const [events, setEvents] = useState([]);
+    const [isLoading, setIsLoading] = useState(true); 
     const viewTypes = ['month', 'year', 'day'];             // types of views the user can switch between: month(default), year(multiple calendar view), day(scrolling), etc.
 
     const themeContext = useContext(ThemeContext);
@@ -167,7 +171,7 @@ const CalendarScreen = ({ navigation }) => {
 
     let eventListSubheaderText;
     let selectedDayOfWeek = dayOfWeek(selectedDate.day, selectedDate.month, selectedDate.year);
-    switch(range) {
+    switch (range) {
         case 'Today':
             eventListSubheaderText = `${daysOfWeek[selectedDayOfWeek]}, ${selectedDate.month}/${selectedDate.day}/${selectedDate.year}`;
             break;
@@ -220,7 +224,7 @@ const CalendarScreen = ({ navigation }) => {
                 );
             case 'day':
                 return (
-                    <ScrollingCalendar theme={theme} />
+                    <ScrollingCalendar theme={theme} eventData={events} />
                 );
             default:
                 return null;
@@ -236,9 +240,27 @@ const CalendarScreen = ({ navigation }) => {
             setSelectedView(0);
     }
 
-    useEffect(() => {
-        setSelectedView(0);
-    }, [])
+    useEffect(async () => {
+        try {
+            setSelectedView(0);
+            // get events from storage
+            let events = await AsyncStorage.getItem('plannerEvents');
+            let parsed = await JSON.parse(events);
+            setEvents(parsed);
+            setIsLoading(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }, []);
+
+    if (isLoading)
+    {
+        return (
+            <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}}>
+                <ActivityIndicator size = 'large' color = {theme.s4} />
+            </View>
+        );
+    }
     
     return (
         <View style={[styles.container, {backgroundColor: theme.s1}]}>
