@@ -3,6 +3,8 @@ import { toRGBA } from './utils';
 import {
     StyleSheet,
     Pressable,
+    View,
+    Text,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -74,7 +76,7 @@ export const PressableCard = ({ containerStyle, pressableStyle, outlined=false, 
     );
 }
 
-export const DropdownCard = ({ theme, outlined, heightCollapsed, heightExpanded, headerComponent, contentComponent }) => {
+export const DropdownCard = ({ theme, outlined, containerStyle={}, heightCollapsed, heightExpanded, headerComponent, contentComponent }) => {
     const [isHidden, setIsHidden] = useState(true);
 
     const cardHeight = useSharedValue(heightCollapsed);
@@ -105,7 +107,7 @@ export const DropdownCard = ({ theme, outlined, heightCollapsed, heightExpanded,
             borderWidth: outlined ? 1.5 : 0,
             overflow: 'hidden',
             marginBottom: 20,
-        }, animatedCardStyle]}>
+        }, animatedCardStyle, containerStyle]}>
             <Pressable
                 style={({pressed}) => [{
                     backgroundColor: pressed ? toRGBA(theme.s4, 0.5) : 'transparent',
@@ -120,11 +122,58 @@ export const DropdownCard = ({ theme, outlined, heightCollapsed, heightExpanded,
                 }}
             >
                 {headerComponent}
-                <MaterialDesignIcon name={isHidden ? 'menu-down' : 'menu-up'} size={40} color={theme.s4} style={{ position: 'absolute', right: 5, top: 4 }} />
+                <MaterialDesignIcon name={isHidden ? 'menu-down' : 'menu-up'} size={40} color={theme.s4} style={{ position: 'absolute', right: 1, top: 4 }} />
             </Pressable>
             <Animated.View style={[ { width: '100%' }, animatedContentStyle ]}>
                 {contentComponent}
             </Animated.View>
         </Animated.View>
+    );
+}
+
+export const DropdownSelectionCard = ({ theme, name, outlined, containerStyle={}, heightCollapsed, heightExpanded, shortenedOptionsList, optionsList, initialSelectIndex=0, selectOptionHeight, onChange }) => {
+    const [selectIndex, setSelectIndex] = useState(initialSelectIndex);
+
+    return (
+        <DropdownCard
+            theme={theme}
+            outlined={outlined}
+            containerStyle={containerStyle}
+            heightCollapsed={heightCollapsed}
+            heightExpanded={heightExpanded}
+            headerComponent={
+                <Text style={{ color: theme.s4, fontSize: 20, fontFamily: 'Proxima Nova Bold', }}>
+                    {name} <Text style={{ color: theme.s3 }}>{shortenedOptionsList[selectIndex]}</Text>
+                </Text>
+            }
+            contentComponent={
+                optionsList.map((text, index) => 
+                    <Pressable
+                        key={index}
+                        style={({ pressed }) => [{
+                            width: '100%', 
+                            height: selectOptionHeight,
+                            borderTopWidth: StyleSheet.hairlineWidth,
+                            borderColor: theme.s4,
+                            marginBottom: 0,
+                            justifyContent: 'center',
+                            opacity: pressed ? 0.7 : 1,
+                            padding: 10,
+                        }]}
+                        onPress={() => {
+                            setSelectIndex(index);
+                            onChange(index);
+                        }}
+                    >
+                        <Text style={{ color: theme.s4, fontSize: 17, fontFamily: 'Proxima Nova Bold' }}>{text}</Text>
+                        <View style={{width: 20, height: 20, position: 'absolute', right: 10, borderRadius: 30, borderWidth: 1.5, borderColor: theme.s4, padding: 2}}>
+                            {index == selectIndex &&
+                                <View style={{ flex: 1, borderRadius: 30, backgroundColor: theme.s3 }} />
+                            }
+                        </View>
+                    </Pressable>
+                )
+            }
+        />
     );
 }

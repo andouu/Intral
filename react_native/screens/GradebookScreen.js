@@ -19,7 +19,7 @@ import {
     RefreshControl,
     ActivityIndicator,
 } from 'react-native';
-import { DropdownCard } from '../components/card.js';
+import { DropdownCard } from '../components/card';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { Text as TextSVG, Svg } from "react-native-svg";
 import * as Keychain from 'react-native-keychain';
@@ -552,31 +552,32 @@ const ClassAnalysesScreen = ({ route, navigation }) => { // TODO: get and store 
     function* pcts() {
         yield* [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     }
+    const getCharts = (index) => { // chart analyses here
+        const yIt = pcts();
+        let periodData = dummyGradeChanges[index].gradeChanges;
+        const data = { // TODO: get actual GPAs per month/day
+            labels: ['', '', '', '', '', '', '', ''],
+            datasets: [{
+                data: periodData, 
+                color: () => toRGBA(theme.s3, 1), // opacity = 1
+                strokeWidth: 3 // optional
+            }],
+        };
+        return (
+            <CustomLineChart
+                width={widthPctToDP(100, 15)}
+                height={180}
+                theme={theme}
+                data={data}
+                yLabelIterator={yIt}
+            />
+        );
+    }
+
     let classCards = classInfo.map((period, index) => {
         let shortenedName = period.Title.substr(0, period.Title.indexOf('(')).trim();
         if(shortenedName.length >= 19) {
             shortenedName = shortenedName.substring(0, 19).trim() + '...';
-        }
-        const getCharts = (index) => { // chart analyses here
-            const yIt = pcts();
-            let periodData = dummyGradeChanges[index].gradeChanges;
-            const data = { // TODO: get actual GPAs per month/day
-                labels: ['', '', '', '', '', '', '', ''],
-                datasets: [{
-                    data: periodData, 
-                    color: () => toRGBA(theme.s3, 1), // opacity = 1
-                    strokeWidth: 3 // optional
-                }],
-            };
-            return (
-                <CustomLineChart
-                    width={widthPctToDP(100, 15)}
-                    height={180}
-                    theme={theme}
-                    data={data}
-                    yLabelIterator={yIt}
-                />
-            );
         }
         return(
             <DropdownCard

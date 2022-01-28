@@ -1,26 +1,19 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ThemeContext } from '../components/themeContext';
 import { AuthContext } from '../components/authContext';
 import { toRGBA } from '../components/utils';
 import { colorways } from '../components/themes';
-import { Card, PressableCard } from '../components/card'; // TODO: refactor dropdowns in here to use DropdownCard from ../components/card
+import { Card, PressableCard, DropdownSelectionCard } from '../components/card';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
     StyleSheet,
     View,
     Text,
-    Pressable,
     Switch,
     Vibration,
     Platform,
 } from 'react-native';
-import Animated, {
-    useSharedValue,
-    withTiming,
-    useAnimatedStyle,
-    Easing,
-} from 'react-native-reanimated';
 
 const Header = ({ navigation, theme, type }) => {
     return (
@@ -89,7 +82,7 @@ const HomeScreen = ({ navigation }) => {
                 >
                     Settings:
                 </Text>
-                {/* <PressableCard 
+                <PressableCard 
                     theme={theme} 
                     containerStyle={{
                         height: settingCardHeight
@@ -105,7 +98,7 @@ const HomeScreen = ({ navigation }) => {
                     <View style={styles.settings_icon}>
                         <MaterialDesignIcon name='radar' size={30} color={theme.s8} />
                     </View>
-                </PressableCard> */}
+                </PressableCard>
                 <PressableCard 
                     theme={theme} 
                     containerStyle={{
@@ -162,10 +155,46 @@ const FunctionsScreen = ({ navigation }) => {
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
 
+    const gradeNotifRateOptionsShortened = ['Max', 'Daily', 'Weekly'];
+    const gradeNotifRateOptions = ['Max (every grade refresh)', 'Daily (5pm)', 'Weekly (Saturday 5pm)'];
+    const gradeNotifRateDropdownHeight = gradeNotifRateOptions.length * settingCardHeight + settingCardHeight;
+
+
+    /* FINISH UNFINISHED SETTINGS */
+
+
     return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
+            <DividerHeader text='Notifications' theme={theme} />
+                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
+                    <Text style={[styles.settings_main_text, { color: theme.s4 }]}>Allow notifications:</Text>
+                    <View style={[styles.settings_icon, { width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12 }]}>
+                        <Switch 
+                            trackColor={{ false: theme.s11, true: theme.s10 }}
+                            thumbColor={theme.s6}
+                            onValueChange={() => console.log('switched')}
+                            value={true} 
+                        />
+                    </View>
+                </Card>
+                <DropdownSelectionCard
+                    theme={theme}
+                    name='Grade Notif Rate:'
+                    outlined={themeData.cardOutlined}
+                    containerStyle={{ marginBottom: 10 }}
+                    heightCollapsed={settingCardHeight}
+                    heightExpanded={gradeNotifRateDropdownHeight}
+                    shortenedOptionsList={gradeNotifRateOptionsShortened}
+                    optionsList={gradeNotifRateOptions}
+                    selectOptionHeight={settingCardHeight}
+                    initialSelectIndex={0}
+                    onChange={(index) => {
+                        
+                    }}
+                />
+                
                 <DividerHeader text='Gradebook' theme={theme} />
                 <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Grade refresh rate:</Text>
@@ -175,136 +204,38 @@ const FunctionsScreen = ({ navigation }) => {
     );
 }
 
-const ThemeBox = ({ name }) => {
-    const themeContext = useContext(ThemeContext);
-    const themeData = themeContext.themeData;
-    const theme = themeData.swatch;
-    const setTheme = themeContext.setTheme;
-
-    return (
-        <Pressable 
-            style={({pressed}) => [{
-                width: '100%', 
-                height: settingCardHeight,
-                borderTopWidth: StyleSheet.hairlineWidth,
-                borderColor: theme.s4, 
-                marginBottom: 0, 
-                justifyContent: 'center',
-                opacity: pressed ? 0.7 : 1
-            }]}
-            onPress={() => {
-                if (name !== themeData.theme) {
-                    setTheme({...themeData, theme: name, swatch: colorways[name]});
-                }
-            }}
-        >
-            <Text style={[styles.settings_main_text, {color: theme.s4, fontSize: 17, maxWidth: 250}]}>{name}</Text>
-            <View style={{width: 20, height: 20, position: 'absolute', right: 0, borderRadius: 30, borderWidth: 1.5, borderColor: theme.s4, padding: 2}}>
-                {name === themeData.theme
-                    ? <View style={{flex: 1, borderRadius: 30, backgroundColor: theme.s3}} />
-                    : null
-                }
-            </View>
-        </Pressable>
-    );
-}
-
 const CosmeticsScreen = ({ navigation }) => {
-    const [openedCards, setOpenedCards] = useState({
-        theme: false,
-    })
-
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
     const setTheme = themeContext.setTheme;
 
-    const cardHeight = useSharedValue(settingCardHeight);
-    const animatedCardStyle = useAnimatedStyle(() => {
-        return {
-            height: withTiming(cardHeight.value, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
-        }
-    });
-
-    const themeDpdnOpacity = useSharedValue(0);
-    const themeDpdnHeight = useSharedValue(0);
-    const animatedDropdownContentStyle = useAnimatedStyle(() => {
-        return {
-            opacity: withTiming(themeDpdnOpacity.value, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
-            height: withTiming(themeDpdnHeight.value, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
-        }
-    });
-
-    useEffect(() => {
-        if (openedCards.theme) {
-            const headerHeight = settingCardHeight;
-            const paddingBottom = 5;
-            const totalHeight = Object.keys(colorways).length * settingCardHeight + headerHeight + paddingBottom;
-            cardHeight.value = totalHeight;
-            themeDpdnOpacity.value = 1;
-            themeDpdnHeight.value = totalHeight - headerHeight;
-        } else {
-            cardHeight.value = settingCardHeight;
-            themeDpdnOpacity.value = 0;
-            themeDpdnHeight.value = 0;
-        }
-    }, [openedCards.theme]);
-
-    let themeBoxes = [];
-    let idx = 0;
-    for(let swatch in colorways) {
-        themeBoxes.push(
-            <ThemeBox name={swatch} key={idx} />
-        );
-        idx ++;
-    }
+    let themeNames = Object.keys(colorways);
+    let colorwaysDropdownHeight = themeNames.length * settingCardHeight + settingCardHeight;
 
     return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
                 <DividerHeader text='General' theme={theme} />
-                <PressableCard 
-                    theme={theme} 
-                    containerStyle={{
-                        marginBottom: 10
-                    }}
-                    pressableStyle={{
-                        paddingLeft: 15,
-                        paddingRight: 15
-                    }}
-                    onPress={() => {
-                        setOpenedCards({
-                            ...openedCards,
-                            theme: !openedCards.theme
-                        });
-                    }}
-                    animatedStyle={animatedCardStyle}
+                <DropdownSelectionCard
+                    theme={theme}
+                    name='Theme:'
                     outlined={themeData.cardOutlined}
-                >
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>
-                        Theme: <Text style={{color: theme.s3}}>{themeContext.themeData.theme}</Text>
-                    </Text>
-                    <View style={[styles.settings_icon, {top: 15/2}]}>
-                        <MaterialDesignIcon 
-                            name={openedCards.theme ? 'chevron-up' : 'chevron-down'} 
-                            size={30} 
-                            color={theme.s4}
-                        />
-                    </View>
-                    <Animated.View
-                        style={[
-                            {
-                                width: '100%', 
-                                top: 15,
-                                overflow: 'hidden'
-                            },
-                            animatedDropdownContentStyle
-                        ]}
-                    >
-                        {themeBoxes.map(box => box)}
-                    </Animated.View>
-                </PressableCard>
+                    containerStyle={{ marginBottom: 10 }}
+                    heightCollapsed={settingCardHeight}
+                    heightExpanded={colorwaysDropdownHeight}
+                    shortenedOptionsList={themeNames}
+                    optionsList={themeNames}
+                    selectOptionHeight={settingCardHeight}
+                    initialSelectIndex={themeNames.indexOf(themeData.theme)}
+                    onChange={(index) => {
+                        let newThemeName = themeNames[index];
+                        if (newThemeName !== themeData.theme) {
+                            setTheme({...themeData, theme: newThemeName, swatch: colorways[newThemeName]});
+                        }
+                    }}
+                />
                 {/* <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, {color: theme.s4}]}>Outlined cards: </Text>
                     <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
@@ -328,73 +259,7 @@ const CosmeticsScreen = ({ navigation }) => {
                     </View>
                 </Card>
 
-                {/* <DividerHeader text='Planner' theme={theme} />
-                <PressableCard 
-                    theme={theme} 
-                    containerStyle={{
-                        marginBottom: 10
-                    }}
-                    pressableStyle={{
-                        paddingLeft: 15,
-                        paddingRight: 15
-                    }}
-                    onPress={() => {}}
-                    animatedStyle={}
-                    outlined={themeData.cardOutlined}
-                >
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Section colors:</Text>
-                    <View style={[styles.settings_icon, {top: 15/2}]}>
-                        <MaterialDesignIcon 
-                            name={openedCards.theme ? 'chevron-up' : 'chevron-down'} 
-                            size={30} 
-                            color={theme.s4}
-                        />
-                    </View>
-                </PressableCard>
-                <PressableCard 
-                    theme={theme} 
-                    containerStyle={{
-                        marginBottom: 10
-                    }}
-                    pressableStyle={{
-                        paddingLeft: 15,
-                        paddingRight: 15
-                    }}
-                    onPress={() => {}}
-                    animatedStyle={}
-                    outlined={themeData.cardOutlined}
-                >
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Event priority colors:</Text>
-                    <View style={[styles.settings_icon, {top: 15/2}]}>
-                        <MaterialDesignIcon 
-                            name={openedCards.theme ? 'chevron-up' : 'chevron-down'} 
-                            size={30} 
-                            color={theme.s4}
-                        />
-                    </View>
-                </PressableCard>
-                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Use relative dates:</Text>
-                    <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
-                        <Switch
-                            trackColor={{false: theme.s11, true: theme.s10}}
-                            thumbColor={theme.s6}
-                            onValueChange={() => {}}
-                            value={true}
-                        />
-                    </View>
-                </Card>
-                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Show absolute dates:</Text>
-                    <View style={[styles.settings_icon, {width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12}]}>
-                        <Switch 
-                            trackColor={{false: theme.s11, true: theme.s10}}
-                            thumbColor={theme.s6}
-                            onValueChange={() => {}}
-                            value={true}
-                        />
-                    </View>
-                </Card> */}
+                {/* TODO: planner settings | section colors, event priority colors, use relative dates, show absolute dates */}
             </View>
         </View>
     );
@@ -413,14 +278,14 @@ const SettingsScreen = ({ navigation }) => {
                     headerShown: false,
                 }}
             />
-            {/* <SettingsStack.Screen 
+            <SettingsStack.Screen 
                 name = 'Functions' 
                 component = { FunctionsScreen } 
                 options = {{
                     title: 'Functions Settings',
                     headerShown: false,
                 }}
-            /> */}
+            />
             <SettingsStack.Screen 
                 name = 'Cosmetics' 
                 component = { CosmeticsScreen } 

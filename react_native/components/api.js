@@ -29,8 +29,8 @@ export const login = async() => {
     }
 }
 
-export const getGrades = async(username, password, quarter) => {                   // NOTE: MUST ENCRYPT DATA BEFORE SENDING IN PRODUCTION BUILD!!! 
-    try {                                                                          // We can't send plaintext passwords over unprotected networks!!!
+export const getGrades = async(username, password, quarter) => {
+    try {
         const response = await fetch(fullurl + 'grades', {                
             method: 'POST',                                                        
             headers: {
