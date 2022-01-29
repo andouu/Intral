@@ -7,7 +7,7 @@ import {
     ScrollView,
     Dimensions
 } from 'react-native';
-import { toRGBA } from './utils';
+import { toRGBA, hslStringToHSLA, getRandomKey } from './utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ThemeContext } from './themeContext';
 
@@ -334,21 +334,46 @@ const HourIndicator = ({ theme, axis, boxSize, dateToday }) => {    // Only for 
     );
 }
 
-const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
-    let result = ''
-    let characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let charlen = characters.length;
-    for(let i = 0; i < length; i ++) {
-        result += characters.charAt(Math.floor(Math.random() * charlen));
+export function isToday({ day, month, year }) {
+    let today = new Date();
+    let sameDay = day === today.getDate();
+    let sameMonth = month === today.getMonth() + 1;
+    let sameYear = year === today.getFullYear();
+    if (sameDay && sameMonth && sameYear) {
+        return true;
     }
-    return result;
-};
+    return false;
+}
 
-function hslStringToHSLA(hslString, opacity)
-{
-    let alphaComma = hslString.lastIndexOf(',');
-    let hsl = hslString.substr(0, alphaComma + 1);
-    return hsl + opacity.toString() + ')';
+export function isTomorrow({ day, month, year }) {
+    let today = new Date();
+    let isTomorrow = today.getDate() + 1 === day;
+    let sameMonth = month === today.getMonth() + 1;
+    let sameYear = year === today.getFullYear();
+    if (isTomorrow && sameMonth && sameYear) {
+        return true;
+    }
+    return false;
+}
+
+export function isThisWeek({ day, month, year }) {
+    let today = new Date();
+    let dayOfMonth = today.getDate();
+    let weekDay = dayOfWeek(dayOfMonth, month, year);
+    if (dayOfWeek === 0) dayOfWeek = 7;
+
+    let lastDayOfWeek = dayOfMonth + (7 - weekDay);
+    let withinWeek = lastDayOfWeek >= day && day >= lastDayOfWeek - 7;
+    let sameMonth = month === today.getMonth() + 1;
+    let sameYear = year === today.getFullYear();
+    if (withinWeek && sameMonth && sameYear) {
+        return true;
+    }
+    return false;
+}
+
+export function isSameDate ({ day, month, year }, { day: day2, month: month2, year: year2 }) {
+    return day === day2 && month === month2 && year === year2;
 }
 
 /**
@@ -376,21 +401,13 @@ const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
                     endTime: event.event.endTime,
                     color: sectionColor,
                 }
-                if (isNotToday(formattedEvent.endDate)) {
+                if (!isToday(formattedEvent.endDate)) {
                     formattedEvent.endTime = '2400';
                 }
                 formattedData.push(formattedEvent);
             }
         }
         return formattedData;
-    }
-
-    function isNotToday({ day, month, year }) {
-        let today = new Date();
-        if (today.getFullYear() !== year) return true;
-        if (today.getMonth() + 1 !== month) return true;
-        if (today.getDate() !== day) return true;
-        return false;
     }
     
     let theBoxes = []; // array of React Components to return
@@ -447,41 +464,43 @@ const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
                 }
                 //TODO: On eventbox press, open a modal showing the details of the event
                 let eventStartDate = event.startDate;
-                if (!isNotToday(eventStartDate)) theBoxes.push(
-                    <View 
-                        key={randomKey} 
-                        style={{ 
-                            justifyContent: 'center',
-                            padding: 10,
-                            position: 'absolute', 
-                            top: yStart, 
-                            left: xStart,
-                            width: xEnd - xStart, 
-                            height: yEnd - yStart,
-                            borderRadius: 0,
-                            borderTopWidth: axis === 'vertical' ? 5 : 0,
-                            borderLeftWidth: axis === 'vertical' ? 0 : 5,
-                            borderColor: sortedData[currEvent].color,
-                            backgroundColor: hslStringToHSLA(sortedData[currEvent].color, 0.5), 
-                        }}
-                    >
-                        <Text 
-                            style={[
-                                styles.eventBoxText, 
-                                { 
-                                    alignSelf: axis === 'vertical' ? 'center' : null,
-                                    width: axis === 'vertical' ? yEnd - yStart - 20 : null,
-                                    height: axis === 'vertical' ? 'auto' : null,
-                                    transform: [{rotateZ: axis === 'vertical' ? '90deg' : '0deg'}], 
-                                    color: toRGBA(theme.s6, 0.8),
-                                }
-                            ]}
-                            numberOfLines={1}
+                if (isToday(eventStartDate)) {
+                    theBoxes.push(
+                        <View 
+                            key={randomKey} 
+                            style={{ 
+                                justifyContent: 'center',
+                                padding: 10,
+                                position: 'absolute', 
+                                top: yStart, 
+                                left: xStart,
+                                width: xEnd - xStart, 
+                                height: yEnd - yStart,
+                                borderRadius: 0,
+                                borderTopWidth: axis === 'vertical' ? 5 : 0,
+                                borderLeftWidth: axis === 'vertical' ? 0 : 5,
+                                borderColor: sortedData[currEvent].color,
+                                backgroundColor: hslStringToHSLA(sortedData[currEvent].color, 0.5), 
+                            }}
                         >
-                            { sortedData[currEvent].name }
-                        </Text>
-                    </View>
-                );
+                            <Text 
+                                style={[
+                                    styles.eventBoxText, 
+                                    { 
+                                        alignSelf: axis === 'vertical' ? 'center' : null,
+                                        width: axis === 'vertical' ? yEnd - yStart - 20 : null,
+                                        height: axis === 'vertical' ? 'auto' : null,
+                                        transform: [{rotateZ: axis === 'vertical' ? '90deg' : '0deg'}], 
+                                        color: toRGBA(theme.s6, 0.8),
+                                    }
+                                ]}
+                                numberOfLines={1}
+                            >
+                                { sortedData[currEvent].name }
+                            </Text>
+                        </View>
+                    );
+                }
 
                 toErase.push(sortedData[currEvent]);
                 if (endHour > startHour) {
