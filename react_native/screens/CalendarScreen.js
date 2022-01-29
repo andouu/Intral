@@ -8,9 +8,13 @@ import {
     PixelRatio,
     TouchableOpacity,
     ScrollView,
+    ActivityIndicator,
+    FlatList,
+    SafeAreaView,
 } from 'react-native';
-import { StaticCalendar, SmallPressableCalendar, ScrollingCalendar } from '../components/Calendar';
-import { toRGBA } from '../components/utils';
+import { useIsFocused } from '@react-navigation/native';
+import { StaticCalendar, SmallPressableCalendar, ScrollingCalendar, isToday, isTomorrow, isThisWeek, isSameDate } from '../components/Calendar';
+import { toRGBA, heightPctToDP, hslStringToHSLA } from '../components/utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ThemeContext } from '../components/themeContext';
 import Animated, {
@@ -18,6 +22,7 @@ import Animated, {
     useAnimatedStyle,
     Easing,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const dayOfWeek = (d, m, y) => { // https://www.geeksforgeeks.org/find-day-of-the-week-for-a-given-date/
@@ -73,25 +78,29 @@ const Header = ({ theme, navigation, changeView }) => {
     );
 }
 
-const EListBtnGroup = (props) => {
+const EventListBtnGroup = (props) => {
     const { theme, style, range, setRange } = props;
     const rangeDict = {
         'Today': 0,
         'Tomorrow': 1,
         'This Week': 2,
     }
+    let displayRange = range in rangeDict;
     const groupWidth = widthPctToDP(80, 20);
 
     const animatedSelectedIndicatorStyle = useAnimatedStyle(() => {
+        let leftPos = displayRange ? rangeDict[range] * groupWidth/3 + 5 : 0; // extra safety in case somehow this is displayed when there is nothing to display
         return {
-            left: withTiming(rangeDict[range] * groupWidth/3 + 5, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            left: withTiming(leftPos, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
         }
     });
 
     return (
         // TODO: refactor below lines to use themecontext cardOutlined after merge with settings/main
-        <View style={[styles.eList_btn_group, {backgroundColor: theme.s1, borderColor: theme.s13}, style]}>
-            <Animated.View style={[styles.eList_selector, {width: groupWidth/3 - 5, backgroundColor: theme.s8}, animatedSelectedIndicatorStyle]} /> 
+        <View style={[styles.eList_btn_group, { backgroundColor: theme.s1, borderColor: theme.s13 }, style]}>
+            {displayRange && 
+                <Animated.View style={[styles.eList_selector, { width: groupWidth / 3 - 5, backgroundColor: theme.s8 }, animatedSelectedIndicatorStyle]} />
+            }
             <TouchableOpacity
                 style={{
                     flex: 1, 
@@ -129,25 +138,71 @@ const EListBtnGroup = (props) => {
     );
 }
 
+const Assignment = ({ theme, color, text }) => {
+    return (
+        <View style={[styles.assignment, { borderLeftColor: color, backgroundColor: hslStringToHSLA(color, 0.5) }]}>
+            <Text style={[styles.assignment_text, { color: theme.s1 }]}>{text}</Text>
+        </View>
+    );
+}
+
 const CalendarScreen = ({ navigation }) => {
-    const [eventListExpanded, setEventListExpanded] = useState(false);
-    const [selectedView, setSelectedView] = useState(null);
     const dateToday = new Date();
+    const [eventListExpanded, setEventListExpanded] = useState(false);
+    const [expandedHeight, setExpandedHeight] = useState(400);
+    const [selectedView, setSelectedView] = useState(null);
     const [selectedDate, setSelectedDate] = useState({
         day: dateToday.getDate(),
         month: dateToday.getMonth() + 1,
         year: dateToday.getFullYear()
     });
     const [range, setRange] = useState('Today');
+    const [eventSections, setEventSections] = useState([]);
+    const [formattedEvents, setFormattedEvents] = useState([]);
+    const [isLoading, setIsLoading] = useState(true); 
     const viewTypes = ['month', 'year', 'day'];             // types of views the user can switch between: month(default), year(multiple calendar view), day(scrolling), etc.
 
     const themeContext = useContext(ThemeContext);
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
 
+    function formatEvents(eventSections) {
+        let formattedEvents = [];
+        eventSections.forEach(section => {
+            section.events.forEach(event => {
+                let formattedEvent = event;
+                formattedEvent.color = section.color;
+                formattedEvent.section = section.name;
+                formattedEvents.push(formattedEvent);
+            });
+        });
+        setFormattedEvents(formattedEvents);
+    }
+
+    // today, tomorrow, this week
+    function sortEventsByRange(events, range) {
+        switch (range) {
+            case 'Today':
+                const eventsToday = events.filter(event => isToday(event.event.startDate));
+                return eventsToday;
+            case 'Tomorrow':
+                const eventsTomorrow = events.filter(event => isTomorrow(event.event.startDate));
+                return eventsTomorrow;
+            case 'This Week':
+                const eventsThisWeek = events.filter(event => isThisWeek(event.event.startDate));
+                return eventsThisWeek;
+            case 'User Selected Date':
+                const eventsOnDate = events.filter(event => isSameDate(event.event.startDate, selectedDate));
+                return eventsOnDate;
+            default:
+                return events;
+        }
+    }
+
     const animatedEventListStyle = useAnimatedStyle(() => {
         return {
-            top: withTiming(eventListExpanded ? -360 : 40, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            bottom: withTiming(eventListExpanded ? expandedHeight : -20, {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            height: withTiming(eventListExpanded ? '90%' : '35%', {duration: 400, easing: Easing.bezier(0.5, 0.01, 0, 1)})
         }
     });
 
@@ -155,6 +210,7 @@ const CalendarScreen = ({ navigation }) => {
         return {
             fontSize: withTiming(eventListExpanded ? 30 : 25, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
             marginBottom: withTiming(eventListExpanded ? 5 : 20, {duration: 200, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
+            top: withTiming(eventListExpanded ? 0 : 15, {duration: 500, easing: Easing.bezier(0.5, 0.01, 0, 1)}),
         }
     });
 
@@ -167,7 +223,7 @@ const CalendarScreen = ({ navigation }) => {
 
     let eventListSubheaderText;
     let selectedDayOfWeek = dayOfWeek(selectedDate.day, selectedDate.month, selectedDate.year);
-    switch(range) {
+    switch (range) {
         case 'Today':
             eventListSubheaderText = `${daysOfWeek[selectedDayOfWeek]}, ${selectedDate.month}/${selectedDate.day}/${selectedDate.year}`;
             break;
@@ -204,6 +260,15 @@ const CalendarScreen = ({ navigation }) => {
         )
     }, []);
 
+    function handleSelectDate(date) {
+        setSelectedDate({
+            day: date.day,
+            month: date.month,
+            year: date.year
+        });
+        setRange('User Selected Date');
+    }
+
     let CalendarComponent = ({ viewTypeIdx }) => {
         let viewType = viewTypes[viewTypeIdx];
         
@@ -211,7 +276,12 @@ const CalendarScreen = ({ navigation }) => {
             case 'month':
                 return (
                     <View style={{ width: '100%', height: '45%', marginBottom: 20 }}>
-                        <StaticCalendar dateToday={dateToday} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+                        <StaticCalendar 
+                            dateToday={dateToday} 
+                            selectedDate={selectedDate} 
+                            setSelectedDate={handleSelectDate} 
+                            containerStyle={{ marginBottom: 5}} 
+                        />
                     </View>
                 );
             case 'year':
@@ -220,7 +290,7 @@ const CalendarScreen = ({ navigation }) => {
                 );
             case 'day':
                 return (
-                    <ScrollingCalendar theme={theme} />
+                    <ScrollingCalendar theme={theme} eventData={eventSections} />
                 );
             default:
                 return null;
@@ -236,9 +306,43 @@ const CalendarScreen = ({ navigation }) => {
             setSelectedView(0);
     }
 
-    useEffect(() => {
-        setSelectedView(0);
-    }, [])
+    const isFocused = useIsFocused();
+
+    useEffect(async () => {
+        try {
+            if (!isFocused) return;
+
+            setExpandedHeight(heightPctToDP(55, 10));
+            setSelectedView(0);
+            // get events from storage
+            let events = await AsyncStorage.getItem('plannerEvents');
+            let parsed = await JSON.parse(events);
+            setEventSections(parsed);
+            formatEvents(parsed);
+            setIsLoading(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }, [isFocused]);
+
+    if (isLoading)
+    {
+        return (
+            <View style = {{flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}}>
+                <ActivityIndicator size = 'large' color = {theme.s4} />
+            </View>
+        );
+    }
+
+    // render function for day/week/month view of events
+    const renderItem = ({ item, index }) => {
+        let theme = themeData.swatch;
+        let color = item.color;
+        let { text } = item.event;
+        return (
+            <Assignment theme={theme} color={color} text={text} />
+        );
+    };
     
     return (
         <View style={[styles.container, {backgroundColor: theme.s1}]}>
@@ -251,7 +355,18 @@ const CalendarScreen = ({ navigation }) => {
                 {viewTypes[selectedView] == 'month' &&                  // BUG: shows expanded event list for a split second before rendering correctly
                     <View style={{width: '100%', height: '100%'}}> 
                         <Animated.View style={[styles.event_list_container, {backgroundColor: theme.s1}, animatedEventListStyle]}>
-                            <Animated.Text style={[styles.header_text, {color: theme.s6}, animatedEventListHeaderStyle]}>{range}'s Events:</Animated.Text>
+                            <Animated.Text 
+                                style={[
+                                    styles.header_text, 
+                                    { color: theme.s6 }, 
+                                    animatedEventListHeaderStyle
+                                ]}
+                            >
+                                {range !== 'User Selected Date'
+                                    ? `${range}'s Events:`
+                                    : `Events on ${selectedDate.month}/${selectedDate.day}/${selectedDate.year}:`
+                                }
+                            </Animated.Text>
                             <Animated.Text style={[{fontFamily: 'Proxima Nova Bold', left: 5, color: theme.s4}, animatedEventListSubheaderStyle]}>
                                 {eventListSubheaderText}
                             </Animated.Text>
@@ -259,6 +374,7 @@ const CalendarScreen = ({ navigation }) => {
                                 style={({pressed}) => [
                                     {
                                         position: 'absolute',
+                                        top: eventListExpanded ? 0 : 12.5,
                                         right: 0,
                                         width: 35,
                                         height: 35,
@@ -274,12 +390,22 @@ const CalendarScreen = ({ navigation }) => {
                             >
                                 <MaterialDesignIcons name='arrow-expand' size={18} color={theme.s4} />
                             </Pressable>
+                            <View style={{ paddingTop: 15, paddingBottom: eventListExpanded ? 10 : 30, }}>
+                                <SafeAreaView>
+                                    <FlatList
+                                        data={sortEventsByRange(formattedEvents, range)}
+                                        renderItem={(item) => renderItem(item)}
+                                        keyExtractor={(item) => item.key}
+                                        ListFooterComponent={<View style={styles.assignment} />}
+                                    />
+                                </SafeAreaView>
+                            </View>
                         </Animated.View>
                     </View>
                 }
                 {/* can't put the button group with event list because of absolute position */}
                 {viewTypes[selectedView] == 'month' &&
-                    <EListBtnGroup theme={theme} range={range} setRange={setRange} />
+                    <EventListBtnGroup theme={theme} range={range} setRange={setRange} />
                 }
             </View>
         </View>
@@ -369,6 +495,18 @@ const styles = StyleSheet.create({
         width: '100%', 
         flexDirection: 'row', 
         flexWrap: 'wrap',
+    },
+    assignment: {
+        width: '100%',
+        height: 50,
+        paddingLeft: 10,
+        borderLeftWidth: 5,
+        borderRadius: 3.5,
+        justifyContent: 'center',
+        marginBottom: 5,
+    },
+    assignment_text: {
+        fontFamily: 'Proxima Nova Bold',
     }
 });
 

@@ -137,10 +137,10 @@ const DraggableItem = (props) => {
     const isLast = props.index === props.dataSize - 1;
 
     const priorityColors = [props.theme.s13, props.theme.s9, props.theme.s1];
-    let priorityColor = priorityColors[props.item.data.priority - 1];
+    let priorityColor = priorityColors[props.item.event.priority - 1];
 
-    const endDateText = getDateText(props.item.data.endDate.day, props.item.data.endDate.month, props.item.data.endDate.year);
-    const { alertText, alertColor } = getAlertInfo(props.item.data.endDate, props.item.data.endTime, props.theme);
+    const endDateText = getDateText(props.item.event.endDate.day, props.item.event.endDate.month, props.item.event.endDate.year);
+    const { alertText, alertColor } = getAlertInfo(props.item.event.endDate, props.item.event.endTime, props.theme);
 
     const UnderlayRight = ({ item, percentOpen, open, close }) => {
         return (
@@ -173,8 +173,10 @@ const DraggableItem = (props) => {
                         borderColor: props.theme.s8,
                     }}>
                         <View style={{ borderRadius: 15, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8), marginBottom: 10, }]}>{get12HourTimeText(item.data.startTime) + ' ' + getDateText(item.data.startDate.day, item.data.startDate.month, item.data.startDate.year)}</Text>
-                            <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8) }]}>{get12HourTimeText(item.data.endTime) + ' ' + endDateText}</Text>
+                            <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8), marginBottom: 10, }]}>
+                                {get12HourTimeText(item.event.startTime) + ' ' + getDateText(item.event.startDate.day, item.event.startDate.month, item.event.startDate.year)}
+                            </Text>
+                            <Text style={[styles.event_underlay_text, { color: toRGBA(props.theme.s6, 0.8) }]}>{get12HourTimeText(item.event.endTime) + ' ' + endDateText}</Text>
                         </View>
                     </View>
                 </View>
@@ -238,24 +240,24 @@ const DraggableItem = (props) => {
                     onPress={() => props.handleAddMenuOpen(true, {
                         key: props.item.key,
                         sectionName: props.sectionData.name,
-                        priority: props.item.data.priority,
-                        description: props.item.data.text,
+                        priority: props.item.event.priority,
+                        description: props.item.event.text,
                         startDate: {
-                            day: props.item.data.startDate.day,
-                            month: props.item.data.startDate.month,
-                            year: props.item.data.startDate.year,
+                            day: props.item.event.startDate.day,
+                            month: props.item.event.startDate.month,
+                            year: props.item.event.startDate.year,
                         },
-                        startTime: props.item.data.startTime,
+                        startTime: props.item.event.startTime,
                         endDate: {
-                            day: props.item.data.endDate.day,
-                            month: props.item.data.endDate.month,
-                            year: props.item.data.endDate.year,
+                            day: props.item.event.endDate.day,
+                            month: props.item.event.endDate.month,
+                            year: props.item.event.endDate.year,
                         },
-                        endTime: props.item.data.endTime,
+                        endTime: props.item.event.endTime,
                     })}
                 >
                     <View style={{ paddingRight: alertText !== 'FTR' ? 45 : 0 }}>
-                        <Text style={[styles.event_text, {color: props.theme.s6}]}>{props.item.data.text}</Text>
+                        <Text style={[styles.event_text, {color: props.theme.s6}]}>{props.item.event.text}</Text>
                     </View>
                     {alertText !== 'FTR' &&
                         <View style={{ position: 'absolute', right: 15, width: 45, alignItems: 'center', justifyContent: 'center' }}>
@@ -275,7 +277,7 @@ const DraggableItem = (props) => {
 }
 
 const BorderedFlatList = (props) => {
-    if(props.data.data.length <= 0) {
+    if(props.data.events.length <= 0) {
         return null;
     }
 
@@ -287,7 +289,7 @@ const BorderedFlatList = (props) => {
             <View style={{ borderLeftWidth: 1.5, borderLeftColor: props.data.color, borderRadius: 11 }}>
                 <View style={{ borderRadius: 11, overflow: 'hidden' }}>
                     <DraggableFlatList 
-                        data={props.data.data}
+                        data={props.data.events}
                         renderItem={({item, index, drag, isActive}) => 
                             <DraggableItem 
                                 theme={props.theme} 
@@ -296,7 +298,7 @@ const BorderedFlatList = (props) => {
                                 index={index} 
                                 drag={drag} 
                                 isActive={isActive} 
-                                dataSize={props.data.data.length} 
+                                dataSize={props.data.events.length} 
                                 handleAddMenuOpen={props.handleAddMenuOpen}
                                 handleDelete={props.handleDelete}
                                 handleScrollEnabled={props.handleScrollEnabled}
@@ -366,15 +368,15 @@ const EventList = (props) => {
     });
     
     const checkEventsEmpty = () => {
-        for (let i = 0; i < props.sortedEvents.length; i ++) {
-            if (props.sortedEvents[i].data.length !== 0) {
+        for (let i = 0; i < props.sortedEvents.length; i++) {
+            if (props.sortedEvents[i].events.length !== 0) {
                 return false;
             }
         }
         return true;
     };
 
-    if(checkEventsEmpty()) {
+    if (checkEventsEmpty()) {
         return (
             <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
                 <Text style={[styles.helper_text, {color: props.theme.s6, bottom: 60}]}>No events right now... click the add button to create one!</Text>
@@ -1218,10 +1220,16 @@ const PlannerPage = ({ navigation }) => {
 
     const refreshClasses = async () => {
         try {
+            // check if there is already planner data. If there is, return. otherwise create new sections and set the data
+            let storedEvents = await AsyncStorage.getItem('plannerEvents');
+            if (storedEvents !== null)
+                return;
+
             let storedClasses = await AsyncStorage.getItem('classes');
             let parsed = await JSON.parse(storedClasses);
             if (Array.isArray(parsed)) {
-                let eventSections, sectionNames = [];
+                let eventSections;
+                let sectionNames = [];
                 if (events.length === 0) {
                     eventSections = [];
                     for (let i = 0; i < parsed.length; i++) {
@@ -1230,10 +1238,10 @@ const PlannerPage = ({ navigation }) => {
                         eventSections.push({
                             // TODO: get color from async storage
                             key: getRandomKey(10),
-                            color: '',
+                            color: randomHSL(),
                             index: i,
                             name: cleanTitle,
-                            data: [],
+                            events: [],
                         });
                         sectionNames.push(cleanTitle);
                     }
@@ -1289,9 +1297,9 @@ const PlannerPage = ({ navigation }) => {
             if(dataArr.color === '') {
                 dataArr.color = randomColor;
             }
-            dataArr.data.push({
+            dataArr.events.push({
                 key: randomKey,
-                data: {
+                event: {
                     text: initData.description,
                     priority: initData.priority,
                     charsLeft: MAX_EVENT_CHARS - initData.description.length,
@@ -1321,7 +1329,7 @@ const PlannerPage = ({ navigation }) => {
         try {
             let newEvents = events.slice();
             let section = newEvents.find(elem => elem.name === sectionName);
-            section.data.splice(section.data.findIndex(event => event.key === itemKey), 1);
+            section.events.splice(section.events.findIndex(event => event.key === itemKey), 1);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setEvents(newEvents);
@@ -1400,7 +1408,7 @@ const PlannerPage = ({ navigation }) => {
                 color: '',
                 index: newIdx,
                 name: newSectionName,
-                data: [],
+                events: [],
             });
             setEvents(newEvents);
             await AsyncStorage.setItem('plannerEvents', JSON.stringify(newEvents));
@@ -1434,7 +1442,7 @@ const PlannerPage = ({ navigation }) => {
         return result;
     };
 
-    if(isLoading) {
+    if (isLoading) {
         return (
             <View style = {[styles.container, {alignItems: 'center', justifyContent: 'center', backgroundColor: theme.s1}]}>
                 <ActivityIndicator size='large' color={theme.s4} />

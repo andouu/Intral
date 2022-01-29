@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
     StyleSheet,
     View,
@@ -7,7 +7,7 @@ import {
     ScrollView,
     Dimensions
 } from 'react-native';
-import { toRGBA } from './utils';
+import { toRGBA, hslStringToHSLA, getRandomKey } from './utils';
 import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ThemeContext } from './themeContext';
 
@@ -334,15 +334,47 @@ const HourIndicator = ({ theme, axis, boxSize, dateToday }) => {    // Only for 
     );
 }
 
-const getRandomKey = (length) => { // only pseudorandom, do not use for any sensitive data
-    let result = ''
-    let characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let charlen = characters.length;
-    for(let i = 0; i < length; i ++) {
-        result += characters.charAt(Math.floor(Math.random() * charlen));
+export function isToday({ day, month, year }) {
+    let today = new Date();
+    let sameDay = day === today.getDate();
+    let sameMonth = month === today.getMonth() + 1;
+    let sameYear = year === today.getFullYear();
+    if (sameDay && sameMonth && sameYear) {
+        return true;
     }
-    return result;
-};
+    return false;
+}
+
+export function isTomorrow({ day, month, year }) {
+    let today = new Date();
+    let isTomorrow = today.getDate() + 1 === day;
+    let sameMonth = month === today.getMonth() + 1;
+    let sameYear = year === today.getFullYear();
+    if (isTomorrow && sameMonth && sameYear) {
+        return true;
+    }
+    return false;
+}
+
+export function isThisWeek({ day, month, year }) {
+    let today = new Date();
+    let dayOfMonth = today.getDate();
+    let weekDay = dayOfWeek(dayOfMonth, month, year);
+    if (dayOfWeek === 0) dayOfWeek = 7;
+
+    let lastDayOfWeek = dayOfMonth + (7 - weekDay);
+    let withinWeek = lastDayOfWeek >= day && day >= lastDayOfWeek - 7;
+    let sameMonth = month === today.getMonth() + 1;
+    let sameYear = year === today.getFullYear();
+    if (withinWeek && sameMonth && sameYear) {
+        return true;
+    }
+    return false;
+}
+
+export function isSameDate ({ day, month, year }, { day: day2, month: month2, year: year2 }) {
+    return day === day2 && month === month2 && year === year2;
+}
 
 /**
  * Renders the eventboxes for the scrolling calendar.
@@ -354,8 +386,32 @@ const getRandomKey = (length) => { // only pseudorandom, do not use for any sens
  * @returns {array} array of React Components
  */
 const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
+    function formatEventData(eventData) {
+        // TODO: only include events for the day
+        let formattedData = [];
+        for (let section = 0; section < eventData.length; section++) {
+            let sectionColor = eventData[section].color;
+            let sectionEvents = eventData[section].events;
+            for (let event of sectionEvents) {
+                formattedEvent = {
+                    startDate: event.event.startDate,
+                    endDate: event.event.endDate,
+                    name: event.event.text,
+                    startTime: event.event.startTime,
+                    endTime: event.event.endTime,
+                    color: sectionColor,
+                }
+                if (!isToday(formattedEvent.endDate)) {
+                    formattedEvent.endTime = '2400';
+                }
+                formattedData.push(formattedEvent);
+            }
+        }
+        return formattedData;
+    }
+    
     let theBoxes = []; // array of React Components to return
-    let eventDataCopy = eventData.slice();
+    let eventDataCopy = formatEventData(eventData);
     let sortedData = eventDataCopy.sort((firstElem, secondElem) => {
         if (firstElem.startTime < secondElem.startTime)
             return -1;
@@ -363,9 +419,9 @@ const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
             return 1;
 
         // else the element starting times must be equal, so have the longer event take precedence
-        if(firstElem.endTime > secondElem.endTime)
+        if (firstElem.endTime > secondElem.endTime)
             return -1;
-        else if(firstElem.endTime < secondElem.endTime)
+        else if (firstElem.endTime < secondElem.endTime)
             return 1;
         else
             return 0;
@@ -376,23 +432,26 @@ const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
     let numEvents = sortedData.length;
 
     const boxMargin = 15;
-    for(let currRow = 0; currRow < numRows; currRow++) {
+
+    for (let currRow = 0; currRow < numRows; currRow++) {
         let toErase = [];
-        for(let currEvent = 0; currEvent < numEvents; currEvent++) {
+        for (let currEvent = 0; currEvent < numEvents; currEvent++) {
+            let event = sortedData[currEvent];
+
             let startHour, endHour, startMinute, endMinute;
             let xStart, yStart, xEnd, yEnd;
             let extensionSize = 45;
             let dividend = (axis === 'vertical') ? boxSize.height : boxSize.width;
 
-            startHour = Number(sortedData[currEvent].startTime.substr(0, 2));
-            endHour = Number(sortedData[currEvent].endTime.substr(0, 2));
-            startMinute = Number(sortedData[currEvent].startTime.substr(2, 2));
-            endMinute = Number(sortedData[currEvent].endTime.substr(2, 2));
+            startHour = Number(event.startTime.substr(0, 2));
+            endHour = Number(event.endTime.substr(0, 2));
+            startMinute = Number(event.startTime.substr(2, 2));
+            endMinute = Number(event.endTime.substr(2, 2));
 
-            if(earliestPerHour[currRow][startHour] <= startMinute) {
+            if (earliestPerHour[currRow][startHour] <= startMinute) {
                 const randomKey = getRandomKey(10);
 
-                if(axis === 'horizontal') {
+                if (axis === 'horizontal') {
                     xStart = startHour * dividend + dividend / 60 * startMinute;
                     xEnd = endHour * dividend + dividend / 60 * endMinute;
                     yStart = decoratorSize + boxMargin + currRow * boxMargin + currRow * extensionSize;
@@ -404,118 +463,68 @@ const EventBoxes = ({ theme, eventData, axis, boxSize, decoratorSize }) => {
                     yEnd = endHour * dividend + dividend / 60 * endMinute;
                 }
                 //TODO: On eventbox press, open a modal showing the details of the event
-                theBoxes.push(
-                    <View 
-                        key={randomKey} 
-                        style={{ 
-                            justifyContent: 'center',
-                            padding: 10,
-                            position: 'absolute', 
-                            top: yStart, 
-                            left: xStart,
-                            width: xEnd - xStart, 
-                            height: yEnd - yStart,
-                            borderRadius: 0,
-                            borderTopWidth: axis === 'vertical' ? 5 : 0,
-                            borderLeftWidth: axis === 'vertical' ? 0 : 5,
-                            borderColor: sortedData[currEvent].color,
-                            backgroundColor: toRGBA(sortedData[currEvent].color, 0.5), 
-                        }}
-                    >
-                        <Text 
-                            style={[
-                                styles.eventBoxText, 
-                                { 
-                                    alignSelf: axis === 'vertical' ? 'center' : null,
-                                    width: axis === 'vertical' ? yEnd - yStart - 20 : null,
-                                    height: axis === 'vertical' ? 'auto' : null,
-                                    transform: [{rotateZ: axis === 'vertical' ? '90deg' : '0deg'}], 
-                                    color: toRGBA(theme.s6, 0.8),
-                                }
-                            ]}
-                            numberOfLines={1}
+                let eventStartDate = event.startDate;
+                if (isToday(eventStartDate)) {
+                    theBoxes.push(
+                        <View 
+                            key={randomKey} 
+                            style={{ 
+                                justifyContent: 'center',
+                                padding: 10,
+                                position: 'absolute', 
+                                top: yStart, 
+                                left: xStart,
+                                width: xEnd - xStart, 
+                                height: yEnd - yStart,
+                                borderRadius: 0,
+                                borderTopWidth: axis === 'vertical' ? 5 : 0,
+                                borderLeftWidth: axis === 'vertical' ? 0 : 5,
+                                borderColor: sortedData[currEvent].color,
+                                backgroundColor: hslStringToHSLA(sortedData[currEvent].color, 0.5), 
+                            }}
                         >
-                            { sortedData[currEvent].name }
-                        </Text>
-                    </View>
-                );
-                
+                            <Text 
+                                style={[
+                                    styles.eventBoxText, 
+                                    { 
+                                        alignSelf: axis === 'vertical' ? 'center' : null,
+                                        width: axis === 'vertical' ? yEnd - yStart - 20 : null,
+                                        height: axis === 'vertical' ? 'auto' : null,
+                                        transform: [{rotateZ: axis === 'vertical' ? '90deg' : '0deg'}], 
+                                        color: toRGBA(theme.s6, 0.8),
+                                    }
+                                ]}
+                                numberOfLines={1}
+                            >
+                                { sortedData[currEvent].name }
+                            </Text>
+                        </View>
+                    );
+                }
 
                 toErase.push(sortedData[currEvent]);
-                if(endHour > startHour) {
-                    for(let currHourUntilEnd = startHour; currHourUntilEnd < endHour; currHourUntilEnd++) {
+                if (endHour > startHour) {
+                    for (let currHourUntilEnd = startHour; currHourUntilEnd < endHour; currHourUntilEnd++) {
                         earliestPerHour[currRow][currHourUntilEnd] = 60;
                     }
                 }
                 earliestPerHour[currRow][endHour] = endMinute;
             }
         }
-        for(let itemToErase = 0; itemToErase < toErase.length; itemToErase++) {
+        for (let itemToErase = 0; itemToErase < toErase.length; itemToErase++) {
             let indexToErase = sortedData.findIndex(compElem => compElem.name === toErase[itemToErase].name);
             sortedData.splice(indexToErase, 1);
             numEvents--;
         }
-        if(numEvents > 0) {
+        if (numEvents > 0) {
             numRows++;
             earliestPerHour.push(new Array(24).fill(0));
         }
     }
-
     return theBoxes;
 }
 
-const tempData = [
-    {
-        name: 'Event 1',
-        startTime: '0000',
-        endTime: '0100',
-        color: 'rgb(1,112,255)',
-    },
-    {
-        name: 'Event 2',
-        startTime: '0030',
-        endTime: '0300',
-        color: 'rgb(255,59,59)',
-    },
-    {
-        name: 'Reading before sleep',
-        startTime: '2200',
-        endTime: '2300',
-        color: 'rgb(119,51,255)',
-    },
-    {
-        name: 'School',
-        startTime: '0800',
-        endTime: '1530',
-        color: 'rgb(89,138,197)',
-    },
-    {
-        name: 'Tennis',
-        startTime: '0220',
-        endTime: '0403',
-        color: 'rgb(89,138,197)',
-    },
-    {
-        name: 'Be awake',
-        startTime: '0130',
-        endTime: '0300',
-        color: 'rgb(89,138,197)',
-    },
-    {
-        name: 'Be awake 2',
-        startTime: '0200',
-        endTime: '0400',
-        color: 'rgb(89,138,197)',
-    },
-    {
-        name: 'Period 1',
-        startTime: '0800',
-        endTime: '0855',
-        color: 'rgb(201,155,59)',
-    },
-];
-
-export const ScrollingCalendar = ({ theme }) => {
+export const ScrollingCalendar = ({ theme, eventData }) => {
     const [axis, setAxis] = useState('horizontal');
     const [scrollPositon, setScrollPosition] = useState({
         x: 0,
@@ -579,7 +588,7 @@ export const ScrollingCalendar = ({ theme }) => {
             >
                 <HourIndicator theme={theme} axis={axis} boxSize={hourBoxSize} dateToday={dateToday} />
                 <HourBoxes theme={theme} axis={axis} boxSize={hourBoxSize} scrollPosition={scrollPositon} dateToday={dateToday} />
-                <EventBoxes theme={theme} axis={axis} boxSize={hourBoxSize} decoratorSize={40} eventData={tempData} />
+                <EventBoxes theme={theme} axis={axis} boxSize={hourBoxSize} decoratorSize={40} eventData={eventData} />
             </ScrollView>
         </View>
     );
