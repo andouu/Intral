@@ -29,7 +29,7 @@ export const login = async() => {
     }
 }
 
-export const getGrades = async(username, password, quarter) => {
+export const getGrades = async(username, password, quarter=null) => {
     try {
         const response = await fetch(fullurl + 'grades', {                
             method: 'POST',                                                        

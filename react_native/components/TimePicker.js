@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useContext } from 'react';
 import {
     View,
     Text,
@@ -9,8 +9,6 @@ import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withSpring,
-    withTiming,
-    Easing,
     useAnimatedGestureHandler,
     runOnJS,
 } from 'react-native-reanimated';
@@ -52,7 +50,7 @@ const TimeItem = ({ name, index, halfItemsLength, translate, theme }) => {
 const TimeItemScroller = ({ items, curTimeItem, setTimeItem, theme }) => { // setTimeItem's parameter is an item of items list (a string)
     const halfItemsLength = items.length / 2;
     const curIdx = items.indexOf(curTimeItem);
-    const initialTranslateY = -(curIdx + 1 - halfItemsLength) * itemHeight + (itemHeight / 2) + displayYOffset
+    const initialTranslateY = -(curIdx + 1 - halfItemsLength) * itemHeight + (itemHeight / 2) + displayYOffset;
     const translateY = useSharedValue(initialTranslateY);
     const panGestureEvent = useAnimatedGestureHandler({
         onStart: (event, context) => {
@@ -65,7 +63,7 @@ const TimeItemScroller = ({ items, curTimeItem, setTimeItem, theme }) => { // se
             let selectedIdx = Math.floor(-(translateY.value / itemHeight) + halfItemsLength);
             if (selectedIdx < 0) selectedIdx = 0;
             if (selectedIdx >= items.length) selectedIdx = items.length - 1;
-            const selectedTranslateY = -(selectedIdx + 1 - halfItemsLength) * itemHeight + (itemHeight / 2) + displayYOffset
+            const selectedTranslateY = -(selectedIdx + 1 - halfItemsLength) * itemHeight + (itemHeight / 2) + displayYOffset;
             translateY.value = withSpring(selectedTranslateY, {
                 stiffness: 175,
             });

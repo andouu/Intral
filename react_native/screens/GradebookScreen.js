@@ -26,7 +26,6 @@ import * as Keychain from 'react-native-keychain';
 
 const dummyGradeChanges  = require('../dummy data/dummyGradeChanges') // dummy data for grade changes (class analysis)
 
-let quarter = 1; // TODO
 const screenWidth = Dimensions.get('window').width;
 
 function* percentageLabel() {
@@ -70,7 +69,7 @@ const GradebookHomeScreen = () => {
         try {
             const credentials = await Keychain.getGenericPassword();
             if (!credentials) return;
-            let pull = await getGrades(credentials.username, credentials.password, quarter);  // pulls data from api asyncronously from api.js
+            let pull = await getGrades(credentials.username, credentials.password);  // pulls data from api asyncronously from api.js
             let difference = [];
             if (classes !== []) {
                 let storedClasses = await AsyncStorage.getItem('classes');

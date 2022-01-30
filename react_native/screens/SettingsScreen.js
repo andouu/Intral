@@ -1,11 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
+import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ThemeContext } from '../components/themeContext';
 import { AuthContext } from '../components/authContext';
-import { toRGBA } from '../components/utils';
+import { toRGBA, widthPctToDP } from '../components/utils';
 import { colorways } from '../components/themes';
 import { Card, PressableCard, DropdownSelectionCard } from '../components/card';
-import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons'
+import { gradeNotifRates } from '../components/notifs';
+import DiscreteSlider from '../components/DiscreteSlider';
 import {
     StyleSheet,
     View,
@@ -155,50 +157,56 @@ const FunctionsScreen = ({ navigation }) => {
     const themeData = themeContext.themeData;
     const theme = themeData.swatch;
 
-    const gradeNotifRateOptionsShortened = ['Max', 'Daily', 'Weekly'];
-    const gradeNotifRateOptions = ['Max (every grade refresh)', 'Daily (5pm)', 'Weekly (Saturday 5pm)'];
-    const gradeNotifRateDropdownHeight = gradeNotifRateOptions.length * settingCardHeight + settingCardHeight;
+    const gradeNotifRateDropdownHeight = gradeNotifRates.length * settingCardHeight + settingCardHeight;
 
-
-    /* FINISH UNFINISHED SETTINGS */
-
+    const [allowNotifs, setAllowNotifs] = useState(true);
+    const [gradeNotifRate, setGradeNotifRate] = useState(0);
 
     return (
         <View style={styles.container}>
             <Header theme={theme} navigation={navigation} type='back' />
             <View style={styles.main_container}>
-            <DividerHeader text='Notifications' theme={theme} />
+                <DividerHeader text='Notifications' theme={theme} />
                 <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
                     <Text style={[styles.settings_main_text, { color: theme.s4 }]}>Allow notifications:</Text>
                     <View style={[styles.settings_icon, { width: 50, top: themeData.cardOutlined ? 10 : 11.5, right: 12 }]}>
                         <Switch 
                             trackColor={{ false: theme.s11, true: theme.s10 }}
                             thumbColor={theme.s6}
-                            onValueChange={() => console.log('switched')}
-                            value={true} 
+                            onValueChange={() => setAllowNotifs(!allowNotifs)}
+                            value={allowNotifs} 
                         />
                     </View>
                 </Card>
-                <DropdownSelectionCard
+                <View style={{ width: '100%', alignItems: 'center' }}>
+                    <DiscreteSlider
+                        theme={theme}
+                        widthPixels={widthPctToDP('85%')}
+                        options={gradeNotifRates}
+                        curOptionIndex={gradeNotifRates.length - 1}
+                        onChange={(index) => {
+                            console.log("discrete slider slid to: " + gradeNotifRates[index]);
+                        }}
+                    />
+                </View>
+                {/* <DropdownSelectionCard
                     theme={theme}
                     name='Grade Notif Rate:'
                     outlined={themeData.cardOutlined}
                     containerStyle={{ marginBottom: 10 }}
                     heightCollapsed={settingCardHeight}
                     heightExpanded={gradeNotifRateDropdownHeight}
-                    shortenedOptionsList={gradeNotifRateOptionsShortened}
-                    optionsList={gradeNotifRateOptions}
+                    optionsList={gradeNotifRates}
                     selectOptionHeight={settingCardHeight}
                     initialSelectIndex={0}
                     onChange={(index) => {
                         
                     }}
-                />
-                
-                <DividerHeader text='Gradebook' theme={theme} />
-                <Card theme={theme} customStyle={styles.settings_card_switch} outlined={themeData.cardOutlined}>
-                    <Text style={[styles.settings_main_text, {color: theme.s4}]}>Grade refresh rate:</Text>
-                </Card>
+                /> */}
+
+                {/* planner notifications */}
+
+                {/* <DividerHeader text='Gradebook' theme={theme} /> */}
             </View>
         </View>
     );
@@ -225,7 +233,6 @@ const CosmeticsScreen = ({ navigation }) => {
                     containerStyle={{ marginBottom: 10 }}
                     heightCollapsed={settingCardHeight}
                     heightExpanded={colorwaysDropdownHeight}
-                    shortenedOptionsList={themeNames}
                     optionsList={themeNames}
                     selectOptionHeight={settingCardHeight}
                     initialSelectIndex={themeNames.indexOf(themeData.theme)}

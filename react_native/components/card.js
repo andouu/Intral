@@ -14,57 +14,51 @@ import Animated, {
 } from 'react-native-reanimated';
 import MaterialDesignIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-export const Card = ({ customStyle, outlined=false, children, animatedStyle, theme }) => {
-    const getStyle = () => {
-        return StyleSheet.create({
-            card: {
-                width: '100%',
-                height: 150,
-                justifyContent: 'center',
-                backgroundColor: outlined ? 'transparent' : theme.s2,
-                borderRadius: 25,
-                borderWidth: outlined ? 1.5 : 0,
-                borderColor: theme.s2,
-                marginBottom: 20,
-            },
-        });
+export const Card = ({ customStyle, outlined=false, children, theme }) => {
+    const style = {
+        card: {
+            width: '100%',
+            height: 150,
+            justifyContent: 'center',
+            backgroundColor: outlined ? 'transparent' : theme.s2,
+            borderRadius: 25,
+            borderWidth: outlined ? 1.5 : 0,
+            borderColor: theme.s2,
+            marginBottom: 20,
+        },
     }
-    const cardStyle = getStyle();
 
     return (
-        <Animated.View style={[cardStyle.card, customStyle, animatedStyle]}>
+        <View style={[ style.card, customStyle ]}>
             {children}
-        </Animated.View>
+        </View>
     );
 }
 
 export const PressableCard = ({ containerStyle, pressableStyle, outlined=false, children, onPress, animatedStyle, theme }) => {
-    const getStyle = () => {
-        return StyleSheet.create({
-            card: {
-                width: '100%',
-                height: 150,
-                backgroundColor: outlined ? 'transparent' : theme.s2,
-                borderRadius: 25,
-                borderWidth: outlined ? 1.5 : 0,
-                borderColor: theme.s2,
-                marginBottom: 20,
-            },
-            pressableCard_button: {
-                width: '100%', 
-                height: '100%',
-                borderRadius: 25,
-                justifyContent: 'center'
-            }
-        });
-    }
-    const cardStyle = getStyle();
+    const style = {
+        card: {
+            width: '100%',
+            height: 150,
+            backgroundColor: outlined ? 'transparent' : theme.s2,
+            borderRadius: 25,
+            borderWidth: outlined ? 1.5 : 0,
+            borderColor: theme.s2,
+            marginBottom: 20,
+        },
+        pressableCard_button: {
+            width: '100%', 
+            height: '100%',
+            borderRadius: 25,
+            justifyContent: 'center'
+        },
+    };
 
     return (
-        <Animated.View style={[cardStyle.card, containerStyle, animatedStyle]}>
+        <Animated.View style={[style.card, containerStyle, animatedStyle]}>
             <Pressable
                 style={({pressed}) => [
-                    cardStyle.pressableCard_button,
+                    style.pressableCard_button,
                     pressableStyle,
                     {backgroundColor: pressed ? toRGBA(theme.s2, 0.75) : 'transparent'}
                 ]}
@@ -131,7 +125,7 @@ export const DropdownCard = ({ theme, outlined, containerStyle={}, heightCollaps
     );
 }
 
-export const DropdownSelectionCard = ({ theme, name, outlined, containerStyle={}, heightCollapsed, heightExpanded, shortenedOptionsList, optionsList, initialSelectIndex=0, selectOptionHeight, onChange }) => {
+export const DropdownSelectionCard = ({ theme, name, outlined, containerStyle={}, heightCollapsed, heightExpanded, optionsList, initialSelectIndex=0, selectOptionHeight, onChange }) => {
     const [selectIndex, setSelectIndex] = useState(initialSelectIndex);
 
     return (
@@ -143,7 +137,7 @@ export const DropdownSelectionCard = ({ theme, name, outlined, containerStyle={}
             heightExpanded={heightExpanded}
             headerComponent={
                 <Text style={{ color: theme.s4, fontSize: 20, fontFamily: 'Proxima Nova Bold', }}>
-                    {name} <Text style={{ color: theme.s3 }}>{shortenedOptionsList[selectIndex]}</Text>
+                    {name} <Text style={{ color: theme.s3 }}>{optionsList[selectIndex]}</Text>
                 </Text>
             }
             contentComponent={
